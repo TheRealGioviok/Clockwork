@@ -1,0 +1,17 @@
+Value(v) = 3.14 and its dear friend, Parameter(w) = 2.71, grad = 0
+Parameter((v * w)) = 8.5094, grad = 0
+Parameter(((2.000000 * w) + ((v - w) / (w * w)))) = 5.47855, grad = 0
+and now, magic time:
+((2.000000 * w) + ((v - w) / (w * w))) val=5.47855 grad=0
+  (2.000000 * w) val=5.42 grad=1
+    w val=2.71 grad=1
+  ((v - w) / (w * w)) val=0.0585504 grad=1
+    (v - w) val=0.43 grad=1
+      w val=2.71 grad=1
+    (w * w) val=7.3441 grad=1
+      w val=2.71 grad=1
+      w val=2.71 grad=1
+
+Value(v) = 3.14 and its dear friend, Parameter(w) = 2.71, grad = 0
+Parameter((v * w)) = 8.5094, grad = 0
+Parameter(((2.000000 * w) + ((v - w) / (w * w)))) = 5.47855, grad = 1
