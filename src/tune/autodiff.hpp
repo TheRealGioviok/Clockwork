@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 #include <unordered_set>
-#include "../util/types.h"
+#include "../util/types.hpp"
 
 namespace Clockwork::Autograd {
 
