@@ -1,64 +1,100 @@
-import torch
 import random
-torch.manual_seed(47)
-random.seed(47)
-def run_test(a_val, b_val, expr, expr_label):
-    a = torch.tensor(a_val, dtype=torch.float64, requires_grad=True)
-    b = torch.tensor(b_val, dtype=torch.float64, requires_grad=True)
+import torch
 
-    z = eval(expr)
-    z.backward()
+random.seed(42)
+
+VAR_NAMES = ["a", "b", "c", "d"]
+OPERATORS = ["+", "-", "*", "/"]
+
+def safe_div_expr(lhs, rhs):
+    if lhs == rhs:
+        rhs += " + 1.0"
+    return f"({lhs}) / ({rhs})"
+
+def random_expr(depth=0):
+    if depth > 2:
+        return random.choice(VAR_NAMES)
+    if random.random() < 0.3:
+        return random.choice(VAR_NAMES)
+    op = random.choice(OPERATORS)
+    left = random_expr(depth + 1)
+    right = random_expr(depth + 1)
+    if op == "/":
+        return safe_div_expr(left, right)
+    return f"({left} {op} {right})"
+
+def evaluate_expr(expr_str):
+    a = torch.tensor(1.5, requires_grad=True)
+    b = torch.tensor(-2.0, requires_grad=True)
+    c = torch.tensor(0.75, requires_grad=True)
+    d = torch.tensor(4.0, requires_grad=True)
+
+    result = eval(expr_str)
+    result.backward()
+
+    def grad_or_zero(x):
+        return x.grad.item() if x.grad is not None else 0.0
 
     return {
-        "label": expr_label,
-        "expr": expr,
-        "cpp_expr": expr.replace("**2", " * ").replace("a", "a").replace("b", "b"),  # placeholder
-        "a": float(a.item()),
-        "b": float(b.item()),
-        "z": float(z.item()),
-        "grad_a": float(a.grad.item()),
-        "grad_b": float(b.grad.item())
+        "value": result.item(),
+        "a": grad_or_zero(a),
+        "b": grad_or_zero(b),
+        "c": grad_or_zero(c),
+        "d": grad_or_zero(d)
     }
 
-test_exprs = [
-    ("a + b", "a + b"),
-    ("a * b", "a * b"),
-    ("a - b", "a - b"),
-    ("a / b", "a / b"),
-    ("a * a + b * b", "a² + b²"),
-    ("(a + b) * (a - b)", "(a + b)(a - b)"),
-    ("(a + b)**2", "(a + b)²"),
-    ("(a - b)**2 + a / b", "(a - b)² + a/b")
-]
 
-cases = []
-for _ in range(5):
-    a_val = random.uniform(0.5, 5.0)
-    b_val = random.uniform(0.5, 5.0)
-    for expr, label in test_exprs:
-        result = run_test(a_val, b_val, expr, label)
-        result["cpp_expr"] = expr.replace("**2", "*").replace("a", "a").replace("b", "b")
-        result["cpp_expr"] = expr.replace("**2", "*").replace("a", "a").replace("b", "b")
-        cases.append(result)
-
-# Dump to C++ code
-for i, case in enumerate(cases):
-    print(f"""// Test {i}: {case["label"]}
-{{
+def generate_test_case(idx, expr_str, expected):
+    return f"""
+void test_{idx}() {{
     using namespace Clockwork::Autograd;
-    Parameter a({case["a"]}, "a");
-    Parameter b({case["b"]}, "b");
+    Parameter a(1.5, "a");
+    Parameter b(-2.0, "b");
+    Parameter c(0.75, "c");
+    Parameter d(4.0, "d");
 
-    auto z = {case["expr"]};
-    z.backward();
+    auto t = {expr_str};
+    t.backward();
 
-    std::cout << "Test {i}: {case['label']}\\n";
-    std::cout << "  z = " << z.get() << " (expected {case['z']})\\n";
-    std::cout << "  a.grad = " << a.grad() << " (expected {case['grad_a']})\\n";
-    std::cout << "  b.grad = " << b.grad() << " (expected {case['grad_b']})\\n";
+    auto expect_close = [](double actual, double expected, const char* label) {{
+        if (std::abs(actual - expected) > 1e-6) {{
+            std::cerr << "Test {idx} failed: " << label << " mismatch. Got " << actual << ", expected " << expected << "\\n";
+            std::exit(1);
+        }}
+    }};
 
-    assert(std::abs(z.get() - {case['z']}) < 1e-6);
-    assert(std::abs(a.grad() - {case['grad_a']}) < 1e-6);
-    assert(std::abs(b.grad() - {case['grad_b']}) < 1e-6);
+    expect_close(t.get(), {expected['value']}, "value");
+    expect_close(a.grad(), {expected['a']}, "a.grad");
+    expect_close(b.grad(), {expected['b']}, "b.grad");
+    expect_close(c.grad(), {expected['c']}, "c.grad");
+    expect_close(d.grad(), {expected['d']}, "d.grad");
 }}
-""")
+"""
+
+def generate_cpp_tests(filename="generated_autodiff_tests.cpp", num_tests=20):
+    header = """
+#include "../../src/tune/autodiff.hpp"
+#include <cmath>
+#include <iostream>
+#include <cstdlib>
+"""
+
+    tests = ""
+    main_calls = "int main() {\n"
+
+    for idx in range(num_tests):
+        expr = random_expr()
+        torch_expr = expr.replace("/", "/")  # identity, but just for clarity
+        expected = evaluate_expr(torch_expr)
+        tests += generate_test_case(idx, expr, expected)
+        main_calls += f"    test_{idx}();\n"
+
+    main_calls += '    std::cout << "All tests passed!\\n";\n    return 0;\n}'
+
+    with open(filename, "w") as f:
+        f.write(header + tests + "\n" + main_calls)
+
+    print(f"✅ Generated {num_tests} tests in {filename}")
+
+if __name__ == "__main__":
+    generate_cpp_tests()
