@@ -94,7 +94,7 @@ def generate_cpp_tests(filename="generated_autodiff_tests.cpp", num_tests=20):
     with open(filename, "w") as f:
         f.write(header + tests + "\n" + main_calls)
 
-    print(f"✅ Generated {num_tests} tests in {filename}")
+    print(f"Generated {num_tests} tests in {filename}")
 
 if __name__ == "__main__":
     generate_cpp_tests()
