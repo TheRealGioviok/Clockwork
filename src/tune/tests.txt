@@ -1,0 +1,759 @@
+// Test 0: a + b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.083308151225472, "a");
+    Parameter b(2.4358381069554413, "b");
+
+    auto z = a + b;
+    z.backward();
+
+    std::cout << "Test 0: a + b\n";
+    std::cout << "  z = " << z.get() << " (expected 4.519146258180913)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 1.0)\n";
+
+    assert(std::abs(z.get() - 4.519146258180913) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - 1.0) < 1e-6);
+}
+
+// Test 1: a * b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.083308151225472, "a");
+    Parameter b(2.4358381069554413, "b");
+
+    auto z = a * b;
+    z.backward();
+
+    std::cout << "Test 1: a * b\n";
+    std::cout << "  z = " << z.get() << " (expected 5.074601383285894)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 2.4358381069554413)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 2.083308151225472)\n";
+
+    assert(std::abs(z.get() - 5.074601383285894) < 1e-6);
+    assert(std::abs(a.grad() - 2.4358381069554413) < 1e-6);
+    assert(std::abs(b.grad() - 2.083308151225472) < 1e-6);
+}
+
+// Test 2: a - b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.083308151225472, "a");
+    Parameter b(2.4358381069554413, "b");
+
+    auto z = a - b;
+    z.backward();
+
+    std::cout << "Test 2: a - b\n";
+    std::cout << "  z = " << z.get() << " (expected -0.3525299557299695)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -1.0)\n";
+
+    assert(std::abs(z.get() - -0.3525299557299695) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - -1.0) < 1e-6);
+}
+
+// Test 3: a / b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.083308151225472, "a");
+    Parameter b(2.4358381069554413, "b");
+
+    auto z = a / b;
+    z.backward();
+
+    std::cout << "Test 3: a / b\n";
+    std::cout << "  z = " << z.get() << " (expected 0.8552736511004841)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 0.4105363148497179)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -0.3511208929108562)\n";
+
+    assert(std::abs(z.get() - 0.8552736511004841) < 1e-6);
+    assert(std::abs(a.grad() - 0.4105363148497179) < 1e-6);
+    assert(std::abs(b.grad() - -0.3511208929108562) < 1e-6);
+}
+
+// Test 4: a² + b²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.083308151225472, "a");
+    Parameter b(2.4358381069554413, "b");
+
+    auto z = a * a + b * b;
+    z.backward();
+
+    std::cout << "Test 4: a² + b²\n";
+    std::cout << "  z = " << z.get() << " (expected 10.273480136258762)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 4.166616302450944)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 4.871676213910883)\n";
+
+    assert(std::abs(z.get() - 10.273480136258762) < 1e-6);
+    assert(std::abs(a.grad() - 4.166616302450944) < 1e-6);
+    assert(std::abs(b.grad() - 4.871676213910883) < 1e-6);
+}
+
+// Test 5: (a + b)(a - b)
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.083308151225472, "a");
+    Parameter b(2.4358381069554413, "b");
+
+    auto z = (a + b) * (a - b);
+    z.backward();
+
+    std::cout << "Test 5: (a + b)(a - b)\n";
+    std::cout << "  z = " << z.get() << " (expected -1.5931344303337747)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 4.166616302450944)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -4.871676213910883)\n";
+
+    assert(std::abs(z.get() - -1.5931344303337747) < 1e-6);
+    assert(std::abs(a.grad() - 4.166616302450944) < 1e-6);
+    assert(std::abs(b.grad() - -4.871676213910883) < 1e-6);
+}
+
+// Test 6: (a + b)²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.083308151225472, "a");
+    Parameter b(2.4358381069554413, "b");
+
+    auto z = (a + b)**2;
+    z.backward();
+
+    std::cout << "Test 6: (a + b)²\n";
+    std::cout << "  z = " << z.get() << " (expected 20.422682902830548)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 9.038292516361826)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 9.038292516361826)\n";
+
+    assert(std::abs(z.get() - 20.422682902830548) < 1e-6);
+    assert(std::abs(a.grad() - 9.038292516361826) < 1e-6);
+    assert(std::abs(b.grad() - 9.038292516361826) < 1e-6);
+}
+
+// Test 7: (a - b)² + a/b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.083308151225472, "a");
+    Parameter b(2.4358381069554413, "b");
+
+    auto z = (a - b)**2 + a / b;
+    z.backward();
+
+    std::cout << "Test 7: (a - b)² + a/b\n";
+    std::cout << "  z = " << z.get() << " (expected 0.9795510207874584)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected -0.29452359661022104)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 0.3539390185490828)\n";
+
+    assert(std::abs(z.get() - 0.9795510207874584) < 1e-6);
+    assert(std::abs(a.grad() - -0.29452359661022104) < 1e-6);
+    assert(std::abs(b.grad() - 0.3539390185490828) < 1e-6);
+}
+
+// Test 8: a + b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.5415188861530837, "a");
+    Parameter b(2.0456138339521397, "b");
+
+    auto z = a + b;
+    z.backward();
+
+    std::cout << "Test 8: a + b\n";
+    std::cout << "  z = " << z.get() << " (expected 4.587132720105224)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 1.0)\n";
+
+    assert(std::abs(z.get() - 4.587132720105224) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - 1.0) < 1e-6);
+}
+
+// Test 9: a * b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.5415188861530837, "a");
+    Parameter b(2.0456138339521397, "b");
+
+    auto z = a * b;
+    z.backward();
+
+    std::cout << "Test 9: a * b\n";
+    std::cout << "  z = " << z.get() << " (expected 5.198966192765381)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 2.0456138339521397)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 2.5415188861530837)\n";
+
+    assert(std::abs(z.get() - 5.198966192765381) < 1e-6);
+    assert(std::abs(a.grad() - 2.0456138339521397) < 1e-6);
+    assert(std::abs(b.grad() - 2.5415188861530837) < 1e-6);
+}
+
+// Test 10: a - b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.5415188861530837, "a");
+    Parameter b(2.0456138339521397, "b");
+
+    auto z = a - b;
+    z.backward();
+
+    std::cout << "Test 10: a - b\n";
+    std::cout << "  z = " << z.get() << " (expected 0.49590505220094405)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -1.0)\n";
+
+    assert(std::abs(z.get() - 0.49590505220094405) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - -1.0) < 1e-6);
+}
+
+// Test 11: a / b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.5415188861530837, "a");
+    Parameter b(2.0456138339521397, "b");
+
+    auto z = a / b;
+    z.backward();
+
+    std::cout << "Test 11: a / b\n";
+    std::cout << "  z = " << z.get() << " (expected 1.2424235913788537)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 0.4888508199360352)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -0.6073597913534262)\n";
+
+    assert(std::abs(z.get() - 1.2424235913788537) < 1e-6);
+    assert(std::abs(a.grad() - 0.4888508199360352) < 1e-6);
+    assert(std::abs(b.grad() - -0.6073597913534262) < 1e-6);
+}
+
+// Test 12: a² + b²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.5415188861530837, "a");
+    Parameter b(2.0456138339521397, "b");
+
+    auto z = a * a + b * b;
+    z.backward();
+
+    std::cout << "Test 12: a² + b²\n";
+    std::cout << "  z = " << z.get() << " (expected 10.643854206329184)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 5.0830377723061675)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 4.091227667904279)\n";
+
+    assert(std::abs(z.get() - 10.643854206329184) < 1e-6);
+    assert(std::abs(a.grad() - 5.0830377723061675) < 1e-6);
+    assert(std::abs(b.grad() - 4.091227667904279) < 1e-6);
+}
+
+// Test 13: (a + b)(a - b)
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.5415188861530837, "a");
+    Parameter b(2.0456138339521397, "b");
+
+    auto z = (a + b) * (a - b);
+    z.backward();
+
+    std::cout << "Test 13: (a + b)(a - b)\n";
+    std::cout << "  z = " << z.get() << " (expected 2.2747822910164395)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 5.083037772306168)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -4.091227667904279)\n";
+
+    assert(std::abs(z.get() - 2.2747822910164395) < 1e-6);
+    assert(std::abs(a.grad() - 5.083037772306168) < 1e-6);
+    assert(std::abs(b.grad() - -4.091227667904279) < 1e-6);
+}
+
+// Test 14: (a + b)²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.5415188861530837, "a");
+    Parameter b(2.0456138339521397, "b");
+
+    auto z = (a + b)**2;
+    z.backward();
+
+    std::cout << "Test 14: (a + b)²\n";
+    std::cout << "  z = " << z.get() << " (expected 21.04178659185995)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 9.174265440210448)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 9.174265440210448)\n";
+
+    assert(std::abs(z.get() - 21.04178659185995) < 1e-6);
+    assert(std::abs(a.grad() - 9.174265440210448) < 1e-6);
+    assert(std::abs(b.grad() - 9.174265440210448) < 1e-6);
+}
+
+// Test 15: (a - b)² + a/b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.5415188861530837, "a");
+    Parameter b(2.0456138339521397, "b");
+
+    auto z = (a - b)**2 + a / b;
+    z.backward();
+
+    std::cout << "Test 15: (a - b)² + a/b\n";
+    std::cout << "  z = " << z.get() << " (expected 1.4883454121772748)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.4806609243379234)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -1.5991698957553142)\n";
+
+    assert(std::abs(z.get() - 1.4883454121772748) < 1e-6);
+    assert(std::abs(a.grad() - 1.4806609243379234) < 1e-6);
+    assert(std::abs(b.grad() - -1.5991698957553142) < 1e-6);
+}
+
+// Test 16: a + b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.8059996421598403, "a");
+    Parameter b(2.2658693065496234, "b");
+
+    auto z = a + b;
+    z.backward();
+
+    std::cout << "Test 16: a + b\n";
+    std::cout << "  z = " << z.get() << " (expected 5.071868948709463)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 1.0)\n";
+
+    assert(std::abs(z.get() - 5.071868948709463) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - 1.0) < 1e-6);
+}
+
+// Test 17: a * b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.8059996421598403, "a");
+    Parameter b(2.2658693065496234, "b");
+
+    auto z = a * b;
+    z.backward();
+
+    std::cout << "Test 17: a * b\n";
+    std::cout << "  z = " << z.get() << " (expected 6.358028463359209)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 2.2658693065496234)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 2.8059996421598403)\n";
+
+    assert(std::abs(z.get() - 6.358028463359209) < 1e-6);
+    assert(std::abs(a.grad() - 2.2658693065496234) < 1e-6);
+    assert(std::abs(b.grad() - 2.8059996421598403) < 1e-6);
+}
+
+// Test 18: a - b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.8059996421598403, "a");
+    Parameter b(2.2658693065496234, "b");
+
+    auto z = a - b;
+    z.backward();
+
+    std::cout << "Test 18: a - b\n";
+    std::cout << "  z = " << z.get() << " (expected 0.540130335610217)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -1.0)\n";
+
+    assert(std::abs(z.get() - 0.540130335610217) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - -1.0) < 1e-6);
+}
+
+// Test 19: a / b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.8059996421598403, "a");
+    Parameter b(2.2658693065496234, "b");
+
+    auto z = a / b;
+    z.backward();
+
+    std::cout << "Test 19: a / b\n";
+    std::cout << "  z = " << z.get() << " (expected 1.2383766504312228)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 0.4413317207260999)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -0.5465348980418354)\n";
+
+    assert(std::abs(z.get() - 1.2383766504312228) < 1e-6);
+    assert(std::abs(a.grad() - 0.4413317207260999) < 1e-6);
+    assert(std::abs(b.grad() - -0.5465348980418354) < 1e-6);
+}
+
+// Test 20: a² + b²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.8059996421598403, "a");
+    Parameter b(2.2658693065496234, "b");
+
+    auto z = a * a + b * b;
+    z.backward();
+
+    std::cout << "Test 20: a² + b²\n";
+    std::cout << "  z = " << z.get() << " (expected 13.007797706164823)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 5.611999284319681)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 4.531738613099247)\n";
+
+    assert(std::abs(z.get() - 13.007797706164823) < 1e-6);
+    assert(std::abs(a.grad() - 5.611999284319681) < 1e-6);
+    assert(std::abs(b.grad() - 4.531738613099247) < 1e-6);
+}
+
+// Test 21: (a + b)(a - b)
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.8059996421598403, "a");
+    Parameter b(2.2658693065496234, "b");
+
+    auto z = (a + b) * (a - b);
+    z.backward();
+
+    std::cout << "Test 21: (a + b)(a - b)\n";
+    std::cout << "  z = " << z.get() << " (expected 2.7394702774374804)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 5.61199928431968)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -4.531738613099247)\n";
+
+    assert(std::abs(z.get() - 2.7394702774374804) < 1e-6);
+    assert(std::abs(a.grad() - 5.61199928431968) < 1e-6);
+    assert(std::abs(b.grad() - -4.531738613099247) < 1e-6);
+}
+
+// Test 22: (a + b)²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.8059996421598403, "a");
+    Parameter b(2.2658693065496234, "b");
+
+    auto z = (a + b)**2;
+    z.backward();
+
+    std::cout << "Test 22: (a + b)²\n";
+    std::cout << "  z = " << z.get() << " (expected 25.723854632883235)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 10.143737897418927)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 10.143737897418927)\n";
+
+    assert(std::abs(z.get() - 25.723854632883235) < 1e-6);
+    assert(std::abs(a.grad() - 10.143737897418927) < 1e-6);
+    assert(std::abs(b.grad() - 10.143737897418927) < 1e-6);
+}
+
+// Test 23: (a - b)² + a/b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(2.8059996421598403, "a");
+    Parameter b(2.2658693065496234, "b");
+
+    auto z = (a - b)**2 + a / b;
+    z.backward();
+
+    std::cout << "Test 23: (a - b)² + a/b\n";
+    std::cout << "  z = " << z.get() << " (expected 1.5301174298776283)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.5215923919465337)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -1.6267955692622693)\n";
+
+    assert(std::abs(z.get() - 1.5301174298776283) < 1e-6);
+    assert(std::abs(a.grad() - 1.5215923919465337) < 1e-6);
+    assert(std::abs(b.grad() - -1.6267955692622693) < 1e-6);
+}
+
+// Test 24: a + b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6840892514427918, "a");
+    Parameter b(2.38339673328266, "b");
+
+    auto z = a + b;
+    z.backward();
+
+    std::cout << "Test 24: a + b\n";
+    std::cout << "  z = " << z.get() << " (expected 3.067485984725452)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 1.0)\n";
+
+    assert(std::abs(z.get() - 3.067485984725452) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - 1.0) < 1e-6);
+}
+
+// Test 25: a * b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6840892514427918, "a");
+    Parameter b(2.38339673328266, "b");
+
+    auto z = a * b;
+    z.backward();
+
+    std::cout << "Test 25: a * b\n";
+    std::cout << "  z = " << z.get() << " (expected 1.6304560871625302)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 2.38339673328266)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 0.6840892514427918)\n";
+
+    assert(std::abs(z.get() - 1.6304560871625302) < 1e-6);
+    assert(std::abs(a.grad() - 2.38339673328266) < 1e-6);
+    assert(std::abs(b.grad() - 0.6840892514427918) < 1e-6);
+}
+
+// Test 26: a - b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6840892514427918, "a");
+    Parameter b(2.38339673328266, "b");
+
+    auto z = a - b;
+    z.backward();
+
+    std::cout << "Test 26: a - b\n";
+    std::cout << "  z = " << z.get() << " (expected -1.6993074818398686)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -1.0)\n";
+
+    assert(std::abs(z.get() - -1.6993074818398686) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - -1.0) < 1e-6);
+}
+
+// Test 27: a / b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6840892514427918, "a");
+    Parameter b(2.38339673328266, "b");
+
+    auto z = a / b;
+    z.backward();
+
+    std::cout << "Test 27: a / b\n";
+    std::cout << "  z = " << z.get() << " (expected 0.2870228199484831)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 0.41956925846025506)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -0.12042595172695636)\n";
+
+    assert(std::abs(z.get() - 0.2870228199484831) < 1e-6);
+    assert(std::abs(a.grad() - 0.41956925846025506) < 1e-6);
+    assert(std::abs(b.grad() - -0.12042595172695636) < 1e-6);
+}
+
+// Test 28: a² + b²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6840892514427918, "a");
+    Parameter b(2.38339673328266, "b");
+
+    auto z = a * a + b * b;
+    z.backward();
+
+    std::cout << "Test 28: a² + b²\n";
+    std::cout << "  z = " << z.get() << " (expected 6.148558092162016)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.3681785028855835)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 4.76679346656532)\n";
+
+    assert(std::abs(z.get() - 6.148558092162016) < 1e-6);
+    assert(std::abs(a.grad() - 1.3681785028855835) < 1e-6);
+    assert(std::abs(b.grad() - 4.76679346656532) < 1e-6);
+}
+
+// Test 29: (a + b)(a - b)
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6840892514427918, "a");
+    Parameter b(2.38339673328266, "b");
+
+    auto z = (a + b) * (a - b);
+    z.backward();
+
+    std::cout << "Test 29: (a + b)(a - b)\n";
+    std::cout << "  z = " << z.get() << " (expected -5.212601884282897)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.3681785028855833)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -4.76679346656532)\n";
+
+    assert(std::abs(z.get() - -5.212601884282897) < 1e-6);
+    assert(std::abs(a.grad() - 1.3681785028855833) < 1e-6);
+    assert(std::abs(b.grad() - -4.76679346656532) < 1e-6);
+}
+
+// Test 30: (a + b)²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6840892514427918, "a");
+    Parameter b(2.38339673328266, "b");
+
+    auto z = (a + b)**2;
+    z.backward();
+
+    std::cout << "Test 30: (a + b)²\n";
+    std::cout << "  z = " << z.get() << " (expected 9.409470266487075)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 6.134971969450904)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 6.134971969450904)\n";
+
+    assert(std::abs(z.get() - 9.409470266487075) < 1e-6);
+    assert(std::abs(a.grad() - 6.134971969450904) < 1e-6);
+    assert(std::abs(b.grad() - 6.134971969450904) < 1e-6);
+}
+
+// Test 31: (a - b)² + a/b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6840892514427918, "a");
+    Parameter b(2.38339673328266, "b");
+
+    auto z = (a - b)**2 + a / b;
+    z.backward();
+
+    std::cout << "Test 31: (a - b)² + a/b\n";
+    std::cout << "  z = " << z.get() << " (expected 3.1746687377854386)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected -2.979045705219482)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 3.278189011952781)\n";
+
+    assert(std::abs(z.get() - 3.1746687377854386) < 1e-6);
+    assert(std::abs(a.grad() - -2.979045705219482) < 1e-6);
+    assert(std::abs(b.grad() - 3.278189011952781) < 1e-6);
+}
+
+// Test 32: a + b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6064693801712133, "a");
+    Parameter b(0.9610513113649135, "b");
+
+    auto z = a + b;
+    z.backward();
+
+    std::cout << "Test 32: a + b\n";
+    std::cout << "  z = " << z.get() << " (expected 1.5675206915361268)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 1.0)\n";
+
+    assert(std::abs(z.get() - 1.5675206915361268) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - 1.0) < 1e-6);
+}
+
+// Test 33: a * b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6064693801712133, "a");
+    Parameter b(0.9610513113649135, "b");
+
+    auto z = a * b;
+    z.backward();
+
+    std::cout << "Test 33: a * b\n";
+    std::cout << "  z = " << z.get() << " (expected 0.5828481931162108)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 0.9610513113649135)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 0.6064693801712133)\n";
+
+    assert(std::abs(z.get() - 0.5828481931162108) < 1e-6);
+    assert(std::abs(a.grad() - 0.9610513113649135) < 1e-6);
+    assert(std::abs(b.grad() - 0.6064693801712133) < 1e-6);
+}
+
+// Test 34: a - b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6064693801712133, "a");
+    Parameter b(0.9610513113649135, "b");
+
+    auto z = a - b;
+    z.backward();
+
+    std::cout << "Test 34: a - b\n";
+    std::cout << "  z = " << z.get() << " (expected -0.3545819311937002)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -1.0)\n";
+
+    assert(std::abs(z.get() - -0.3545819311937002) < 1e-6);
+    assert(std::abs(a.grad() - 1.0) < 1e-6);
+    assert(std::abs(b.grad() - -1.0) < 1e-6);
+}
+
+// Test 35: a / b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6064693801712133, "a");
+    Parameter b(0.9610513113649135, "b");
+
+    auto z = a / b;
+    z.backward();
+
+    std::cout << "Test 35: a / b\n";
+    std::cout << "  z = " << z.get() << " (expected 0.6310478670591351)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.0405271687104516)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -0.6566224504318112)\n";
+
+    assert(std::abs(z.get() - 0.6310478670591351) < 1e-6);
+    assert(std::abs(a.grad() - 1.0405271687104516) < 1e-6);
+    assert(std::abs(b.grad() - -0.6566224504318112) < 1e-6);
+}
+
+// Test 36: a² + b²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6064693801712133, "a");
+    Parameter b(0.9610513113649135, "b");
+
+    auto z = a * a + b * b;
+    z.backward();
+
+    std::cout << "Test 36: a² + b²\n";
+    std::cout << "  z = " << z.get() << " (expected 1.2914247321614756)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.2129387603424266)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 1.922102622729827)\n";
+
+    assert(std::abs(z.get() - 1.2914247321614756) < 1e-6);
+    assert(std::abs(a.grad() - 1.2129387603424266) < 1e-6);
+    assert(std::abs(b.grad() - 1.922102622729827) < 1e-6);
+}
+
+// Test 37: (a + b)(a - b)
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6064693801712133, "a");
+    Parameter b(0.9610513113649135, "b");
+
+    auto z = (a + b) * (a - b);
+    z.backward();
+
+    std::cout << "Test 37: (a + b)(a - b)\n";
+    std::cout << "  z = " << z.get() << " (expected -0.5558145139909643)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 1.2129387603424266)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected -1.922102622729827)\n";
+
+    assert(std::abs(z.get() - -0.5558145139909643) < 1e-6);
+    assert(std::abs(a.grad() - 1.2129387603424266) < 1e-6);
+    assert(std::abs(b.grad() - -1.922102622729827) < 1e-6);
+}
+
+// Test 38: (a + b)²
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6064693801712133, "a");
+    Parameter b(0.9610513113649135, "b");
+
+    auto z = (a + b)**2;
+    z.backward();
+
+    std::cout << "Test 38: (a + b)²\n";
+    std::cout << "  z = " << z.get() << " (expected 2.4571211183938972)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 3.1350413830722537)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 3.1350413830722537)\n";
+
+    assert(std::abs(z.get() - 2.4571211183938972) < 1e-6);
+    assert(std::abs(a.grad() - 3.1350413830722537) < 1e-6);
+    assert(std::abs(b.grad() - 3.1350413830722537) < 1e-6);
+}
+
+// Test 39: (a - b)² + a/b
+{
+    using namespace Clockwork::Autograd;
+    Parameter a(0.6064693801712133, "a");
+    Parameter b(0.9610513113649135, "b");
+
+    auto z = (a - b)**2 + a / b;
+    z.backward();
+
+    std::cout << "Test 39: (a - b)² + a/b\n";
+    std::cout << "  z = " << z.get() << " (expected 0.756776212988189)\n";
+    std::cout << "  a.grad = " << a.grad() << " (expected 0.3313633063230512)\n";
+    std::cout << "  b.grad = " << b.grad() << " (expected 0.052541411955589146)\n";
+
+    assert(std::abs(z.get() - 0.756776212988189) < 1e-6);
+    assert(std::abs(a.grad() - 0.3313633063230512) < 1e-6);
+    assert(std::abs(b.grad() - 0.052541411955589146) < 1e-6);
+}
