@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
         {3.0, 6.0}
     };
 
-    for (int epoch = 0; epoch < 100; ++epoch) {
+    for (int epoch = 0; epoch < 500; ++epoch) {
         double total_loss = 0.0;
         optimizer.zeroGrad();
 
