@@ -39,4 +39,4 @@ build-debug/
 
 # IDEs
 .idea/*
-src/tune/generated_autodiff_tests.cpp
+#src/tune/generated_autodiff_tests.cpp
