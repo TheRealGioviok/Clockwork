@@ -73,7 +73,7 @@ void test_{idx}() {{
 
 def generate_cpp_tests(filename="generated_autodiff_tests.cpp", num_tests=20):
     header = """
-#include "../../src/tune/autodiff.hpp"
+#include "../src/tune/autodiff.hpp"
 #include <cmath>
 #include <iostream>
 #include <cstdlib>
