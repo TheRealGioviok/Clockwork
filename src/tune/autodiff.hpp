@@ -386,4 +386,45 @@ inline void printGraph(const Parameter& param,
     }
 }
 
+class SGD {
+    public:
+        std::vector<Clockwork::Autograd::Parameter*> params;
+        std::unordered_map<Clockwork::Autograd::Node*, double> velocities;
+        double lr;
+        double momentum;
+    
+        SGD(std::vector<Clockwork::Autograd::Parameter*>& parameters,
+            double learning_rate = 0.01, double momentum_coeff = 0.9)
+            : params(parameters), lr(learning_rate), momentum(momentum_coeff) {
+            for (auto* param : params) {
+                velocities[param->getNode().get()] = 0.0;
+            }
+        }
+    
+        void step() {
+            for (auto* param : params) {
+                if (param->requiresGrad()) {
+                    auto* node = param->getNode().get();
+                    double& v = velocities[node];
+                    v = momentum * v - lr * param->grad(); // Update velocity
+                    node->data += v; // Apply update
+                }
+            }
+        }
+    
+        void zeroGrad() {
+            for (auto* param : params) {
+                param->zeroGrad();
+            }
+        }
+    };
+    
+
+Parameter MSE(const Parameter& prediction, const Parameter& target) {
+    auto diff = prediction - target;
+    return diff * diff; // Mean squared error (MSE)
+}
+
+    
+
 } // namespace Clockwork::Autograd
