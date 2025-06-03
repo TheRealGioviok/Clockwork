@@ -37,4 +37,4 @@ constexpr char piece_char(PieceType piece) {
     }
 }
 
-}
+}  // namespace Clockwork

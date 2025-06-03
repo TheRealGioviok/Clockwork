@@ -75,4 +75,4 @@ void UCIHandler::handle_position(std::istringstream& is) {
     }
 }
 
-}
+}  // namespace Clockwork::UCI

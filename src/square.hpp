@@ -48,4 +48,4 @@ struct Square {
     }
 };
 
-}
+}  // namespace Clockwork

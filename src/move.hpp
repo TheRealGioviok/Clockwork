@@ -78,4 +78,4 @@ struct Move {
     }
 };
 
-}
+}  // namespace Clockwork
