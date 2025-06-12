@@ -174,16 +174,18 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
 
         // Search first move at full window
         if (moves_searched == 1) {
+            // First move: search with full window
             value = -search(pos_after, ss + 1, -beta, -alpha, depth - 1, ply + 1);
-        }
-        // Search subsequent moves with zws
-        else {
+        } else {
+            // Search with zero window (null-window search)
             value = -search(pos_after, ss + 1, -alpha - 1, -alpha, depth - 1, ply + 1);
-            // Full search if we get value above alpha
-            if (value > alpha && PV_NODE) {
+        
+            // If it failed high, do a full re-search
+            if (PV_NODE && value > alpha && value < beta) {
                 value = -search(pos_after, ss + 1, -beta, -alpha, depth - 1, ply + 1);
             }
         }
+        
 
         // TODO: encapsulate this and any other future adjustment to do "on going back" into a proper function
         m_repetition_info.pop();
