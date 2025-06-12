@@ -117,8 +117,6 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
 
     const bool ROOT_NODE = ply == 0;
 
-    // TODO: search nodes limit condition here
-    // ...
     search_nodes++;
 
     // Draw checks
