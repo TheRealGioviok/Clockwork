@@ -116,7 +116,7 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
     }
 
     const bool ROOT_NODE = ply == 0;
-    const bool PV_NODE = beta - alpha == 1;
+    const bool PV_NODE = (beta - alpha) > 1;
 
     search_nodes++;
 
@@ -181,7 +181,7 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
             value = -search(pos_after, ss + 1, -alpha - 1, -alpha, depth - 1, ply + 1);
         
             // If it failed high, do a full re-search
-            if (PV_NODE && value > alpha && value < beta) {
+            if (PV_NODE && value > alpha) {
                 value = -search(pos_after, ss + 1, -beta, -alpha, depth - 1, ply + 1);
             }
         }
