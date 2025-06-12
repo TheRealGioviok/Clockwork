@@ -157,8 +157,9 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
     auto tt_data = m_tt.probe(pos);
 
     MovePicker moves{pos, tt_data ? tt_data->move : Move::none()};
-    Move       best_move  = Move::none();
-    Value      best_value = -VALUE_INF;
+    Move       best_move      = Move::none();
+    Value      best_value     = -VALUE_INF;
+    i32        moves_searched = 0;
 
     // Iterate over the move list
     for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
