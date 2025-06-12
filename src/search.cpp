@@ -116,6 +116,7 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
     }
 
     const bool ROOT_NODE = ply == 0;
+    const bool PV_NODE = beta - alpha == 1;
 
     search_nodes++;
 
@@ -179,7 +180,7 @@ Value Worker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth de
         else {
             value = -search(pos_after, ss + 1, -alpha - 1, -alpha, depth - 1, ply + 1);
             // Full search if we get value above alpha
-            if (value > alpha) {
+            if (value > alpha && PV_NODE) {
                 value = -search(pos_after, ss + 1, -beta, -alpha, depth - 1, ply + 1);
             }
         }
@@ -273,20 +274,7 @@ Value Worker::quiesce(Position& pos, Stack* ss, Value alpha, Value beta, i32 ply
         // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
         m_repetition_info.push(pos_after.get_hash_key(), pos_after.is_reversible(m));
 
-        Value value;
-
-        // Search first move at full window
-        if (moves_searched == 1) {
-            value = -quiesce(pos_after, ss + 1, -beta, -alpha, ply + 1);
-        }
-        // Search subsequent moves with zws
-        else {
-            value = -quiesce(pos_after, ss + 1, -alpha - 1, -alpha, ply + 1);
-            // Full search if we get value above alpha
-            if (value > alpha) {
-                value = -quiesce(pos_after, ss + 1, -beta, -alpha, ply + 1);
-            }
-        }
+        Value value = -quiesce(pos_after, ss + 1, -beta, -alpha, ply + 1);
 
         // TODO: encapsulate this and any other future adjustment to do "on going back" into a proper function
         m_repetition_info.pop();
