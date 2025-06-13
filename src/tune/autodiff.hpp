@@ -29,7 +29,7 @@ public:
     Node(f64 data, std::optional<std::string> n, bool requires_grad) :
         m_data(data),
         m_requires_grad(requires_grad),
-        name(std::move(n)){
+        name(std::move(n)) {
     }
 
     f64 get() const {
@@ -41,11 +41,11 @@ public:
     f64 grad() const {
         return m_grad;
     }
-    f64& m_gradref() {
+    f64& grad_ref() {
         return m_grad;
     }
 
-    void accumulate_rad(f64 g) {
+    void accumulate_grad(f64 g) {
         m_grad += g;
     }
     void set_backward_fn(std::function<void()> fn) {
@@ -83,6 +83,10 @@ public:
                 parent->zero_grad();
             }
         }
+    }
+
+    void apply(f64 amount) {
+        m_data += amount;
     }
 
     std::string name_str() const {
@@ -136,83 +140,83 @@ public:
         node(std::move(n)) {
     }
 
-    f64 get() const {
+    [[nodiscard]] f64 get() const {
         return node->get();
     }
-    bool requiresGrad() const {
-        return node->requiresGrad();
+    [[nodiscard]] bool requires_grad() const {
+        return node->requires_grad();
     }
-    f64 grad() const {
+    [[nodiscard]] f64 grad() const {
         return node->grad();
     }
-    f64& gradRef() {
-        return node->gradRef();
+    f64& grad_ref() {
+        return node->grad_ref();
     }
 
-    void accumulateGrad(f64 g) {
-        node->accumulateGrad(g);
+    void accumulate_grad(f64 g) {
+        node->accumulate_grad(g);
     }
-    void setBackwardFn(std::function<void()> fn) {
-        node->setBackwardFn(std::move(fn));
+    void set_backward_fn(std::function<void()> fn) {
+        node->set_backward_fn(std::move(fn));
     }
 
     void backward() {
         node->backward();
     }
-    void zeroGrad() {
-        node->zeroGrad();
+    void zero_grad() {
+        node->zero_grad();
     }
 
-    std::string nameStr() const {
-        return node->nameStr();
+    [[nodiscard]] std::string name_str() const {
+        return node->name_str();
     }
 
-    Parameter& setName(const std::string& n) {
+    Parameter& set_name(const std::string& n) {
         node->name = n;
         return *this;
     }
 
-    std::shared_ptr<Node> getNode() const {
+    [[nodiscard]] std::shared_ptr<Node> get_node() const {
         return node;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const Parameter& p) {
         return os << "Parameter" << (p.node->name ? "(" + *p.node->name + ")" : "") << " = "
-                  << p.node->data << ", grad = " << p.node->m_grad;
+                  << p.node.get() << ", grad = " << p.node->grad();
     }
 };
 
 // Helper function to create a binary operation node
 template<typename Left, typename Right>
-Parameter makeBinaryOp(const Left&                     a,
-                       const Right&                    b,
-                       std::function<f64(f64, f64)>    forward,
-                       std::function<void(Parameter&)> backward,
-                       const std::string&              op) {
+Parameter make_binary_op(const Left&                     a,
+                         const Right&                    b,
+                         std::function<f64(f64, f64)>    forward,
+                         std::function<void(Parameter&)> backward,
+                         const std::string&              op) {
 
     f64       val         = forward(a.get(), b.get());
-    bool      req_grad    = a.getNode()->requires_grad || b.getNode()->requires_grad;
+    bool      req_grad    = a.get_node()->requires_grad() || b.get_node()->requires_grad();
     auto      result_node = std::make_shared<Node>(val, std::nullopt, req_grad);
     Parameter result(result_node);
 
     // Add parents if they require grad
-    if (a.getNode()->requires_grad) {
-        result_node->parents.push_back(a.getNode());
+    if (a.get_node()->requires_grad()) {
+        result_node->parents.push_back(a.get_node());
     }
-    if (b.getNode()->requires_grad) {
-        result_node->parents.push_back(b.getNode());
+    if (b.get_node()->requires_grad()) {
+        result_node->parents.push_back(b.get_node());
     }
 
     // Set name
-    std::string a_name = a.nameStr();
-    std::string b_name = b.nameStr();
+    std::string a_name = a.name_str();
+    std::string b_name = b.name_str();
     result_node->name  = "(" + a_name + " " + op + " " + b_name + ")";
 
     // Capture shared_ptrs to nodes to avoid const issues
-    auto a_node = a.getNode();
-    auto b_node = b.getNode();
+    auto a_node = a.get_node();
+    auto b_node = b.get_node();
 
-    result_node->setBackwardFn([result_node, backward, a_node, b_node]() {
+    result_node->set_backward_fn([result_node, backward, a_node, b_node]() {
         Parameter result_param(result_node);
         backward(result_param);
     });
@@ -224,10 +228,10 @@ Parameter makeBinaryOp(const Left&                     a,
 
 // Addition operators
 inline Parameter operator+(const Parameter& a, const Parameter& b) {
-    auto a_node = a.getNode();
-    auto b_node = b.getNode();
+    auto a_node = a.get_node();
+    auto b_node = b.get_node();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x + y;
@@ -235,45 +239,45 @@ inline Parameter operator+(const Parameter& a, const Parameter& b) {
       [a_node, b_node](Parameter& result) {
           Parameter a(a_node);
           Parameter b(b_node);
-          if (a.requiresGrad()) {
-              a.accumulateGrad(result.grad());
+          if (a.requires_grad()) {
+              a.accumulate_grad(result.grad());
           }
-          if (b.requiresGrad()) {
-              b.accumulateGrad(result.grad());
+          if (b.requires_grad()) {
+              b.accumulate_grad(result.grad());
           }
       },
       "+");
 }
 
 inline Parameter operator+(const Parameter& a, const Value& b) {
-    auto a_node = a.getNode();
+    auto a_node = a.get_node();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x + y;
       },
       [a_node](Parameter& result) {
           Parameter a(a_node);
-          if (a.requiresGrad()) {
-              a.accumulateGrad(result.grad());
+          if (a.requires_grad()) {
+              a.accumulate_grad(result.grad());
           }
       },
       "+");
 }
 
 inline Parameter operator+(const Value& a, const Parameter& b) {
-    auto b_node = b.getNode();
+    auto b_node = b.get_node();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x + y;
       },
       [b_node](Parameter& result) {
           Parameter b(b_node);
-          if (b.requiresGrad()) {
-              b.accumulateGrad(result.grad());
+          if (b.requires_grad()) {
+              b.accumulate_grad(result.grad());
           }
       },
       "+");
@@ -291,10 +295,10 @@ inline Parameter operator+(const Parameter& a, double b) {
 
 // Subtraction operators
 inline Parameter operator-(const Parameter& a, const Parameter& b) {
-    auto a_node = a.getNode();
-    auto b_node = b.getNode();
+    auto a_node = a.get_node();
+    auto b_node = b.get_node();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x - y;
@@ -302,45 +306,45 @@ inline Parameter operator-(const Parameter& a, const Parameter& b) {
       [a_node, b_node](Parameter& result) {
           Parameter a(a_node);
           Parameter b(b_node);
-          if (a.requiresGrad()) {
-              a.accumulateGrad(result.grad());
+          if (a.requires_grad()) {
+              a.accumulate_grad(result.grad());
           }
-          if (b.requiresGrad()) {
-              b.accumulateGrad(-result.grad());
+          if (b.requires_grad()) {
+              b.accumulate_grad(-result.grad());
           }
       },
       "-");
 }
 
 inline Parameter operator-(const Parameter& a, const Value& b) {
-    auto a_node = a.getNode();
+    auto a_node = a.get_node();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x - y;
       },
       [a_node](Parameter& result) {
           Parameter a(a_node);
-          if (a.requiresGrad()) {
-              a.accumulateGrad(result.grad());
+          if (a.requires_grad()) {
+              a.accumulate_grad(result.grad());
           }
       },
       "-");
 }
 
 inline Parameter operator-(const Value& a, const Parameter& b) {
-    auto b_node = b.getNode();
+    auto b_node = b.get_node();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x - y;
       },
       [b_node](Parameter& result) {
           Parameter b(b_node);
-          if (b.requiresGrad()) {
-              b.accumulateGrad(-result.grad());
+          if (b.requires_grad()) {
+              b.accumulate_grad(-result.grad());
           }
       },
       "-");
@@ -358,13 +362,13 @@ inline Parameter operator-(const Parameter& a, double b) {
 
 // Multiplication operators
 inline Parameter operator*(const Parameter& a, const Parameter& b) {
-    auto a_node = a.getNode();
-    auto b_node = b.getNode();
+    auto a_node = a.get_node();
+    auto b_node = b.get_node();
 
     f64 a_val = a.get();
     f64 b_val = b.get();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x * y;
@@ -372,47 +376,47 @@ inline Parameter operator*(const Parameter& a, const Parameter& b) {
       [a_node, b_node, a_val, b_val](Parameter& result) {
           Parameter a(a_node);
           Parameter b(b_node);
-          if (a.requiresGrad()) {
-              a.accumulateGrad(result.grad() * b_val);
+          if (a.requires_grad()) {
+              a.accumulate_grad(result.grad() * b_val);
           }
-          if (b.requiresGrad()) {
-              b.accumulateGrad(result.grad() * a_val);
+          if (b.requires_grad()) {
+              b.accumulate_grad(result.grad() * a_val);
           }
       },
       "*");
 }
 
 inline Parameter operator*(const Parameter& a, const Value& b) {
-    auto a_node = a.getNode();
+    auto a_node = a.get_node();
     f64  b_val  = b.get();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x * y;
       },
       [a_node, b_val](Parameter& result) {
           Parameter a(a_node);
-          if (a.requiresGrad()) {
-              a.accumulateGrad(result.grad() * b_val);
+          if (a.requires_grad()) {
+              a.accumulate_grad(result.grad() * b_val);
           }
       },
       "*");
 }
 
 inline Parameter operator*(const Value& a, const Parameter& b) {
-    auto b_node = b.getNode();
+    auto b_node = b.get_node();
     f64  a_val  = a.get();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x * y;
       },
       [b_node, a_val](Parameter& result) {
           Parameter b(b_node);
-          if (b.requiresGrad()) {
-              b.accumulateGrad(result.grad() * a_val);
+          if (b.requires_grad()) {
+              b.accumulate_grad(result.grad() * a_val);
           }
       },
       "*");
@@ -430,13 +434,13 @@ inline Parameter operator*(const Parameter& a, double b) {
 
 // Division operators
 inline Parameter operator/(const Parameter& a, const Parameter& b) {
-    auto a_node = a.getNode();
-    auto b_node = b.getNode();
+    auto a_node = a.get_node();
+    auto b_node = b.get_node();
 
     f64 a_val = a.get();
     f64 b_val = b.get();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x / y;
@@ -444,48 +448,48 @@ inline Parameter operator/(const Parameter& a, const Parameter& b) {
       [a_node, b_node, a_val, b_val](Parameter& result) {
           Parameter a(a_node);
           Parameter b(b_node);
-          if (a.requiresGrad()) {
-              a.accumulateGrad(result.grad() / b_val);
+          if (a.requires_grad()) {
+              a.accumulate_grad(result.grad() / b_val);
           }
-          if (b.requiresGrad()) {
-              b.accumulateGrad(-result.grad() * a_val / (b_val * b_val));
+          if (b.requires_grad()) {
+              b.accumulate_grad(-result.grad() * a_val / (b_val * b_val));
           }
       },
       "/");
 }
 
 inline Parameter operator/(const Parameter& a, const Value& b) {
-    auto a_node = a.getNode();
+    auto a_node = a.get_node();
     f64  b_val  = b.get();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x / y;
       },
       [a_node, b_val](Parameter& result) {
           Parameter a(a_node);
-          if (a.requiresGrad()) {
-              a.accumulateGrad(result.grad() / b_val);
+          if (a.requires_grad()) {
+              a.accumulate_grad(result.grad() / b_val);
           }
       },
       "/");
 }
 
 inline Parameter operator/(const Value& a, const Parameter& b) {
-    auto b_node = b.getNode();
+    auto b_node = b.get_node();
     f64  a_val  = a.get();
     f64  b_val  = b.get();
 
-    return makeBinaryOp(
+    return make_binary_op(
       a, b,
       [](f64 x, f64 y) {
           return x / y;
       },
       [b_node, a_val, b_val](Parameter& result) {
           Parameter b(b_node);
-          if (b.requiresGrad()) {
-              b.accumulateGrad(-result.grad() * a_val / (b_val * b_val));
+          if (b.requires_grad()) {
+              b.accumulate_grad(-result.grad() * a_val / (b_val * b_val));
           }
       },
       "/");
@@ -503,8 +507,8 @@ inline Parameter operator/(const Parameter& a, double b) {
 
 // Utility function to print computation graph
 inline void
-printGraph(const Parameter& param, std::unordered_set<const Node*>& visited, int indent = 0) {
-    auto node = param.getNode();
+print_graph(const Parameter& param, std::unordered_set<const Node*>& visited, int indent = 0) {
+    auto node = param.get_node();
     if (!node || visited.count(node.get())) {
         return;
     }
@@ -515,7 +519,7 @@ printGraph(const Parameter& param, std::unordered_set<const Node*>& visited, int
 
     for (auto& parent : node->parents) {
         Parameter temp(parent);
-        printGraph(temp, visited, indent + 1);
+        print_graph(temp, visited, indent + 1);
     }
 }
 
@@ -533,24 +537,24 @@ public:
         lr(learning_rate),
         momentum(momentum_coeff) {
         for (auto* param : params) {
-            velocities[param->getNode().get()] = 0.0;
+            velocities[param->get_node().get()] = 0.0;
         }
     }
 
     void step() {
         for (auto* param : params) {
-            if (param->requiresGrad()) {
-                auto*   node = param->getNode().get();
+            if (param->requires_grad()) {
+                auto*   node = param->get_node().get();
                 double& v    = velocities[node];
                 v            = momentum * v - lr * param->grad();  // Update velocity
-                node->data += v;                                   // Apply update
+                node->apply(v);                                    // Apply update
             }
         }
     }
 
-    void zeroGrad() {
+    void zero_grad() {
         for (auto* param : params) {
-            param->zeroGrad();
+            param->zero_grad();
         }
     }
 };
