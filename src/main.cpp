@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 
     for (int epoch = 0; epoch < 500; ++epoch) {
         double total_loss = 0.0;
-        optimizer.zeroGrad();
+        optimizer.zero_grad();
 
         for (const auto& [x_val, y_val] : data) {
             Value x(x_val);
