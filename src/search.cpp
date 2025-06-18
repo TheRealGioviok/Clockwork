@@ -392,7 +392,7 @@ Value Worker::evaluate(const Position& pos) {
 
     Value fudge = static_cast<i32>(search_nodes & 7) - 3;
 
-    return material + mobility + fudge;
+    return (material + mobility + fudge) * (220 - pos.get_50mr_counter()) / 220;
 }
 }
 }
