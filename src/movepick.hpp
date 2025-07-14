@@ -29,11 +29,6 @@ public:
 
     Move next();
 
-    [[nodiscard]] bool is_legal(Move m) const {
-        return m_movegen.is_legal(m);
-    }
-
-private:
     enum class Stage {
         EmitTTMove,
         GenerateMoves,
@@ -46,13 +41,19 @@ private:
         End,
     };
 
+    Stage stage = Stage::EmitTTMove;
+
+    [[nodiscard]] bool is_legal(Move m) const {
+        return m_movegen.is_legal(m);
+    }
+
+private:
+    
     void generate_moves();
     Move pick_next(MoveList& moves);
     void score_moves(MoveList& moves);
 
     i32 score_move(Move move) const;
-
-    Stage m_stage = Stage::EmitTTMove;
 
     const Position&      m_pos;
     const History&       m_history;

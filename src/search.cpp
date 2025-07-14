@@ -384,8 +384,8 @@ Value Worker::quiesce(Position& pos, Stack* ss, Value alpha, Value beta, i32 ply
 
     // Iterate over the move list
     for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
-        // QS SEE Pruning
-        if (best_value > -VALUE_WIN && !SEE::see(pos, m, tuned::quiesce_see_threshold)) {
+        // QS SEE Pruning. TODO: different see scheme using the already calculated margin once we use adaptive
+        if (best_value > -VALUE_WIN && (moves.stage == MovePicker::Stage::EmitBadNoisy || !SEE::see(pos, m, tuned::quiesce_see_threshold))) {
             continue;
         }
 

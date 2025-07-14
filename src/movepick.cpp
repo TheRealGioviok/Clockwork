@@ -10,15 +10,15 @@ bool quiet_move(Move move) {
 
 void MovePicker::skip_quiets() {
     m_skip_quiets = true;
-    if (m_stage == Stage::EmitQuiet) {
-        m_stage = Stage::End;
+    if (stage == Stage::EmitQuiet) {
+        stage = Stage::End;
     }
 }
 
 Move MovePicker::next() {
-    switch (m_stage) {
+    switch (stage) {
     case Stage::EmitTTMove:
-        m_stage = Stage::GenerateMoves;
+        stage = Stage::GenerateMoves;
         if (m_tt_move != Move::none() && m_movegen.is_legal(m_tt_move)) {
             return m_tt_move;
         }
@@ -27,13 +27,13 @@ Move MovePicker::next() {
     case Stage::GenerateMoves:
         generate_moves();
 
-        m_stage = Stage::ScoreNoisy;
+        stage = Stage::ScoreNoisy;
 
         [[fallthrough]];
     case Stage::ScoreNoisy:
         score_moves(m_noisy);
 
-        m_stage         = Stage::EmitGoodNoisy;
+        stage         = Stage::EmitGoodNoisy;
         m_current_index = 0;
 
         [[fallthrough]];
@@ -55,16 +55,16 @@ Move MovePicker::next() {
         }
 
         if (m_skip_quiets) {
-            m_stage = Stage::End;
+            stage = Stage::End;
             return Move::none();
         }
 
-        m_stage = Stage::EmitKiller;
+        stage = Stage::EmitKiller;
 
         [[fallthrough]];
 
     case Stage::EmitKiller:
-        m_stage = Stage::ScoreQuiet;
+        stage = Stage::ScoreQuiet;
         if (m_tt_move != m_killer && m_killer != Move::none() && m_movegen.is_legal(m_killer)) {
             return m_killer;
         }
@@ -74,7 +74,7 @@ Move MovePicker::next() {
     case Stage::ScoreQuiet:
         score_moves(m_quiet);
 
-        m_stage         = Stage::EmitQuiet;
+        stage         = Stage::EmitQuiet;
         m_current_index = 0;
 
         [[fallthrough]];
@@ -88,7 +88,7 @@ Move MovePicker::next() {
 
         // Reset the current index to 0 to start from the beginning of the noisy moves again.
         m_current_index = 0;
-        m_stage = Stage::EmitBadNoisy;
+        stage = Stage::EmitBadNoisy;
         [[fallthrough]];
     
     case Stage::EmitBadNoisy:
@@ -98,7 +98,7 @@ Move MovePicker::next() {
                 return curr;
             }
         }
-        m_stage = Stage::End;
+        stage = Stage::End;
 
         [[fallthrough]];
     case Stage::End:
