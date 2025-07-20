@@ -1,37 +1,59 @@
 #include "tune/autodiff.hpp"
 #include "uci.hpp"
 #include <vector>
+#include <iostream>
+#include <fstream>
 
 using namespace Clockwork::Autograd;
 
 int main(int argc, char* argv[]) {
 
-    Parameter w(0.5, "w");
-    Parameter b(0.0, "b");
+    // Let's train material values
+    PhasedParam pawnValue(100, 100);
+    PhasedParam knightValue(300, 300);
+    PhasedParam bishopValue(300, 300);
+    PhasedParam rookValue(500, 500);
+    PhasedParam queenValue(900, 900);
 
-    std::vector<Parameter*> params = {&w, &b};
-    SGD                     optimizer(params, 0.001);
+    vector<PhasedParam> params = {pawnValue, knightValue, bishopValue, rookValue, queenValue};
+    
+    // Initialize evaluator
+    Evaluator evaluator;
+    evaluator.set_params(params);
 
-    std::vector<std::pair<double, double>> data = {{1.0, 2.0}, {2.0, 4.0}, {3.0, 6.0}};
-
-    for (int epoch = 0; epoch < 500; ++epoch) {
-        double total_loss = 0.0;
-        optimizer.zero_grad();
-
-        for (const auto& [x_val, y_val] : data) {
-            Value x(x_val);
-            Value y(y_val);
-
-            auto pred = w * x + b;
-            auto loss = (pred - y) * (pred - y);
-
-            total_loss += loss.get();
-            loss.backward();
+    // Load fens.
+    vector<string> fens;
+    ifstream fenFile("fens.txt");
+    if (!fenFile) {
+        std::cerr << "Error opening fens.txt" << endl;
+        return 1;
+    };
+    string line;
+    while (getline(fenFile, line)) {
+        if (!line.empty()) {
+            fens.push_back(line);
         }
-
-        optimizer.step();
-
-        std::cout << "Epoch " << epoch << ": loss = " << total_loss << ", w = " << w.get()
-                  << ", b = " << b.get() << std::endl;
     }
+    fenFile.close();
+
+    // SGD
+    SGD optimizer(evaluator, 0.01);
+
+    for (int epoch = 0; epoch < 100; ++epoch) {
+        for (const auto& fen : fens) {
+            evaluator.set_position(fen);
+            auto features = evaluator.extract_features();
+            auto loss = evaluator.eval(features);
+
+            // Backpropagation
+            loss.backward();
+
+            // Update parameters
+            optimizer.step();
+            optimizer.zero_grad();
+        }
+        std::cout << "Epoch " << epoch + 1 << " completed." << std::endl;
+    }
+
+    
 }
