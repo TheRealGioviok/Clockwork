@@ -3,57 +3,132 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
-
-using namespace Clockwork::Autograd;
+#include <string>
 
 int main(int argc, char* argv[]) {
 
-    // Let's train material values
-    PhasedParam pawnValue(100, 100);
-    PhasedParam knightValue(300, 300);
-    PhasedParam bishopValue(300, 300);
-    PhasedParam rookValue(500, 500);
-    PhasedParam queenValue(900, 900);
-
-    vector<PhasedParam> params = {pawnValue, knightValue, bishopValue, rookValue, queenValue};
-    
-    // Initialize evaluator
-    Evaluator evaluator;
-    evaluator.set_params(params);
-
     // Load fens.
-    vector<string> fens;
-    ifstream fenFile("fens.txt");
+    std::vector<std::string> fens;
+    std::vector<Clockwork::Autograd::Score> results;
+    std::ifstream fenFile("fens.book");
     if (!fenFile) {
-        std::cerr << "Error opening fens.txt" << endl;
+        std::cerr << "Error opening fens.book" << std::endl;
         return 1;
     };
-    string line;
-    while (getline(fenFile, line)) {
-        if (!line.empty()) {
-            fens.push_back(line);
+    std::string line;
+    while (std::getline(fenFile, line)) {
+        // The line is : FEN;(w/d/b)
+        size_t pos = line.find(';');
+        if (pos != std::string::npos) {
+            std::string fen = line.substr(0, pos);
+            fens.push_back(fen);
+            std::string result = line.substr(pos + 1);
+            if (result == "w") {
+                results.push_back(Clockwork::Autograd::Score(1.0));  // Win
+            } else if (result == "d") {
+                results.push_back(Clockwork::Autograd::Score(0.5));  // Draw
+            } else if (result == "b") {
+                results.push_back(Clockwork::Autograd::Score(0.0));  // Loss
+            } else {
+                std::cerr << "Invalid result in line: " << line << std::endl;
+            }
+        } else {
+            std::cerr << "Invalid line format: " << line << std::endl;  
         }
     }
     fenFile.close();
 
+    // Print the number of fens loaded
+    std::cout << "Loaded " << fens.size() << " FENs." << std::endl;
+    
+    // Evaluator
+    Clockwork::HCE::MyEvaluator evaluator;
+
     // SGD
-    SGD optimizer(evaluator, 0.01);
+    Clockwork::Autograd::SGD optim(evaluator.get_parameters(), 0.0001, 0.9);
 
-    for (int epoch = 0; epoch < 100; ++epoch) {
-        for (const auto& fen : fens) {
-            evaluator.set_position(fen);
-            auto features = evaluator.extract_features();
-            auto loss = evaluator.eval(features);
+    // MSE loss
+    Clockwork::Autograd::MSELoss mse_loss;
 
-            // Backpropagation
-            loss.backward();
+    // Sigmoid function
+    Clockwork::Autograd::Sigmoid<650.0> sigmoid;
 
-            // Update parameters
-            optimizer.step();
-            optimizer.zero_grad();
+    // Training loop using batched sgd
+
+    // Lambda to get a batch of fens
+    auto get_batch = [&fens](size_t start, size_t batch_size) {
+        std::vector<std::string> batch;
+        for (size_t i = start; i < start + batch_size && i < fens.size(); ++i) {
+            batch.push_back(fens[i]);   
+        }
+        return batch;
+    };
+
+    size_t batch_size = 128;
+    size_t num_batches = fens.size() / batch_size;
+    for (size_t epoch = 0; epoch < 10; ++epoch) {
+        for (size_t batch_idx = 0; batch_idx < num_batches; ++batch_idx) {
+            std::vector<std::string> batch_fens = get_batch(batch_idx * batch_size, batch_size);
+
+            // Evaluate the batch
+            std::vector<Clockwork::Autograd::Score> scores = evaluator.evaluate(batch_fens);
+            // Pass through sigmoid
+            for (auto& score : scores) {
+                score = sigmoid.compute(score);
+            }
+
+            // Compute loss and gradients
+            for (size_t i = 0; i < scores.size(); ++i) {
+                Clockwork::Autograd::Score loss = mse_loss.compute(scores[i], results[batch_idx * batch_size + i]);
+                loss.backward();
+            }
+
+            // Step the optimizer
+            optim.step();
+            optim.zero_grad();
+            optim.clear_graph(); 
+
+            if (batch_idx % 10 == 0) {
+                // Print values of parameters
+                std::cout << "Pawn Material: " << Clockwork::HCE::PAWN_MAT.mg.value() << ", " 
+                        << Clockwork::HCE::PAWN_MAT.eg.value() << std::endl;
+                std::cout << "Knight Material: " << Clockwork::HCE::KNIGHT_MAT.mg.value() << ", " 
+                        << Clockwork::HCE::KNIGHT_MAT.eg.value() << std::endl;
+                std::cout << "Bishop Material: " << Clockwork::HCE::BISHOP_MAT.mg.value() << ", " 
+                        << Clockwork::HCE::BISHOP_MAT.eg.value() << std::endl;
+                std::cout << "Rook Material: " << Clockwork::HCE::ROOK_MAT.mg.value() << ", " 
+                        << Clockwork::HCE::ROOK_MAT.eg.value() << std::endl;
+                std::cout << "Queen Material: " << Clockwork::HCE::QUEEN_MAT.mg.value() << ", " 
+                        << Clockwork::HCE::QUEEN_MAT.eg.value() << std::endl;
+                std::cout << "Mobility Value: " << Clockwork::HCE::MOBILITY_VAL.mg.value() << ", " 
+                        << Clockwork::HCE::MOBILITY_VAL.eg.value() << std::endl;
+                std::cout << "Tempo Value: " << Clockwork::HCE::TEMPO_VAL.mg.value() << ", " 
+                        << Clockwork::HCE::TEMPO_VAL.eg.value() << std::endl; 
+            }
+
         }
         std::cout << "Epoch " << epoch + 1 << " completed." << std::endl;
+
+        // Print values of parameters
+        std::cout << "Pawn Material: " << Clockwork::HCE::PAWN_MAT.mg.value() << ", " 
+                  << Clockwork::HCE::PAWN_MAT.eg.value() << std::endl;
+        std::cout << "Knight Material: " << Clockwork::HCE::KNIGHT_MAT.mg.value() << ", " 
+                  << Clockwork::HCE::KNIGHT_MAT.eg.value() << std::endl;
+        std::cout << "Bishop Material: " << Clockwork::HCE::BISHOP_MAT.mg.value() << ", " 
+                  << Clockwork::HCE::BISHOP_MAT.eg.value() << std::endl;
+        std::cout << "Rook Material: " << Clockwork::HCE::ROOK_MAT.mg.value() << ", " 
+                  << Clockwork::HCE::ROOK_MAT.eg.value() << std::endl;
+        std::cout << "Queen Material: " << Clockwork::HCE::QUEEN_MAT.mg.value() << ", " 
+                  << Clockwork::HCE::QUEEN_MAT.eg.value() << std::endl;
+        std::cout << "Mobility Value: " << Clockwork::HCE::MOBILITY_VAL.mg.value() << ", " 
+                  << Clockwork::HCE::MOBILITY_VAL.eg.value() << std::endl;
+        std::cout << "Tempo Value: " << Clockwork::HCE::TEMPO_VAL.mg.value() << ", " 
+                  << Clockwork::HCE::TEMPO_VAL.eg.value() << std::endl; 
+        
     }
 
-    
+    std::cout << "If we see this we haven't crashed (hooray!)." << std::endl;
+    return 0;
+
+
 }
