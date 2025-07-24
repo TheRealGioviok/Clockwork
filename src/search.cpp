@@ -455,9 +455,7 @@ Value Worker::evaluate(const Position& pos) {
         mobility -= 10 * std::popcount(x);
     }
 
-    Value fudge = static_cast<i32>(search_nodes & 7) - 3;
-
-    return material + mobility + fudge;
+    return material + mobility + 15;
 }
 }
 }
