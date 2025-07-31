@@ -119,7 +119,12 @@ void UCIHandler::handle_go(std::istringstream& is) {
         } else if (token == "softnodes") {
             is >> settings.soft_nodes;
         } else if (token == "nodes") {
-            is >> settings.hard_nodes;
+            if (m_use_soft_nodes) {
+                is >> settings.soft_nodes;
+                settings.hard_nodes = settings.soft_nodes * 4;
+            } else {
+                is >> settings.hard_nodes;
+            }
         }
     }
     Search::ThreadData td = {};
@@ -229,6 +234,8 @@ void UCIHandler::handle_setoption(std::istringstream& is) {
         } else {
             std::cout << "Invalid value " << value_str << std::endl;
         }
+    } else if (name == "UseSoftNodes") {
+        m_use_soft_nodes = true;
     } else if (tuned::uci_parse_tunable(name, value_str)) {
         // Successfully parsed tunable
     } else {
