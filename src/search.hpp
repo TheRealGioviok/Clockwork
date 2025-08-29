@@ -37,6 +37,7 @@ enum class ThreadType {
 struct Stack {
     Move* pv;
     Move  killer;
+    Value static_eval = -VALUE_INF;
 };
 
 struct SearchLimits {

@@ -338,7 +338,16 @@ Value Worker::search(
     }
 
     bool  is_in_check = pos.is_in_check();
-    Value static_eval = is_in_check ? -VALUE_INF : evaluate(pos);
+    ss->static_eval = is_in_check ? -VALUE_INF : evaluate(pos);
+
+    Value improvement = [&]() {
+        if ((ss - 2)->static_eval != -VALUE_INF) {
+            return ss->static_eval - (ss - 2)->static_eval;
+        } else if ((ss - 4)->static_eval != -VALUE_INF) {
+            return ss->static_eval - (ss - 4)->static_eval;
+        }
+        return 0;
+    }();
 
     // Internal Iterative Reductions
     if (PV_NODE && depth >= 8 && (!tt_data || tt_data->move == Move::none())) {
@@ -346,8 +355,8 @@ Value Worker::search(
     }
 
     // Reuse TT score as a better positional evaluation
-    auto tt_adjusted_eval = static_eval;
-    if (tt_data && tt_data->bound != (tt_data->score > static_eval ? Bound::Upper : Bound::Lower)) {
+    auto tt_adjusted_eval = ss->static_eval;
+    if (tt_data && tt_data->bound != (tt_data->score > ss->static_eval ? Bound::Upper : Bound::Lower)) {
         tt_adjusted_eval = tt_data->score;
     }
 
@@ -374,7 +383,7 @@ Value Worker::search(
     }
 
     // Razoring
-    if (!PV_NODE && !is_in_check && depth <= 7 && static_eval + 707 * depth < alpha) {
+    if (!PV_NODE && !is_in_check && depth <= 7 && ss->static_eval + 707 * depth < alpha) {
         const Value razor_score = quiesce<IS_MAIN>(pos, ss, alpha, beta, ply);
         if (razor_score <= alpha) {
             return razor_score;
@@ -443,6 +452,8 @@ Value Worker::search(
             if (!quiet) {
                 reduction = std::min(reduction, 1024);
             }
+
+            reduction -= improvement * 4096 / (std::abs(improvement * 1536 / 1024) + 768);
             
             reduction /= 1024;
 
