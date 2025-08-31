@@ -41,8 +41,12 @@ struct alignas(16) PieceList {
         return v128::eq8(to_vec(), v128::broadcast8(static_cast<u8>(ptype)));
     }
 
-    constexpr bool operator==(const PieceList& other) const {
-        return array == other.array;
+    [[nodiscard]] u16 mask_neq(PieceType ptype) const {
+        return ~mask_eq(ptype);
+    }
+
+    [[nodiscard]] u16 mask_nonempty_neq(PieceType ptype) const {
+        return mask_valid() & mask_neq(ptype);
     }
 };
 
@@ -148,6 +152,15 @@ public:
 
     [[nodiscard]] i32 piece_count(Color color) const {
         return 16 - piece_count(color, PieceType::None);
+    }
+
+    [[nodiscard]] Bitboard get_pt_attacks(PieceType pt, Color color) const {
+        return attack_table(color).get_piece_mask_bitboard(piece_list(color).mask_eq(pt));
+    }
+
+    template <PieceType PT, Color C>
+    [[nodiscard]] Bitboard get_pt_attacks() const {
+        return attack_table(C).get_piece_mask_bitboard(piece_list(C).mask_eq(PT));
     }
 
     [[nodiscard]] bool is_kp_endgame() const {

@@ -92,6 +92,9 @@ void UCIHandler::execute_command(const std::string& line) {
     } else if (command == "bench") {
         handle_bench(is);
     }
+    else if (command == "ptatt"){
+        handle_ptattacks(is);
+    }
 #ifndef EVAL_TUNING
     else if (command == "eval") {
         std::cout << "Evaluation (stm): " << evaluate_stm_pov(m_position) << std::endl;
@@ -104,6 +107,27 @@ void UCIHandler::execute_command(const std::string& line) {
     }
 }
 
+void UCIHandler::handle_ptattacks(std::istringstream& is) {
+    std::string token;
+    is >> token;
+    PieceType pt = char_piece(token[0]);
+    if (pt == PieceType::None) {
+        std::cout << "Invalid piece type" << std::endl;
+        return;
+    }
+    // Print pos.get_pt_attacks of that piece type for both colors
+    for (Color color : {Color::White, Color::Black}) {
+        Bitboard attacks = m_position.get_pt_attacks(pt, color);
+        std::cout << (color == Color::White ? "White" : "Black") << " " << token << " attacks:" << std::endl;
+        for (i32 rank = 7; rank >= 0; rank--) {
+            for (i32 file = 0; file < 8; file++) {
+                Square sq = Square::from_file_and_rank(file, rank);
+                std::cout << (attacks.is_set(sq) ? " X " : " . ");
+            }
+            std::cout << std::endl;
+        }
+    }
+}
 
 void UCIHandler::handle_bench(std::istringstream& is) {
     Depth depth = 12;

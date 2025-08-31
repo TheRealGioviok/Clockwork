@@ -105,13 +105,27 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     phase = std::min<i32>(phase, 24);
 
+    const Bitboard mobility_area[2] = {
+        ~pos.get_pt_attacks<PieceType::Pawn, Color::Black>(),
+        ~pos.get_pt_attacks<PieceType::Pawn, Color::White>()
+    };
+
     i32 mob_count = 0;
-    for (u64 x : std::bit_cast<std::array<u64, 16>>(pos.attack_table(Color::White))) {
-        mob_count += std::popcount(x);
-    }
-    for (u64 x : std::bit_cast<std::array<u64, 16>>(pos.attack_table(Color::Black))) {
-        mob_count -= std::popcount(x);
-    }
+
+    auto count_mobility = [&](Color c) {
+        u16 nonpawn_idx = pos.piece_list(c).mask_nonempty_neq(PieceType::Pawn);
+        while (nonpawn_idx) {
+            i32      i       = std::countr_zero(nonpawn_idx);
+            Bitboard attacks = pos.attack_table(c).get_piece_mask_bitboard(1 << i);
+            mob_count += (attacks & mobility_area[static_cast<size_t>(c)]).popcount();
+            nonpawn_idx &= nonpawn_idx - 1;
+        }
+    };
+
+    count_mobility(Color::Black);
+    mob_count = -mob_count; // Persy trick
+    count_mobility(Color::White);
+
 
     const std::array<Bitboard, 2> pawns = {pos.board().bitboard_for(Color::White, PieceType::Pawn),
                                            pos.board().bitboard_for(Color::Black, PieceType::Pawn)};
