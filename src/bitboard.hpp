@@ -59,6 +59,13 @@ public:
         return Square{static_cast<u8>(std::countr_zero(m_raw))};
     }
 
+    [[nodiscard]] i32 pop_lsb() {
+        assert(!empty());
+        i32  idx = static_cast<i32>(std::countr_zero(m_raw));
+        m_raw &= m_raw - 1;
+        return idx;
+    }
+
     // Rank closest to player
     [[nodiscard]] u8 front_rank(Color color) const {
         i32 color_shift = color == Color::White ? 0 : 56;

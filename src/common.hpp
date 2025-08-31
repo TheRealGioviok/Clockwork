@@ -78,6 +78,32 @@ constexpr char piece_char(PieceType piece) {
     unreachable();
 }
 
+constexpr PieceType char_piece(char piece) {
+    using enum PieceType;
+    switch (piece) {
+    case 'P':
+    case 'p':
+        return Pawn;
+    case 'N':
+    case 'n':
+        return Knight;
+    case 'B':
+    case 'b':
+        return Bishop;
+    case 'R':
+    case 'r':
+        return Rook;    
+    case 'Q':
+    case 'q':
+        return Queen;
+    case 'K':
+    case 'k':
+        return King;
+    default:
+        return None;
+    }
+}
+
 constexpr bool is_slider(PieceType ptype) {
     return ptype >= PieceType::Bishop && ptype <= PieceType::Queen;
 }
