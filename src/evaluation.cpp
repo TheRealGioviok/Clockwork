@@ -22,6 +22,14 @@ const PScore TEMPO_VAL    = S(23,5);
 
 const PScore BISHOP_PAIR_VAL = S(76,172);
 const PScore DOUBLED_PAWN_VAL = S(-68,-124);
+const PScore ROOK_OPEN_FILE_VAL = S(25, 12);
+
+static Bitboard fill_verticals(const Bitboard mask) {
+    Bitboard result = mask | (mask >> 8);
+    result |= result >> 16;
+    result |= result >> 32;
+    return (result & Bitboard::rank_mask(0)) * Bitboard::file_mask(0);
+}
 
 const std::array<PScore, 48> PAWN_PSQT = {
     S(55,296),      S(9,400),       S(305,295),     S(270,207),     S(270,149),     S(368,189),     S(193,281),     S(238,274),
@@ -124,10 +132,16 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
                              * ((pos.piece_count(Color::White, PieceType::Bishop) >= 2)
                                 - (pos.piece_count(Color::Black, PieceType::Bishop) >= 2));
 
+    Bitboard open_files = fill_verticals(pos.board().bitboard_for(PieceType::Pawn));
+    PScore   rook_open_file_bonus =
+      ROOK_OPEN_FILE_VAL
+      * ((open_files & pos.board().bitboard_for(Color::White, PieceType::Rook)).popcount()
+         - (open_files & pos.board().bitboard_for(Color::Black, PieceType::Rook)).popcount());
+
     PScore mobility = MOBILITY_VAL * mob_count;
 
     PScore tempo = (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
-    PScore sum   = psqt_state.score() + mobility + tempo + bishop_pair_bonus + doubled_pawns_bonus;
+    PScore sum   = psqt_state.score() + mobility + tempo + bishop_pair_bonus + doubled_pawns_bonus + rook_open_file_bonus;
     return sum->phase<24>(phase);
 };
 

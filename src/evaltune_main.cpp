@@ -134,6 +134,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "Bishop pair " << BISHOP_PAIR_VAL << std::endl;
         std::cout << "Doubled pawns " << DOUBLED_PAWN_VAL << std::endl;
+        std::cout << "Rook open file " << ROOK_OPEN_FILE_VAL << std::endl;
 
         auto printPsqtArray = [](const auto& arr) {
             for (std::size_t i = 0; i < arr.size(); ++i) {

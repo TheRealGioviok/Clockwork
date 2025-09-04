@@ -152,6 +152,10 @@ public:
 
     bool operator==(const Bitboard&) const = default;
 
+    friend constexpr Bitboard operator*(Bitboard a, Bitboard b) {
+        return Bitboard{a.m_raw * b.m_raw};
+    }
+
     friend constexpr Bitboard operator~(Bitboard a) {
         return Bitboard{~a.m_raw};
     }

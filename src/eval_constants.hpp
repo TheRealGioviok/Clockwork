@@ -13,6 +13,7 @@ extern const PScore MOBILITY_VAL;
 extern const PScore TEMPO_VAL;
 extern const PScore BISHOP_PAIR_VAL;
 extern const PScore DOUBLED_PAWN_VAL;
+extern const PScore ROOK_OPEN_FILE_VAL;
 
 extern const std::array<PScore, 48> PAWN_PSQT;
 extern const std::array<PScore, 64> KNIGHT_PSQT;
