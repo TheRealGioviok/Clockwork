@@ -24,10 +24,7 @@ int main(int argc, char* argv[]) {
     std::vector<f64>      results;
 
     // List of files to load
-    std::vector<std::string> fenFiles = {"data/v2_filtered/gioviok_sampled_positions_337763.txt",
-                                         "data/v2_filtered/giovivast_sampled_positions_2568565.txt",
-                                         "data/v2_filtered/micpillar_sampled_positions_25219.txt",
-                                         "data/v2_filtered/styx_sampled_positions_2101270.txt"};
+    std::vector<std::string> fenFiles = {"data/lichess-big3/lichess-big3-resolved.book"};
 
     for (const auto& filename : fenFiles) {
         std::ifstream fenFile(filename);
@@ -38,7 +35,7 @@ int main(int argc, char* argv[]) {
 
         std::string line;
         while (std::getline(fenFile, line)) {
-            size_t pos = line.find(';');
+            size_t pos = line.find('[');
             if (pos != std::string::npos) {
                 std::string fen    = line.substr(0, pos);
                 auto        parsed = Position::parse(fen);
@@ -53,11 +50,11 @@ int main(int argc, char* argv[]) {
                 std::string result = line.substr(pos + 1);
                 result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
 
-                if (result == "w") {
+                if (result == "1.0]") {
                     results.push_back(1.0);
-                } else if (result == "d") {
+                } else if (result == "0.5]") {
                     results.push_back(0.5);
-                } else if (result == "b") {
+                } else if (result == "0.0]") {
                     results.push_back(0.0);
                 } else {
                     std::cerr << "Invalid result in file " << filename << " line: " << line
