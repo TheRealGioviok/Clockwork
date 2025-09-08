@@ -96,14 +96,14 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
               + pos.piece_count(Color::Black, PieceType::Knight)
               + pos.piece_count(Color::White, PieceType::Bishop)
               + pos.piece_count(Color::Black, PieceType::Bishop)
-              + 2
+              + 3
                   * (pos.piece_count(Color::White, PieceType::Rook)
                      + pos.piece_count(Color::Black, PieceType::Rook))
-              + 4
+              + 6
                   * (pos.piece_count(Color::White, PieceType::Queen)
                      + pos.piece_count(Color::Black, PieceType::Queen));
 
-    phase = std::min<i32>(phase, 24);
+    phase = std::min<i32>(phase, 32);
 
     i32 mob_count = 0;
     for (u64 x : std::bit_cast<std::array<u64, 16>>(pos.attack_table(Color::White))) {
@@ -128,7 +128,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     PScore tempo = (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
     PScore sum   = psqt_state.score() + mobility + tempo + bishop_pair_bonus + doubled_pawns_bonus;
-    return sum->phase<24>(phase);
+    return sum->phase<32>(phase);
 };
 
 Score evaluate_stm_pov(const Position& pos, const PsqtState& psqt_state) {
