@@ -381,7 +381,7 @@ Value Worker::search(
     }
 
     // Internal Iterative Reductions
-    if ((PV_NODE || cutnode) && depth >= 8 && (!tt_data || tt_data->move == Move::none())) {
+    if ((PV_NODE || cutnode) && depth >= 7 && (!tt_data || tt_data->move == Move::none())) {
         depth--;
     }
 
