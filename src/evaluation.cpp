@@ -21,6 +21,7 @@ const PScore TEMPO_VAL  = S(30,16);
 
 const PScore BISHOP_PAIR_VAL  = S(47,208);
 const PScore DOUBLED_PAWN_VAL = S(-67,-121);
+const PScore ISOLATED_PAWN_VAL = S(0,0);
 
 const std::array<PScore, 9> KNIGHT_MOBILITY = {
     S(-152,-200), S(-71,-110), S(-29,-24), S(-18,15), S(11,37), S(35,53), S(55,53), S(86,17), S(133,-58),
@@ -98,6 +99,14 @@ const std::array<PScore, 64> KING_PSQT = {
 };
 // clang-format on
 
+
+static Bitboard fill_verticals(const Bitboard mask) {
+    Bitboard result = mask | (mask >> 8);
+    result |= result >> 16;
+    result |= result >> 32;
+    return (result & Bitboard::rank_mask(0)) * Bitboard::file_mask(0);
+}
+
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     const Color us    = pos.active_color();
@@ -144,6 +153,16 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     PScore doubled_pawns_bonus = DOUBLED_PAWN_VAL
                                * ((pawns[0] & pawns[0].shift(Direction::North)).popcount()
                                   - (pawns[1] & pawns[1].shift(Direction::South)).popcount());
+
+    const std::array<Bitboard, 2> pawn_files = {
+      fill_verticals(pawns[0]),
+      fill_verticals(pawns[1]),
+    };
+
+    PScore isolated_pawns_bonus =
+      ISOLATED_PAWN_VAL
+      * ((pawns[0] & ~((pawn_files[0] << 8) | (pawn_files[0] >> 8))).popcount()
+         - (pawns[1] & ~((pawn_files[1] << 8) | (pawn_files[1] >> 8))).popcount());
 
     PScore bishop_pair_bonus = BISHOP_PAIR_VAL
                              * ((pos.piece_count(Color::White, PieceType::Bishop) >= 2)

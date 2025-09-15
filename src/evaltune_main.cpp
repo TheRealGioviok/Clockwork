@@ -131,6 +131,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "const PScore BISHOP_PAIR_VAL  = " << BISHOP_PAIR_VAL << ";" << std::endl;
         std::cout << "const PScore DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";" << std::endl;
+        std::cout << "const PScore ISOLATED_PAWN_VAL = " << ISOLATED_PAWN_VAL << ";" << std::endl;
         std::cout << std::endl;
 
         auto print_table = [](const std::string& name, const auto& table) {
