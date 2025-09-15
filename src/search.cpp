@@ -503,6 +503,11 @@ Value Worker::search(
                 reduction = std::min(reduction, 1024);
             }
 
+            // Leave this condition last!
+            if (pos_after.checker_mask().popcount() == 2) {
+                reduction /= 2;
+            }
+
             reduction /= 1024;
 
             Depth reduced_depth = std::clamp<Depth>(new_depth - reduction, 1, new_depth);
