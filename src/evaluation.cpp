@@ -169,7 +169,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
                                 - (pos.piece_count(Color::Black, PieceType::Bishop) >= 2));
 
     PScore tempo = (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
-    PScore sum   = psqt_state.score() + mobility + tempo + bishop_pair_bonus + doubled_pawns_bonus;
+    PScore sum   = psqt_state.score() + mobility + tempo + bishop_pair_bonus + doubled_pawns_bonus + isolated_pawns_bonus;
     return sum->phase<24>(phase);
 };
 
