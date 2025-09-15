@@ -65,7 +65,7 @@ public:
         return static_cast<u8>(m_raw >> color_shift);
     }
 
-    [[nodiscard]] Bitboard shift(Direction dir) const {
+    [[nodiscard]] Bitboard shift(const Direction dir) const {
         constexpr u64 FILE_A = file_mask(0).m_raw;
         constexpr u64 FILE_H = file_mask(7).m_raw;
         switch (dir) {

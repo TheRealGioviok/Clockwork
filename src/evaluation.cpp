@@ -161,8 +161,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     PScore isolated_pawns_bonus =
       ISOLATED_PAWN_VAL
-      * ((pawns[0] & ~((pawn_files[0] << 8) | (pawn_files[0] >> 8))).popcount()
-         - (pawns[1] & ~((pawn_files[1] << 8) | (pawn_files[1] >> 8))).popcount());
+      * ((pawns[0] & ~((pawn_files[0].shift(Direction::West)) | (pawn_files[0].shift(Direction::East)))).popcount()
+      - (pawns[1] & ~((pawn_files[1].shift(Direction::West)) | (pawn_files[1].shift(Direction::East)))).popcount());
 
     PScore bishop_pair_bonus = BISHOP_PAIR_VAL
                              * ((pos.piece_count(Color::White, PieceType::Bishop) >= 2)
