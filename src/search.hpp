@@ -77,6 +77,7 @@ struct SearchLimits {
 struct ThreadData {
     History                history;
     std::vector<PsqtState> psqt_states;
+    Value                  root_score;
 
     PsqtState& push_psqt_state() {
         psqt_states.push_back(psqt_states.back());
@@ -110,7 +111,8 @@ public:
     void launch_search(SearchSettings settings);
     void stop_searching();
     void wait();
-    void initialize(size_t thread_count);
+    Value wait_for_score();
+    void initialize(int thread_count);
     void exit();
 
     u64  node_count();
@@ -148,6 +150,9 @@ public:
     }
     [[nodiscard]] u64 search_nodes() const {
         return m_search_nodes.load(std::memory_order_relaxed);
+    }
+    [[nodiscard]] const ThreadData& get_thread_data() const {
+        return m_td;
     }
 
 private:
