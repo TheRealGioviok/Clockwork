@@ -5,6 +5,7 @@
 #include <optional>
 #include <ostream>
 #include <string_view>
+#include <string>
 #include <tuple>
 
 #include "util/types.hpp"

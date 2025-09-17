@@ -6,6 +6,7 @@
 #include "position.hpp"
 #include "search.hpp"
 #include "tuned.hpp"
+#include "tuning/filtering.hpp"
 #include "util/ios_fmt_guard.hpp"
 #include "util/parse.hpp"
 #include "util/random.hpp"
@@ -99,7 +100,12 @@ void UCIHandler::execute_command(const std::string& line) {
 #endif
     else if (command == "genfens") {
         handle_genfens(is);
-    } else {
+    } 
+    else if (command == "filter") {
+        // Call filtering tool
+        Filter::filter_pgn(is);
+    }
+    else {
         std::cout << "Unknown command" << std::endl;
     }
 }
