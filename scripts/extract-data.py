@@ -1,7 +1,7 @@
 import os
 import random
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional
 import chess
 import chess.pgn
@@ -80,35 +80,42 @@ def count_games_in_file(file_path: Path) -> int:
         return 0
 
 
-def process_pgn_file(file_path: Path, positions_per_game: int = 5, pbar: Optional[tqdm] = None) -> List[str]:
+def process_pgn_file(file_path: Path, positions_per_game: int = 5, pbar=None) -> List[str]:
+    """
+    Process a PGN file game by game, streaming it line by line.
+    Returns a list of positions extracted from all games.
+    """
     results = []
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+            current_game_lines = []
 
-        games = []
-        current_game = []
-        for line in content.split("\n"):
-            if line.strip().startswith("[Event ") and current_game:
-                games.append("\n".join(current_game))
-                current_game = [line]
-            else:
-                current_game.append(line)
-        if current_game:
-            games.append("\n".join(current_game))
+            for line in f:
+                line = line.strip()
+                if line.startswith("[Event ") and current_game_lines:
+                    # Process the previous game
+                    game_data = "\n".join(current_game_lines)
+                    positions = extract_positions_from_game(game_data, positions_per_game)
+                    results.extend(positions)
+                    if pbar:
+                        pbar.update(1)
 
-        for game_data in games:
-            if game_data.strip():
+                    current_game_lines = [line]
+                else:
+                    current_game_lines.append(line)
+
+            # Process the last game in the file
+            if current_game_lines:
+                game_data = "\n".join(current_game_lines)
                 positions = extract_positions_from_game(game_data, positions_per_game)
                 results.extend(positions)
-            if pbar:
-                pbar.update(1)
+                if pbar:
+                    pbar.update(1)
 
     except Exception as e:
         print(f"Error processing file {file_path}: {e}")
         if pbar:
-            expected_games = count_games_in_file(file_path)
-            pbar.update(expected_games)
+            pbar.update(count_games_in_file(file_path))
 
     return results
 
@@ -125,24 +132,34 @@ def extract_positions_from_folder(folder_path: str, positions_per_game: int = 5,
 
     print(f"Found {len(pgn_files)} PGN files")
 
+    # Count total games for progress bar
     total_games = 0
     for pgn_file in tqdm(pgn_files, desc="Counting games"):
         total_games += count_games_in_file(pgn_file)
-
     print(f"Total games to process: {total_games}")
 
-    all_results = []
-    with tqdm(total=total_games, desc="Processing games", unit="games") as pbar:
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_file = {
-                executor.submit(process_pgn_file, pgn_file, positions_per_game, pbar): pgn_file
-                for pgn_file in pgn_files
-            }
+    all_results: List[str] = []
+
+    # Use a process pool for CPU-bound work
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all files for processing
+        future_to_file = {
+            executor.submit(process_pgn_file, pgn_file, positions_per_game, None): pgn_file
+            for pgn_file in pgn_files
+        }
+
+        # Progress bar in main thread
+        with tqdm(total=total_games, desc="Processing games", unit="games") as pbar:
             for future in as_completed(future_to_file):
                 try:
-                    all_results.extend(future.result())
+                    results = future.result()
+                    all_results.extend(results)
+                    # Approximate: assume each file has roughly its counted number of games
+                    pbar.update(count_games_in_file(future_to_file[future]))
                 except Exception as e:
-                    print(f"Error: {e}")
+                    print(f"Error processing {future_to_file[future]}: {e}")
+                    # Still update progress bar
+                    pbar.update(count_games_in_file(future_to_file[future]))
 
     return all_results
 
