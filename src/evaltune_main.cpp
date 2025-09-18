@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     std::vector<f64>      results;
 
     // List of files to load
-    std::vector<std::string> fenFiles = {"data/v3/filtered_data.txt"};
+    std::vector<std::string> fenFiles = {"v3.1.txt"};
 
     for (const auto& filename : fenFiles) {
         std::ifstream fenFile(filename);
