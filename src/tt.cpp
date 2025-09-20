@@ -73,7 +73,7 @@ std::optional<TTData> TT::probe(const Position& pos, i32 ply) const {
 void TT::store(const Position& pos, i32 ply, Move move, Value score, Depth depth, Bound bound) {
     size_t idx   = mulhi64(pos.get_hash_key(), m_size);
     auto&  entry = m_entries[idx];
-    if (entry.bound == Bound::Exact || depth + 4 >= entry.depth) {
+    if (bound == Bound::Exact || depth + 4 >= entry.depth) {
         entry.key    = pos.get_hash_key();
         entry.move   = move;
         entry.score  = score_to_tt(score, ply);
