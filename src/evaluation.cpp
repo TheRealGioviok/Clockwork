@@ -14,6 +14,13 @@
 
 namespace Clockwork {
 
+static Bitboard fill_verticals(const Bitboard mask) {
+    Bitboard result = mask | (mask >> 8);
+    result |= result >> 16;
+    result |= result >> 32;
+    return (result & Bitboard::rank_mask(0)) * Bitboard::file_mask(0);
+}
+
 std::array<Bitboard, 64> king_ring_table = []() {
     std::array<Bitboard, 64> king_ring_table{};
     for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
@@ -55,6 +62,7 @@ PScore evaluate_pawns(const Position& pos) {
 
     Bitboard pawns     = pos.board().bitboard_for(color, PieceType::Pawn);
     Bitboard opp_pawns = pos.board().bitboard_for(~color, PieceType::Pawn);
+    Bitboard own_pawn_files = fill_verticals(pawns);
     PScore   eval      = PSCORE_ZERO;
     eval += DOUBLED_PAWN_VAL * static_cast<i32>((pawns & pawns.shift(Direction::North)).popcount());
 
@@ -75,6 +83,12 @@ PScore evaluate_pawns(const Position& pos) {
         eval += DEFENDED_PAWN[sq.relative_sq(color).rank() - RANK_3];
     }
 
+    Bitboard non_isolated_files = own_pawn_files.shift(Direction::West) | own_pawn_files.shift(Direction::East);
+    Bitboard isolated = pawns & ~non_isolated_files;
+    for (Square sq : isolated) {
+        eval += ISOLATED_PAWN[sq.relative_sq(color).rank() - RANK_2];
+    }
+
     return eval;
 }
 
@@ -82,7 +96,7 @@ template<Color color>
 PScore evaluate_pieces(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
-    Bitboard bb = pos.bitboard_for(color, PieceType::Pawn) | pos.attacked_by(opp, PieceType::Pawn);
+    Bitboard bb = pos.bitboard_for(color, PieceType::Pawn) | pos.attacked_by(opp, PieceType::Pawn) | pos.bitboard_for(color, PieceType::King) | pos.bitboard_for(color, PieceType::Queen);
     Bitboard opp_king_ring = king_ring_table[pos.king_sq(opp).raw];
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];

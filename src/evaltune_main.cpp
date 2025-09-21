@@ -158,6 +158,7 @@ int main() {
         print_table("PAWN_PHALANX", PAWN_PHALANX);
         print_table("DEFENDED_PAWN", DEFENDED_PAWN);
         print_table("PASSED_PAWN", PASSED_PAWN);
+        print_table("ISOLATED_PAWN", ISOLATED_PAWN);
         std::cout << std::endl;
 
         print_table("KNIGHT_MOBILITY", KNIGHT_MOBILITY);
