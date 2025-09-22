@@ -5,10 +5,10 @@
 namespace Clockwork {
 
 enum Bound : u8 {
-    None,
-    Lower,
-    Upper,
-    Exact,
+    None  = 0,
+    Lower = 1,
+    Upper = 2,
+    Exact = 3,
 };
 
 struct TTEntry {
@@ -16,7 +16,7 @@ struct TTEntry {
     Move    move;
     i16     score;
     u8      depth;
-    Bound   bound;
+    u8      ttpv_bound;
 };
 
 
@@ -24,7 +24,14 @@ struct TTData {
     Move  move;
     Value score;
     Depth depth;
-    Bound bound;
+    u8    ttpv_bound;
+
+    [[nodiscard]] Bound bound() const {
+        return static_cast<Bound>(ttpv_bound & 0b011);
+    }
+    [[nodiscard]] bool ttpv() const {
+        return static_cast<bool>(ttpv_bound & 0b100);
+    }
 };
 
 class TT {
@@ -36,7 +43,8 @@ public:
     ~TT();
 
     std::optional<TTData> probe(const Position& pos, i32 ply) const;
-    void store(const Position& pos, i32 ply, Move move, Value score, Depth depth, Bound bound);
+    void                  store(
+                       const Position& pos, i32 ply, Move move, Value score, Depth depth, bool ttpv, Bound bound);
     void resize(size_t mb);
     void clear();
 
