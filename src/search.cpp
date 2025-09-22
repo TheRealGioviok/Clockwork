@@ -401,7 +401,7 @@ Value Worker::search(
     }
 
     if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth
-        && tt_adjusted_eval >= beta + std::max(15, tuned::rfp_margin * (depth - improving))) {
+        && tt_adjusted_eval >= beta + std::max(30, tuned::rfp_margin * (depth - improving))) {
         return tt_adjusted_eval;
     }
 
