@@ -81,6 +81,7 @@ int main() {
     }
 
     Clockwork::Autograd::AdamW optim(10, 0.9, 0.999, 1e-8, 0.0);
+    Clockwork::Autograd::Graph::get()->init_zeros();
 
     i32       epochs     = 1000;
     const f64 K          = 1.0 / 400;
