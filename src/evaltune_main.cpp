@@ -80,7 +80,7 @@ int main() {
         return 1;
     }
 
-    Clockwork::Autograd::AdamW optim(10, 0.9, 0.999, 1e-8, 0.0);
+    Clockwork::Autograd::AdamW optim(160, 0.9, 0.999, 1e-8, 0.0);
     Clockwork::Autograd::Graph::get()->init_zeros();
 
     i32       epochs     = 1000;
@@ -216,8 +216,8 @@ int main() {
         printPsqtArray("QUEEN_PSQT", QUEEN_PSQT);
         printPsqtArray("KING_PSQT", KING_PSQT);
 
-        if (epoch > 5) {
-            optim.set_lr(optim.get_lr() * 0.85);
+        if (epoch > 10) {
+            optim.set_lr(optim.get_lr() * 0.955);
         }
     }
 
