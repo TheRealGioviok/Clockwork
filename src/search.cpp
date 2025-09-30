@@ -502,7 +502,7 @@ Value Worker::search(
         if (depth >= 3 && moves_played >= 2 + 2 * PV_NODE) {
             i32 reduction = static_cast<i32>(
               std::round(1024 * (0.77 + std::log(depth) * std::log(moves_played) / 2.36)));
-            reduction -= 1024 * PV_NODE;
+            reduction -= 1024 * ttpv;
 
             reduction += alpha_raises * 512;
 
@@ -510,10 +510,6 @@ Value Worker::search(
 
             if (cutnode) {
                 reduction += 1024;
-            }
-
-            if (ttpv) {
-                reduction -= 768;
             }
 
             if (tt_data && tt_data->move.is_capture()) {
