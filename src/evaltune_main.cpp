@@ -30,7 +30,7 @@ int main() {
 
     // List of files to load
     const std::vector<std::string> fenFiles = {
-      "data/v2.2/filtered_data.txt",
+      "data/v2.3/filtered_data3p.txt",
       "data/v2.1/filtered_data.txt",
     };
 
@@ -93,7 +93,7 @@ int main() {
     using namespace Clockwork::Autograd;
 
     const ParameterCountInfo parameter_count          = Globals::get().get_parameter_counts();
-    Parameters               current_parameter_values = Graph::get().get_all_parameter_values();
+    Parameters               current_parameter_values = Parameters::zeros(parameter_count);
 
     AdamW optim(parameter_count, 10, 0.9, 0.999, 1e-8, 0.0);
 
