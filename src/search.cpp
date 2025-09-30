@@ -513,7 +513,7 @@ Value Worker::search(
             }
 
             if (ttpv) {
-                reduction -= 1024;
+                reduction -= 768;
             }
 
             if (tt_data && tt_data->move.is_capture()) {
