@@ -516,7 +516,7 @@ Value Worker::search(
             }
 
             if (quiet) {
-                reduction += (1024 - move_history / std::clamp(depth, 5, 11));
+                reduction += (1024 - move_history / std::clamp(depth, 7, 9));
             }
 
             if (!quiet) {
