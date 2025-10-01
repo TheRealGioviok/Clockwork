@@ -477,7 +477,8 @@ Value Worker::search(
 
             // Quiet History Pruning
             if (depth <= 4 && !is_in_check && quiet && move_history < depth * -2048) {
-                break;
+                moves.skip_quiets();
+                continue;
             }
 
             Value see_threshold = quiet ? -67 * depth : -22 * depth * depth;
