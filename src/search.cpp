@@ -493,6 +493,15 @@ Value Worker::search(
 
         Position pos_after = pos.move(m, m_td.push_psqt_state());
         moves_played++;
+        
+        i32 trust = 0;
+        if (tt_data) {
+            i32 delta        = abs(tt_adjusted_eval - ss->static_eval);
+            i32 base         = 300 - std::min(300, delta);
+            i32 scale_conf   = tt_data->depth + depth + 1;
+            i32 scale_tamper = delta / 8 + depth + 1;
+            trust        = std::clamp(base * scale_conf / scale_tamper - 384, -384, 384);
+        }
 
         // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
         repetition_info.push(pos_after.get_hash_key(), pos_after.is_reversible(m));
@@ -508,6 +517,9 @@ Value Worker::search(
             reduction += alpha_raises * 512;
 
             reduction += (512 * !improving);
+            
+            reduction += trust;
+
 
             if (cutnode) {
                 reduction += 1024;
