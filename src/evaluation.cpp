@@ -199,7 +199,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
                     * (pos.piece_count(Color::White, PieceType::Queen)
                        + pos.piece_count(Color::Black, PieceType::Queen));
 
-    phase = std::min<usize>(phase, 24);
+    phase = std::clamp<usize>(phase, 4, 24);
 
     PScore eval = psqt_state.score();
     eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
