@@ -460,7 +460,7 @@ Value Worker::search(
 
     // Razoring
     if (!PV_NODE && !excluded && !is_in_check && depth <= 7
-        && ss->static_eval + 707 * depth < alpha) {
+        && tt_adjusted_eval + 707 * depth < alpha) {
         const Value razor_score = quiesce<IS_MAIN>(pos, ss, alpha, beta, ply);
         if (razor_score <= alpha) {
             return razor_score;
@@ -767,11 +767,17 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         }
     }
 
-    // Stand pat
-    if (static_eval >= beta) {
-        return static_eval;
+    auto tt_adjusted_eval = ss->static_eval;
+    if (tt_data && tt_data->bound() != Bound::None && abs(tt_data->score) < VALUE_WIN
+        && tt_data->bound() != (tt_data->score > ss->static_eval ? Bound::Upper : Bound::Lower)) {
+        tt_adjusted_eval = tt_data->score;
     }
-    alpha = std::max(alpha, static_eval);
+
+    // Stand pat
+    if (tt_adjusted_eval >= beta) {
+        return tt_adjusted_eval;
+    }
+    alpha = std::max(alpha, tt_adjusted_eval);
 
     MovePicker moves{pos, m_td.history, Move::none(), ply, ss};
     if (!is_in_check) {
