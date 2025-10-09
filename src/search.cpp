@@ -582,6 +582,7 @@ Value Worker::search(
             }
 
             reduction -= 1024 * PV_NODE;
+            reduction -= 1024 * (excluded && moves_played <= 3);
 
             reduction += alpha_raises * 512;
 
