@@ -106,9 +106,8 @@ template<Color color>
 PScore evaluate_pieces(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
-    Bitboard both = pos.board().get_color_bitboard(Color::White)
-                          | pos.board().get_color_bitboard(Color::Black);
-    Bitboard blocked_pawns = pos.board().bitboard_for(color, PieceType::Pawn) & both.shift_relative(color, Direction::North);
+    Bitboard both = pos.board().get_occupied_bitboard();
+    Bitboard blocked_pawns = pos.board().bitboard_for(color, PieceType::Pawn).shift_relative(color, Direction::North) & both;
     Bitboard bb = blocked_pawns | pos.attacked_by(opp, PieceType::Pawn);
     Bitboard opp_king_ring = king_ring_table[pos.king_sq(opp).raw];
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {

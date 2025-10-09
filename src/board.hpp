@@ -201,6 +201,10 @@ struct Byteboard {
         return Bitboard{to_vec().zero8()};
     }
 
+    [[nodiscard]] Bitboard get_occupied_bitboard() const {
+        return Bitboard{to_vec().nonzero8()};
+    }
+
     [[nodiscard]] Bitboard get_color_bitboard(Color color) const {
         u64  color_bb = static_cast<u64>(0) - static_cast<u64>(color);
         auto vec      = to_vec();
