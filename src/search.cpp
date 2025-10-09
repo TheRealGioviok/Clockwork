@@ -587,9 +587,7 @@ Value Worker::search(
                 reduction += 1024;
             }
 
-            if ((ss + 1)->fail_high_count > 3) {
-                reduction += 1024;
-            }
+            reduction += 64 * std::pow(std::min((ss + 1)->fail_high_count, 4), 2);
 
             if (quiet) {
                 reduction += (1024 - move_history / 8);
