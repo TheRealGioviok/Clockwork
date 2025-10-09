@@ -409,6 +409,7 @@ Value Worker::search(
 
     bool  is_in_check = pos.is_in_check();
     bool  improving   = false;
+    bool  adjusted_static_eval = false;
     Value correction  = 0;
     Value raw_eval    = -VALUE_INF;
     ss->static_eval   = -VALUE_INF;
@@ -433,6 +434,7 @@ Value Worker::search(
     if (tt_data && tt_data->bound() != Bound::None && abs(tt_data->score) < VALUE_WIN
         && tt_data->bound() != (tt_data->score > ss->static_eval ? Bound::Upper : Bound::Lower)) {
         tt_adjusted_eval = tt_data->score;
+        adjusted_static_eval = true;
     }
 
     if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth && !excluded
@@ -460,7 +462,8 @@ Value Worker::search(
 
     // Razoring
     if (!PV_NODE && !excluded && !is_in_check && depth <= 7
-        && ss->static_eval + 707 * depth < alpha) {
+        && tt_adjusted_eval + 707 * depth < alpha) {
+        if (adjusted_static_eval) return tt_adjusted_eval; // Return adjusted eval if we used it since it is at least better than quiesce
         const Value razor_score = quiesce<IS_MAIN>(pos, ss, alpha, beta, ply);
         if (razor_score <= alpha) {
             return razor_score;
