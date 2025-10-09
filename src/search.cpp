@@ -564,6 +564,7 @@ Value Worker::search(
             i32 reduction = static_cast<i32>(
               std::round(1024 * (0.77 + std::log(depth) * std::log(moves_played) / 2.36)));
             reduction -= 1024 * PV_NODE;
+            reduction -= 1024 * (excluded && moves_played <= 3);
 
             reduction += alpha_raises * 512;
 
