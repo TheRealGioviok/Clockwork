@@ -480,6 +480,7 @@ Value Worker::search(
     MoveList   noisies_played;
     i32        alpha_raises      = 0;
     Value      non_pawn_material = -1;
+    i32        noisy_bad_fails   = 0;
 
     // Clear child's killer move.
     (ss + 1)->killer = Move::none();
@@ -644,6 +645,10 @@ Value Worker::search(
                 reduction = std::min(reduction, 3072);
             }
 
+            if (best_move.is_none() && quiet && !tt_data->move.is_capture() && depth >= 6) {
+                reduction -= std::min(1024, noisy_bad_fails * 256);
+            }
+
             reduction /= 1024;
 
             Depth reduced_depth = std::clamp<Depth>(new_depth - reduction, 1, new_depth);
@@ -680,7 +685,12 @@ Value Worker::search(
         if (m_stopped) {
             return 0;
         }
-
+        // If many see passing captures fail and we dont have a tt move, it's likely we're in a very positional game. We reduce quiet moves less until we find a move.
+        // This helps in positions where quiet moves are needed to make progress.
+        if (best_move.is_none() && value < alpha - 200 && !quiet
+            && moves.stage() == MovePicker::Stage::EmitGoodNoisy && tt_data == std::nullopt) {
+            noisy_bad_fails++;
+        }
         if (value > best_value) {
             best_value = value;
 

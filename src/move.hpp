@@ -73,6 +73,10 @@ struct Move {
         return flags() == MoveFlags::EnPassant;
     }
 
+    [[nodiscard]] constexpr bool is_none() const {
+        return raw == 0;
+    }
+
     [[nodiscard]] constexpr std::optional<PieceType> promo() const {
         if (!is_promotion()) {
             return std::nullopt;
