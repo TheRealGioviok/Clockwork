@@ -245,6 +245,19 @@ int main() {
             std::cout << std::endl << "};" << std::endl;
         };
 
+        auto print_multi_table = [](const std::string& name, const auto& table) {
+            std::cout << "inline const std::array<std::array<PParam, " << table[0].size() << ">, "
+                      << table.size() << "> " << name << " = std::to_array({" << std::endl;
+            for (const auto& row : table) {
+                std::cout << "    std::to_array({ ";
+                for (const auto& val : row) {
+                    std::cout << val << ", ";
+                }
+                std::cout << "})," << std::endl;
+            }
+            std::cout << "});" << std::endl;
+        };
+
         print_table("PAWN_PHALANX", PAWN_PHALANX);
         print_table("DEFENDED_PAWN", DEFENDED_PAWN);
         print_table("PASSED_PAWN", PASSED_PAWN);
@@ -321,6 +334,13 @@ int main() {
         printPsqtArray("ROOK_PSQT", ROOK_PSQT);
         printPsqtArray("QUEEN_PSQT", QUEEN_PSQT);
         printPsqtArray("KING_PSQT", KING_PSQT);
+
+        // Imbalance parameters
+        std::cout << std::endl;
+        print_table("IMBALANCE_LIN_PAWNS", IMBALANCE_LIN_PAWNS);
+        print_multi_table("IMBALANCE_LIN_PIECES", IMBALANCE_LIN_PIECES);
+        std::cout << std::endl;
+
 
         std::cout << "// Epoch duration: "
                   << time::cast<time::FloatSeconds>(epoch_end_time - epoch_start_time).count()

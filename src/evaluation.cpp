@@ -99,6 +99,32 @@ PScore evaluate_pawns(const Position& pos) {
     return eval;
 }
 
+PScore imbalance(const Position& pos) {
+    // No constexpr for both sides cause we might want to have interactions between both sides later
+    std::array<i32, 5> white_material_count{};
+    std::array<i32, 5> black_material_count{};
+    for (PieceType ptype : {PieceType::Pawn, PieceType::Knight, PieceType::Bishop, PieceType::Rook,
+                            PieceType::Queen}) {
+        white_material_count[static_cast<usize>(ptype) - 1] =
+          static_cast<i32>(pos.piece_count(Color::White, ptype));
+        black_material_count[static_cast<usize>(ptype) - 1] =
+          static_cast<i32>(pos.piece_count(Color::Black, ptype));
+    }
+    // First order imbalance term: add some value based on material counts, individually for both sides
+    PScore res = PSCORE_ZERO;
+    // Pawns: imbalance can be very high, clamp to 8.
+    res += IMBALANCE_LIN_PAWNS[std::min(8, white_material_count[0])];
+    res -= IMBALANCE_LIN_PAWNS[std::min(8, black_material_count[0])];
+    // Other pieces: clamp to 2. Weird positions can have more than 2 pieces of a type, but they are not in our datasets.
+    for (usize i = 1; i < 5; i++) {
+        res += IMBALANCE_LIN_PIECES[i - 1][std::min(2, white_material_count[i])];
+        res -= IMBALANCE_LIN_PIECES[i - 1][std::min(2, black_material_count[i])];
+    }
+    // Other terms here, but for now only first order
+    return res;
+}
+
+
 template<Color color>
 PScore evaluate_pieces(const Position& pos) {
     constexpr Color opp       = ~color;
@@ -234,6 +260,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
           - evaluate_potential_checkers<Color::Black>(pos);
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
     eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
+    eval += imbalance(pos);
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
     return eval->phase<24>(static_cast<i32>(phase));
 };
