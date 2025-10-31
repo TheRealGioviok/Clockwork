@@ -34,6 +34,14 @@ i32 History::get_quiet_stats(const Position& pos, Move move, i32 ply, Search::St
     return stats;
 }
 
+i32 History::get_pawn_stats(const Position& pos, Move move, i32 ply, Search::Stack* ss) const {
+    usize pawn_index = static_cast<usize>(pos.get_pawn_key() % CORRECTION_HISTORY_ENTRY_NB);
+    PieceType pt     = pos.piece_at(move.from());
+    auto to          = move.to();
+    i32  stat        = m_pawn_hist[pawn_index][pt][to];
+    return stat;
+}
+
 void History::update_cont_hist(
   const Position& pos, Move move, i32 ply, Search::Stack* ss, i32 bonus) {
     i32       conthist = get_conthist(pos, move, ply, ss);
@@ -145,6 +153,7 @@ i32 History::get_correction(const Position& pos) {
 
 void History::clear() {
     std::memset(&m_main_hist, 0, sizeof(MainHistory));
+    std::memset(&m_pawn_hist, 0, sizeof(PawnHistory));
     std::memset(&m_cont_hist, 0, sizeof(ContHistory));
     std::memset(&m_capt_hist, 0, sizeof(CaptHistory));
     std::memset(&m_pawn_corr_hist, 0, sizeof(CorrectionHistory));
