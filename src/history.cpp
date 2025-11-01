@@ -38,7 +38,7 @@ i32 History::get_pawn_stats(const Position& pos, Move move, i32 ply, Search::Sta
     usize pawn_index = static_cast<usize>(pos.get_pawn_key() % CORRECTION_HISTORY_ENTRY_NB);
     PieceType pt     = pos.piece_at(move.from());
     auto to          = move.to();
-    i32  stat        = m_pawn_hist[pawn_index][pt][to];
+    i32  stat        = m_pawn_hist[pawn_index][static_cast<usize>(pt)][to.raw];
     return stat;
 }
 
