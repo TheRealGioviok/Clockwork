@@ -248,8 +248,8 @@ Move Worker::iterative_deepening(const Position& root_position) {
     for (Depth search_depth = 1; search_depth < MAX_PLY; search_depth++) {
         // Call search
         m_seldepth  = 0;
-        Value alpha = -VALUE_INF, beta = VALUE_INF;
-        Value delta = 50;
+        i32 alpha = -VALUE_INF, beta = VALUE_INF;
+        i32 delta = 50;
         if (search_depth >= 5) {
             alpha = last_search_score - delta;
             beta  = last_search_score + delta;
@@ -264,7 +264,12 @@ Move Worker::iterative_deepening(const Position& root_position) {
             alpha = std::max(-VALUE_INF, alpha);
             beta  = std::min(VALUE_INF, beta);
 
-            score = search<IS_MAIN, true>(root_position, &ss[SS_PADDING], alpha, beta,
+            std::cout << "info string Starting ASP window search with depth "
+                      << asp_window_depth
+                      << ", window: [" << alpha << ", " << beta << "]"
+                      << " delta " << delta << std::endl;
+
+            score = search<IS_MAIN, true>(root_position, &ss[SS_PADDING], static_cast<Value>(alpha), static_cast<Value>(beta),
                                           asp_window_depth, 0, false);
 
             if (m_stopped) {
@@ -277,14 +282,15 @@ Move Worker::iterative_deepening(const Position& root_position) {
                 fail_high_reduction = 0;
             } else if (score >= beta) {
                 beta = score + delta;
-                if (fail_high_reduction < 3) {
+                if (fail_high_reduction < 3 && search_depth >= 5) {
                     ++fail_high_reduction;
                 }
             } else {
                 break;
             }
-
-            delta += delta;
+            std::cout << "info string got score " << score << ", re-searching..." << std::endl;
+            delta *= 2;
+            getchar();  // wait for user input to continue
         }
         // If m_stopped is true, then the search exited early. Discard the results for this depth.
         if (m_stopped) {
