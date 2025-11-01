@@ -75,6 +75,8 @@ void History::update_quiet_stats(
     usize stm_idx       = static_cast<usize>(pos.active_color());
     update_hist_entry(m_main_hist[stm_idx][move.from_to()][from_attacked * 2 + to_attacked], bonus);
     update_cont_hist(pos, move, ply, ss, bonus);
+    update_pawn_stats(pos, move, ply, ss, bonus);
+    
 }
 
 void History::update_pawn_stats(
