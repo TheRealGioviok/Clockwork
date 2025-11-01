@@ -66,6 +66,10 @@ public:
         return static_cast<usize>(std::popcount(m_raw));
     }
 
+    [[nodiscard]] i32 ipopcount() const {
+        return static_cast<i32>(std::popcount(m_raw));
+    }
+
     [[nodiscard]] Square msb() const {
         return Square{static_cast<u8>(std::countl_zero(m_raw))};
     }
@@ -108,6 +112,17 @@ public:
             dir = static_cast<Direction>((static_cast<u32>(dir) + 4) % 8);
         }
         return shift(dir);
+    }
+
+    [[nodiscard]] Bitboard shift_relative(Color perspective, Direction dir, const i32 times) const {
+        if (perspective == Color::Black) {
+            dir = static_cast<Direction>((static_cast<u32>(dir) + 4) % 8);
+        }
+        Bitboard result = *this;
+        for (i32 i = 0; i < times; i++) {
+            result = result.shift(dir);
+        }
+        return result;
     }
 
     [[nodiscard]] u64 value() const {
