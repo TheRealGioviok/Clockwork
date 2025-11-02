@@ -432,7 +432,7 @@ Value Worker::search(
         ss->static_eval = raw_eval + correction;
         improving = (ss - 2)->static_eval != -VALUE_INF && ss->static_eval > (ss - 2)->static_eval;
 
-        if (!tt_data || tt_data->eval == -VALUE_INF) {
+        if (!tt_data) {
             m_searcher.tt.store(pos, ply, raw_eval, Move::none(), -VALUE_INF, 0, ttpv, Bound::None);
         }
     }
@@ -846,7 +846,7 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         raw_eval    = tt_data && tt_data->eval != -VALUE_INF ? tt_data->eval : evaluate(pos);
         static_eval = raw_eval + correction;
 
-        if (!tt_data || tt_data->eval == -VALUE_INF) {
+        if (!tt_data) {
             m_searcher.tt.store(pos, ply, raw_eval, Move::none(), -VALUE_INF, 0, ttpv, Bound::None);
         }
     }
