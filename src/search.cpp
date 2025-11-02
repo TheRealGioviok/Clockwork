@@ -581,6 +581,9 @@ Value Worker::search(
             else if (tt_data->score >= beta) {
                 extension = -1 - PV_NODE;
             }
+            else if (cutnode) {
+                extension = -1;
+            }
         }
 
         // Simplified captures extension
