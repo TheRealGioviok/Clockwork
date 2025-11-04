@@ -861,7 +861,8 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
     }
     alpha = std::max(alpha, static_eval);
 
-    MovePicker moves{pos, m_td.history, Move::none(), ply, ss};
+    MovePicker moves{pos, m_td.history, tt_data ? tt_data->move : Move::none(), ply, ss};
+
     if (!is_in_check) {
         moves.skip_quiets();
     }
