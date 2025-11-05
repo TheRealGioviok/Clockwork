@@ -36,10 +36,11 @@ i32 History::get_quiet_stats(const Position& pos, Move move, i32 ply, Search::St
 }
 
 i32 History::get_pawn_stats(const Position& pos, Move move) const {
-    usize pawn_index = static_cast<usize>(pos.get_pawn_key() % PAWN_HISTORY_ENTRY_NB);
-    PieceType pt     = pos.piece_at(move.from());
-    auto to          = move.to();
-    i32  stat        = m_pawn_hist[static_cast<usize>(pos.active_color())][pawn_index][static_cast<usize>(pt)-static_cast<usize>(PieceType::Pawn)][to.raw];
+    usize     pawn_index = static_cast<usize>(pos.get_pawn_key() % PAWN_HISTORY_ENTRY_NB);
+    PieceType pt         = pos.piece_at(move.from());
+    auto      to         = move.to();
+    i32       stat       = m_pawn_hist[static_cast<usize>(pos.active_color())][pawn_index]
+                          [static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)][to.raw];
     return stat;
 }
 
@@ -75,14 +76,13 @@ void History::update_quiet_stats(
     usize stm_idx       = static_cast<usize>(pos.active_color());
     update_hist_entry(m_main_hist[stm_idx][move.from_to()][from_attacked * 2 + to_attacked], bonus);
     update_cont_hist(pos, move, ply, ss, bonus);
-    update_pawn_stats(pos, move, bonus);    
+    update_pawn_stats(pos, move, bonus);
 }
 
-void History::update_pawn_stats(
-  const Position& pos, Move move, i32 bonus) {
-    usize pawn_index = static_cast<usize>(pos.get_pawn_key() % PAWN_HISTORY_ENTRY_NB);
-    PieceType pt     = pos.piece_at(move.from());
-    auto to          = move.to();
+void History::update_pawn_stats(const Position& pos, Move move, i32 bonus) {
+    usize     pawn_index = static_cast<usize>(pos.get_pawn_key() % PAWN_HISTORY_ENTRY_NB);
+    PieceType pt         = pos.piece_at(move.from());
+    auto      to         = move.to();
     update_hist_entry(
       m_pawn_hist[static_cast<usize>(pos.active_color())][pawn_index]
                  [static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)][to.raw],

@@ -9,7 +9,7 @@ namespace Clockwork {
 using MainHistory   = std::array<std::array<std::array<i32, 4>, 4096>, 2>;
 using ContHistEntry = std::array<std::array<std::array<i32, 64>, 6>, 2>;
 using ContHistory   = std::array<std::array<std::array<ContHistEntry, 64>, 6>, 2>;
-using PawnHistory = std::array<std::array<std::array<std::array<i32, 64>, 6>, 2048>, 2>;
+using PawnHistory   = std::array<std::array<std::array<std::array<i32, 64>, 6>, 2048>, 2>;
 // king can't get captured
 using CaptHistory       = std::array<std::array<std::array<std::array<i32, 64>, 6>, 6>, 2>;
 using CorrectionHistory = std::array<std::array<i32, 16384>, 2>;
