@@ -9,7 +9,7 @@ namespace Clockwork {
 using MainHistory   = std::array<std::array<std::array<i32, 4>, 4096>, 2>;
 using ContHistEntry = std::array<std::array<std::array<i32, 64>, 6>, 2>;
 using ContHistory   = std::array<std::array<std::array<ContHistEntry, 64>, 6>, 2>;
-using PawnHistory = std::array<std::array<std::array<i32, 64>, 12>, 2048>;
+using PawnHistory = std::array<std::array<std::array<std::array<i32, 64>, 6>, 2048>, 2>;
 // king can't get captured
 using CaptHistory       = std::array<std::array<std::array<std::array<i32, 64>, 6>, 6>, 2>;
 using CorrectionHistory = std::array<std::array<i32, 16384>, 2>;
@@ -38,10 +38,10 @@ public:
 
     i32  get_conthist(const Position& pos, Move move, i32 ply, Search::Stack* ss) const;
     i32  get_quiet_stats(const Position& pos, Move move, i32 ply, Search::Stack* ss) const;
-    i32  get_pawn_stats(const Position& pos, Move move, i32 ply, Search::Stack* ss) const;
+    i32  get_pawn_stats(const Position& pos, Move move) const;
     void update_cont_hist(const Position& pos, Move move, i32 ply, Search::Stack* ss, i32 bonus);
     void update_quiet_stats(const Position& pos, Move move, i32 ply, Search::Stack* ss, i32 bonus);
-    void update_pawn_stats(const Position& pos, Move move, i32 ply, Search::Stack* ss, i32 bonus);
+    void update_pawn_stats(const Position& pos, Move move, i32 bonus);
 
     i32  get_noisy_stats(const Position& pos, Move move) const;
     void update_noisy_stats(const Position& pos, Move move, i32 bonus);
