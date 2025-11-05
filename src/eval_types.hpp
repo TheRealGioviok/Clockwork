@@ -16,7 +16,181 @@
 namespace Clockwork {
 #ifndef EVAL_TUNING
 
-using Score = i16;
+class Score {
+private:
+    i16 m_score;
+public:
+    constexpr Score() :
+        m_score{} {
+    }
+    constexpr Score(i16 score) :
+        m_score{score} {
+    }
+
+    [[nodiscard]] constexpr auto operator+(const Score& other) const {
+        return Score{static_cast<i16>(m_score + other.m_score)};
+    }
+    [[nodiscard]] constexpr auto operator-(const Score& other) const {
+        return Score{static_cast<i16>(m_score - other.m_score)};
+    }
+    [[nodiscard]] constexpr auto operator*(const Score& other) const {
+        return Score{static_cast<i16>(m_score * other.m_score)};
+    }
+    [[nodiscard]] constexpr auto operator/(const Score& other) const {
+        return Score{static_cast<i16>(m_score / other.m_score)};
+    }
+    constexpr auto operator+=(const Score& other) -> auto& {
+        m_score = static_cast<i16>(m_score + other.m_score);
+        return *this;
+    }
+
+    constexpr auto operator-=(const Score& other) -> auto& {
+        m_score = static_cast<i16>(m_score - other.m_score);
+        return *this;
+    }
+
+    [[nodiscard]] constexpr auto operator*=(const Score& other) -> auto& {
+        m_score = static_cast<i16>(m_score * other.m_score);
+        return *this;
+    }
+    [[nodiscard]] constexpr auto operator/=(const Score& other) -> auto& {
+        m_score = static_cast<i16>(m_score / other.m_score);
+        return *this;
+    }
+    [[nodiscard]] constexpr auto operator-() const {
+        return Score{static_cast<i16>(-m_score)};
+    }
+
+    [[nodiscard]] constexpr bool operator==(const Score& other) const = default;
+
+    [[nodiscard]] constexpr const Score* operator->() const {
+        return this;
+    }
+
+    [[nodiscard]] constexpr i16 get_score() const {
+        return m_score;
+    }
+
+    // Conversion to int
+    explicit constexpr operator i16() const {
+        return m_score;
+    }
+    explicit constexpr operator u16() const {
+        return static_cast<u16>(m_score);
+    }
+    explicit constexpr operator i32() const {
+        return static_cast<i32>(m_score);
+    }
+    explicit constexpr operator u32() const {
+        return static_cast<u32>(m_score);
+    }
+
+    // i32 operators
+    [[nodiscard]] constexpr auto operator+(i32 other) const {
+        return Score{static_cast<i16>(m_score + other)};
+    }
+    [[nodiscard]] constexpr auto operator-(i32 other) const {
+        return Score{static_cast<i16>(m_score - other)};
+    }
+    [[nodiscard]] constexpr auto operator*(i32 other) const {
+        return Score{static_cast<i16>(m_score * other)};
+    }
+    [[nodiscard]] constexpr auto operator/(i32 other) const {
+        return Score{static_cast<i16>(m_score / other)};
+    }
+
+    // i32 inplace operators
+    constexpr auto operator+=(i32 other) -> auto& {
+        m_score = static_cast<i16>(m_score + other);
+        return *this;
+    }
+    constexpr auto operator-=(i32 other) -> auto& {
+        m_score = static_cast<i16>(m_score - other);
+        return *this;
+    }
+    constexpr auto operator*=(i32 other) -> auto& {
+        m_score = static_cast<i16>(m_score * other);
+        return *this;
+    }
+    constexpr auto operator/=(i32 other) -> auto& {
+        m_score = static_cast<i16>(m_score / other);
+        return *this;
+    }
+
+    // i16 operators
+    [[nodiscard]] constexpr auto operator+(i16 other) const {
+        return Score{static_cast<i16>(m_score + other)};
+    }
+    [[nodiscard]] constexpr auto operator-(i16 other) const {
+        return Score{static_cast<i16>(m_score - other)};
+    }
+    [[nodiscard]] constexpr auto operator*(i16 other) const {
+        return Score{static_cast<i16>(m_score * other)};
+    }
+    [[nodiscard]] constexpr auto operator/(i16 other) const {
+        return Score{static_cast<i16>(m_score / other)};
+    }
+
+    // i16 inplace operators
+    constexpr auto operator+=(i16 other) -> auto& {
+        m_score = static_cast<i16>(m_score + other);
+        return *this;
+    }
+    constexpr auto operator-=(i16 other) -> auto& {
+        m_score = static_cast<i16>(m_score - other);
+        return *this;
+    }
+    constexpr auto operator*=(i16 other) -> auto& {
+        m_score = static_cast<i16>(m_score * other);
+        return *this;
+    }
+    constexpr auto operator/=(i16 other) -> auto& {
+        m_score = static_cast<i16>(m_score / other);
+        return *this;
+    }
+
+    // sign
+    Score sign() const {
+        if (m_score > 0) {
+            return Score{1};
+        } else if (m_score < 0) {
+            return Score{-1};
+        } else {
+            return Score{0};
+        }
+    }
+
+    // relu
+    Score relu() const {
+        return Score{std::max<i16>(0, m_score)};
+    }
+
+    // abs
+    Score abs() const {
+        return Score{static_cast<i16>(std::abs(m_score))};
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const Score& score) {
+        os << score.m_score;
+        return os;
+    }
+
+    // friend i32 operators
+    friend Score operator+(i32 a, const Score& b) {
+        return Score{static_cast<i16>(a + b.m_score)};
+    }
+    friend Score operator-(i32 a, const Score& b) {
+        return Score{static_cast<i16>(a - b.m_score)};
+    }
+    friend Score operator*(i32 a, const Score& b) {
+        return Score{static_cast<i16>(a * b.m_score)};
+    }
+    friend Score operator/(i32 a, const Score& b) {
+        return Score{static_cast<i16>(a / b.m_score)};
+    }
+
+};
+
 class PScore {
 private:
     i32 m_score;
@@ -31,6 +205,19 @@ public:
 
     constexpr PScore(Score midgame, Score endgame) :
         m_score{static_cast<i32>(static_cast<u32>(endgame) << 16) + midgame} {
+        assert(std::numeric_limits<i16>::min() <= midgame
+               && std::numeric_limits<i16>::max() >= midgame);
+        assert(std::numeric_limits<i16>::min() <= endgame
+               && std::numeric_limits<i16>::max() >= endgame);
+    }
+    
+    constexpr PScore(i16 midgame, i16 endgame) :
+        m_score{static_cast<i32>(static_cast<u32>(static_cast<u16>(endgame)) << 16)
+                + static_cast<u16>(midgame)} {
+    }
+
+    constexpr PScore(i32 midgame, i32 endgame) :
+        m_score{(endgame << 16) + midgame} {
         assert(std::numeric_limits<i16>::min() <= midgame
                && std::numeric_limits<i16>::max() >= midgame);
         assert(std::numeric_limits<i16>::min() <= endgame

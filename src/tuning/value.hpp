@@ -105,6 +105,26 @@ public:
         return result;
     }
 
+    f64 sign() const {  // No need for backward pass, as gradient is zero almost everywhere
+        if (m_value > 0) {
+            return 1.0;
+        } else if (m_value < 0) {
+            return -1.0;
+        } else {
+            return 0.0;
+        }
+    }
+
+    ValuePtr relu() {
+        auto     this_value     = this->shared_from_this();
+        ValuePtr result         = Value::create(this->m_value > 0 ? this->m_value : 0.0);
+        result->m_backward_func = [this_value](ValuePtr out) {
+            f64 grad = this_value->m_value > 0 ? 1.0 : 0.0;
+            this_value->m_gradient += grad * out->m_gradient;
+        };
+        return result;
+    }
+
     ValuePtr pow(ValuePtr exponent) {
         auto     this_value     = this->shared_from_this();
         ValuePtr result         = Value::create(std::pow(this_value->m_value, exponent->m_value));
