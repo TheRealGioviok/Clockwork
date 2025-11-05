@@ -32,7 +32,6 @@ i32 History::get_quiet_stats(const Position& pos, Move move, i32 ply, Search::St
                            [from_attacked * 2 + to_attacked];
     stats += 2 * get_conthist(pos, move, ply, ss);
     stats += get_pawn_stats(pos, move, ply, ss);
-
     return stats;
 }
 
