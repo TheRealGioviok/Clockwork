@@ -676,7 +676,7 @@ Value Worker::search(
             if (!quiet) {
                 reduction = std::min(reduction, 3072);
                 reduction +=
-                  (512 - move_history / 16);  // Leaving duplicate here for tunability later
+                  (1024 - move_history / 8);  // Leaving duplicate here for tunability later
             }
 
             reduction /= 1024;
