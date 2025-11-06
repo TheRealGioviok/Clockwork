@@ -31,7 +31,7 @@ int main() {
 
     // List of files to load
     const std::vector<std::string> fenFiles = {
-      "data/dfrc-1m.txt", "data/dfrcv0.txt", "data/v2.2.txt", "data/v2.1.txt", "data/v3/v3.txt",
+      "data/dfrcv0/v0.txt", "data/dfrcv1/dfrc-1m.txt", "data/v2.2/filtered_data.txt", "data/v2.1/filtered_data.txt", "data/v3/v3.txt",
     };
 
     // Number of threads to use, default to half available
@@ -346,7 +346,7 @@ int main() {
                   << "s" << std::endl;
 
         if (epoch > 5) {
-            optim.set_lr(optim.get_lr() * 0.91);
+            optim.set_lr(optim.get_lr() * 0.95);
         }
     }
 
