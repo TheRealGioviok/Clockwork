@@ -9,6 +9,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_ARCHITECTURES "x86_64")
 
 option(CLOCKWORK_ENABLE_EVALTUNE "Enable building of evaltune executable" OFF)
+option(CLOCKWORK_ENABLE_PGO_GENERATE "Enable PGO profile generation" OFF)
+option(CLOCKWORK_ENABLE_PGO_USE "Enable PGO profile usage" OFF)
+set(CLOCKWORK_PGO_DIR "" CACHE STRING "Directory for PGO profile data")
 
 #Optimizations
 set(CLOCKWORK_MARCH_TARGET "native" CACHE STRING "Specify the target architecture for -march (e.g., native, skylake, znver2). Set to OFF or empty to disable.")
@@ -18,6 +21,17 @@ if (CLOCKWORK_MARCH_TARGET AND NOT CLOCKWORK_MARCH_TARGET STREQUAL "OFF")
     add_compile_options("-march=${CLOCKWORK_MARCH_TARGET}")
 else ()
     message(STATUS "-march flag disabled by user")
+endif()
+
+# PGO flags
+if(CLOCKWORK_ENABLE_PGO_GENERATE AND CLOCKWORK_PGO_DIR)
+    message(STATUS "PGO: Generating profile data to ${CLOCKWORK_PGO_DIR}")
+    add_compile_options("-fprofile-generate=${CLOCKWORK_PGO_DIR}")
+    add_link_options("-fprofile-generate=${CLOCKWORK_PGO_DIR}")
+elseif(CLOCKWORK_ENABLE_PGO_USE AND CLOCKWORK_PGO_DIR)
+    message(STATUS "PGO: Using profile data from ${CLOCKWORK_PGO_DIR}")
+    add_compile_options("-fprofile-use=${CLOCKWORK_PGO_DIR}")
+    add_link_options("-fprofile-use=${CLOCKWORK_PGO_DIR}")
 endif()
 
 # LTO
