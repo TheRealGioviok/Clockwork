@@ -19,8 +19,10 @@ inline const PParam ROOK_SEMIOPEN_VAL  = S(39, 13);
 inline const PParam DOUBLED_PAWN_VAL = S(-37, -78);
 
 inline const PParam POTENTIAL_CHECKER_VAL = S(-74, -2);
-inline const PParam OUTPOST_KNIGHT_VAL    = S(7, 51);
-inline const PParam OUTPOST_BISHOP_VAL    = S(43, 44);
+inline const PParam OUTPOST_KNIGHT_VAL = S(7, 51);
+inline const PParam OUTPOST_INNER_KNIGHT_VAL = S(0, 0);
+inline const PParam OUTPOST_BISHOP_VAL = S(43, 44);
+inline const PParam OUTPOST_INNER_BISHOP_VAL = S(0, 0);
 
 inline const PParam PAWN_PUSH_THREAT_KNIGHT = S(54, 18);
 inline const PParam PAWN_PUSH_THREAT_BISHOP = S(56, -14);
