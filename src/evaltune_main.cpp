@@ -35,7 +35,7 @@ int main() {
     };
 
     // Number of threads to use, default to half available
-    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
+    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
 
     std::cout << "Running on " << thread_count << " threads" << std::endl;
 
@@ -235,8 +235,12 @@ int main() {
 
         std::cout << "inline const PParam OUTPOST_KNIGHT_VAL = " << OUTPOST_KNIGHT_VAL << ";"
                   << std::endl;
+        std::cout << "inline const PParam OUTPOST_INNER_KNIGHT_VAL = " << OUTPOST_INNER_KNIGHT_VAL << ";"
+                  << std::endl;
         std::cout << "inline const PParam OUTPOST_BISHOP_VAL = " << OUTPOST_BISHOP_VAL << ";"
                   << std::endl;
+        std::cout << "inline const PParam OUTPOST_INNER_BISHOP_VAL = " << OUTPOST_INNER_BISHOP_VAL
+                  << ";" << std::endl;
 
         std::cout << std::endl;
 
