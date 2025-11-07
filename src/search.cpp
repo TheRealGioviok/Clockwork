@@ -450,7 +450,7 @@ Value Worker::search(
     }
 
     if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth && !excluded
-        && tt_adjusted_eval >= beta + tuned::rfp_margin * depth && (!tt_data || tt_data->bound() != Bound::Lower)) {
+        && tt_adjusted_eval >= beta + tuned::rfp_margin * depth && (!tt_data || tt_data->bound() != Bound::Upper)) {
         return tt_adjusted_eval;
     }
 
