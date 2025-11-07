@@ -548,40 +548,6 @@ Value Worker::search(
 
         // Singular extensions
         int extension = 0;
-        if (!excluded && tt_data && m == tt_data->move && depth >= 6 && tt_data->depth >= depth - 3
-            && tt_data->bound() != Bound::Upper) {
-            Value singular_beta  = tt_data->score - depth * 5;
-            int   singular_depth = depth / 2;
-
-            ss->excluded_move    = m;
-            Value singular_value = search<IS_MAIN, false>(pos, ss, singular_beta - 1, singular_beta,
-                                                          singular_depth, ply, cutnode);
-            ss->excluded_move    = Move::none();
-
-            if (singular_value < singular_beta) {
-                extension = 1;
-
-                // Double Extension
-                if (!PV_NODE && singular_value <= singular_beta - 40) {
-                    extension = 2;
-                }
-
-                // Triple Extension
-                if (!PV_NODE && quiet && singular_value <= singular_beta - 120) {
-                    extension = 3;
-                }
-            }
-
-            // Multicut
-            else if (singular_value >= beta) {
-                return singular_value;
-            }
-
-            // Negative Extensions
-            else if (tt_data->score >= beta) {
-                extension = -1 - PV_NODE;
-            }
-        }
 
         // Simplified captures extension
         if (extension == 0 && m.is_capture() && !m.is_en_passant()) {
