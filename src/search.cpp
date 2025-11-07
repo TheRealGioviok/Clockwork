@@ -523,7 +523,7 @@ Value Worker::search(
 
         if (!ROOT_NODE && !is_being_mated_score(best_value)) {
             // Late Move Pruning (LMP)
-            if (moves_played >= (3 + depth * depth) / (2 - improving)) {
+            if (moves_played >= (3 + depth * depth) / (2 - improving) - alpha_raises / 2) {
                 break;
             }
 
