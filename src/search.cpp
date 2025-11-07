@@ -457,7 +457,7 @@ Value Worker::search(
         return tt_adjusted_eval;
     }
 
-    if (!PV_NODE && !is_in_check && !pos.is_kp_endgame() && (!tt_data || tt_data->bound() != Bound::Lower) && depth >= tuned::nmp_depth && !excluded
+    if (!PV_NODE && !is_in_check && !pos.is_kp_endgame() && (!tt_data || tt_data->bound() != Bound::Upper) && depth >= tuned::nmp_depth && !excluded
         && tt_adjusted_eval >= beta + 30 && !is_being_mated_score(beta) && !m_in_nmp_verification) {
         int R =
           tuned::nmp_base_r + depth / 4 + std::min(3, (tt_adjusted_eval - beta) / 400) + improving;
