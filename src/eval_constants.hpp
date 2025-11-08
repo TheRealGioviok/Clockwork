@@ -96,6 +96,13 @@ inline const std::array<PParam, 9> BISHOP_PAWNS = {
     S(1, -6), S(-1, 0), S(0, -11), S(-5, -21), S(-11, -26), S(-17, -33), S(-18, -40), S(-24, -37), S(-34, -43),
 };
 
+inline const std::array<PParam, 6> COORDINATION_POS_COUNT_MG = {
+    S(0,0), S(0,0), S(0,0), S(0,0), S(0,0), S(0,0),
+};
+inline const std::array<PParam, 6> COORDINATION_POS_COUNT_EG = {
+    S(0,0), S(0,0), S(0,0), S(0,0), S(0,0), S(0,0),
+};
+
 inline const std::array<PParam, 48> PAWN_PSQT = {
     S(111, 162),    S(101, 209),    S(169, 174),    S(231, 56),     S(177, 50),     S(162, 115),    S(59, 139),     S(118, 115),    //
     S(79, 44),      S(192, 72),     S(168, 15),     S(169, -42),    S(123, -59),    S(67, -10),     S(28, 36),      S(-21, 40),     //

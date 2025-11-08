@@ -331,7 +331,15 @@ public:
         return m_values.first();
     }
 
+    inline f64 mg() const {
+        return m_values.first();
+    }
+
     inline f64 second() const {
+        return m_values.second();
+    }
+
+    inline f64 eg() const {
         return m_values.second();
     }
 
@@ -524,6 +532,30 @@ public:
 
         return result;
     }
+
+    // sum of a vector of PairPtr
+    // ------------------- Sum -------------------
+    static PairPtr sum(const std::vector<PairPtr>& inputs) {
+        if (inputs.empty()) {
+            return Pair::create(0.0, 0.0);
+        }
+        f128 sum = f128::zero();
+        f128 c   = f128::zero();
+        for (auto& p : inputs) {
+            f128 y = f128::sub(p->m_values, c);
+            f128 t = f128::add(sum, y);
+            c      = f128::sub(f128::sub(t, sum), y);
+            sum    = t;
+        }
+        PairPtr result          = Pair::create(sum);
+        result->m_backward_func = [inputs](PairPtr out) {
+            for (auto& p : inputs) {
+                p->m_gradients = f128::add(p->m_gradients, out->m_gradients);
+            }
+        };
+        return result;
+    }
+
 
     // ------------------- Print -------------------
     friend std::ostream& operator<<(std::ostream& os, const PairPtr& p) {

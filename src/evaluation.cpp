@@ -9,6 +9,10 @@
 #include <array>
 #include <ranges>
 
+#ifdef EVAL_TUNING
+    #include "tuning/value.hpp"
+#endif
+
 namespace Clockwork {
 
 static i32 chebyshev_distance(Square a, Square b) {
@@ -164,9 +168,12 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_pieces(const Position& pos) {
+std::pair<PScore, PScore> evaluate_pieces(const Position& pos) {
     constexpr Color opp       = ~color;
-    PScore          eval      = PSCORE_ZERO;
+
+    PScore          mobility      = PSCORE_ZERO;
+    PScore          king_safety     = PSCORE_ZERO;
+
     Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
     Bitboard        blocked_pawns =
       own_pawns & pos.board().get_occupied_bitboard().shift_relative(color, Direction::South);
@@ -177,34 +184,34 @@ PScore evaluate_pieces(const Position& pos) {
     Bitboard bb = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn);
     Bitboard opp_king_ring = king_ring_table[pos.king_sq(opp).raw];
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += KNIGHT_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
+        mobility += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        king_safety += KNIGHT_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
-        eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += BISHOP_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
+        mobility += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        king_safety += BISHOP_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
         Square sq = pos.piece_list_sq(color)[id];
-        eval += BISHOP_PAWNS[std::min(
+        mobility += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
                   (own_pawns & Bitboard::squares_of_color(sq.color()))
                     .popcount())  // Weird non standard positions which can have more than 8 pawns
         ] * (1 + (blocked_pawns & Bitboard::central_files()).ipopcount());
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += ROOK_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
+        mobility += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        king_safety += ROOK_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += QUEEN_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
+        king_safety += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        mobility += QUEEN_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
     }
-    eval += KING_MOBILITY[pos.mobility_of(color, PieceId::king(), ~bb)];
+    mobility += KING_MOBILITY[pos.mobility_of(color, PieceId::king(), ~bb)];
 
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
-        eval += BISHOP_PAIR_VAL;
+        mobility += BISHOP_PAIR_VAL;
     }
 
-    return eval;
+    return {mobility, king_safety};
 }
 
 template<Color color>
@@ -309,6 +316,52 @@ PScore evaluate_space(const Position& pos) {
     return eval;
 }
 
+PScore evaluate_general_coordination(const Position& pos, PScore& psqt, PScore& pieces, PScore& pawns, PScore& space, PScore& threats, PScore& king_safety_white, PScore& king_safety_black) {
+    // Count the number of positive components
+    i32 pcmg = 0;
+    i32 pceg = 0;
+
+    for (const PScore& comp : {psqt, pieces, pawns, space, threats}) {
+        if (comp->mg() > 0) {
+            pcmg += 1;
+        }
+        else if (comp->mg() < 0) {
+            pcmg -= 1;
+        }
+        if (comp->eg() > 0) {
+            pceg += 1;
+        }
+        else if (comp->eg() < 0) {
+            pceg -= 1;
+        }
+    }
+
+    // Add king safety components
+    if (king_safety_white->mg() > 0) {
+        pcmg += 1;
+    }
+    else if (king_safety_white->mg() < 0) {
+        pcmg -= 1;
+    }
+    if (king_safety_black->mg() > 0) {
+        pcmg -= 1;
+    }
+    else if (king_safety_black->mg() < 0) {
+        pcmg += 1;
+    }
+
+    // Now get the coordination bonus
+    PScore eval = PSCORE_ZERO;
+    eval += pcmg > 0 ? COORDINATION_POS_COUNT_MG[static_cast<usize>(pcmg - 1)]
+          : pcmg < 0 ? -COORDINATION_POS_COUNT_EG[static_cast<usize>(-pcmg - 1)]
+                     : PSCORE_ZERO;
+    eval += pceg > 0 ? COORDINATION_POS_COUNT_MG[static_cast<usize>(pceg - 1)]
+          : pceg < 0 ? -COORDINATION_POS_COUNT_EG[static_cast<usize>(-pceg - 1)]
+                     : PSCORE_ZERO;
+    return eval;
+
+}
+
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     const Color us    = pos.active_color();
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
@@ -324,17 +377,36 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     phase = std::min<usize>(phase, 24);
 
-    PScore eval = psqt_state.score();
-    eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
-    eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
-    eval +=
-      evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
-    eval += evaluate_potential_checkers<Color::White>(pos)
-          - evaluate_potential_checkers<Color::Black>(pos);
-    eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
-    eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
-    eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
-    eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
+    PScore psqt = psqt_state.score();
+    PScore pawns = evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
+    
+    PScore space = evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
+    space += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
+
+    PScore threats = evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
+    threats += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
+
+    std::array<PScore, 2> king_safeties = {PSCORE_ZERO, PSCORE_ZERO};
+
+    auto [a, b] = evaluate_pieces<Color::White>(pos);
+    auto [c, d] = evaluate_pieces<Color::Black>(pos);
+
+    PScore pieces = a - c;
+    king_safeties[static_cast<usize>(Color::White)] -= d;
+    king_safeties[static_cast<usize>(Color::Black)] -= b;
+
+    king_safeties[static_cast<usize>(Color::White)] += evaluate_potential_checkers<Color::White>(pos);
+    king_safeties[static_cast<usize>(Color::Black)] -= evaluate_potential_checkers<Color::Black>(pos);
+
+    PScore tempo = us == Color::White ? TEMPO_VAL : -TEMPO_VAL;
+
+    PScore coordination = evaluate_general_coordination(pos, psqt, pieces, pawns, space, threats, king_safeties[static_cast<usize>(Color::White)], king_safeties[static_cast<usize>(Color::Black)]);
+
+    PScore eval =
+      PScore::sum({psqt, pawns, pieces, space, threats,
+                   king_safeties[static_cast<usize>(Color::White)],
+                   king_safeties[static_cast<usize>(Color::Black)],
+                   tempo, coordination});
     return static_cast<Score>(eval->phase<24>(static_cast<i32>(phase)));
 };
 

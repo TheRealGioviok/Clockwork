@@ -313,6 +313,10 @@ int main() {
         print_table("BISHOP_PAWNS", BISHOP_PAWNS);
         std::cout << std::endl;
 
+        print_table("COORDINATION_POS_COUNT_MG", COORDINATION_POS_COUNT_MG);
+        print_table("COORDINATION_POS_COUNT_EG", COORDINATION_POS_COUNT_EG);
+        std::cout << std::endl;
+
         auto printPsqtArray = [](const std::string& name, const auto& arr) {
             std::cout << "inline const std::array<PParam, " << arr.size() << "> " << name << " = {"
                       << std::endl;
