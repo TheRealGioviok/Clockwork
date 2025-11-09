@@ -21,6 +21,11 @@ static i32 chebyshev_distance(Square a, Square b) {
     return std::max(file_dist, rank_dist);
 }
 
+
+inline int signum(int x) noexcept {
+    return (x > 0) - (x < 0);  // returns +1, 0, or -1
+}
+
 template<Color color>
 Bitboard pawn_spans(const Bitboard pawns) {
     Bitboard res = pawns;
@@ -316,50 +321,46 @@ PScore evaluate_space(const Position& pos) {
     return eval;
 }
 
-PScore evaluate_general_coordination(const Position& pos, PScore& psqt, PScore& pieces, PScore& pawns, PScore& space, PScore& threats, PScore& king_safety_white, PScore& king_safety_black) {
-    // Count the number of positive components
-    i32 pcmg = 0;
-    i32 pceg = 0;
+PScore evaluate_general_coordination(const Position& pos,
+                                     const PScore&   psqt,
+                                     const PScore&   pieces,
+                                     const PScore&   pawns,
+                                     const PScore&   space,
+                                     const PScore&   threats,
+                                     const PScore&   king_safety_white,
+                                     const PScore&   king_safety_black) {
+    // Aggregate sign counts for middlegame (mg) and endgame (eg)
+    int pcmg = 0;
+    int pceg = 0;
 
-    for (const PScore& comp : {psqt, pieces, pawns, space, threats}) {
-        if (comp->mg() > 0) {
-            pcmg += 1;
-        }
-        else if (comp->mg() < 0) {
-            pcmg -= 1;
-        }
-        if (comp->eg() > 0) {
-            pceg += 1;
-        }
-        else if (comp->eg() < 0) {
-            pceg -= 1;
-        }
-    }
-
-    // Add king safety components
-    if (king_safety_white->mg() > 0) {
-        pcmg += 1;
-    }
-    else if (king_safety_white->mg() < 0) {
-        pcmg -= 1;
-    }
-    if (king_safety_black->mg() > 0) {
-        pcmg -= 1;
-    }
-    else if (king_safety_black->mg() < 0) {
-        pcmg += 1;
+    for (const PScore comp : {psqt, pieces, pawns, space, threats}) {
+        const int mg = comp->mg();
+        const int eg = comp->eg();
+        pcmg += signum(mg);
+        pceg += signum(eg);
     }
 
-    // Now get the coordination bonus
+    // King safety influence (white positive, black negative)
+    pcmg += signum(king_safety_white->mg());
+    pcmg -= signum(king_safety_black->mg());
+
+    // Compute coordination bonus
     PScore eval = PSCORE_ZERO;
-    eval += pcmg > 0 ? COORDINATION_POS_COUNT_MG[static_cast<usize>(pcmg - 1)]
-          : pcmg < 0 ? -COORDINATION_POS_COUNT_EG[static_cast<usize>(-pcmg - 1)]
-                     : PSCORE_ZERO;
-    eval += pceg > 0 ? COORDINATION_POS_COUNT_MG[static_cast<usize>(pceg - 1)]
-          : pceg < 0 ? -COORDINATION_POS_COUNT_EG[static_cast<usize>(-pceg - 1)]
-                     : PSCORE_ZERO;
-    return eval;
 
+    auto coord_add = [&](int v, bool mg_phase) {
+        if (v == 0) {
+            return PSCORE_ZERO;
+        }
+        int          idx = std::abs(v) - 1;
+        const PScore val = mg_phase ? COORDINATION_POS_COUNT_MG[static_cast<size_t>(idx)]
+                                    : COORDINATION_POS_COUNT_EG[static_cast<size_t>(idx)];
+        return (v > 0) ? val : -val;
+    };
+
+    eval += coord_add(pcmg, true);
+    eval += coord_add(pceg, false);
+
+    return eval;
 }
 
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
@@ -402,11 +403,10 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     PScore coordination = evaluate_general_coordination(pos, psqt, pieces, pawns, space, threats, king_safeties[static_cast<usize>(Color::White)], king_safeties[static_cast<usize>(Color::Black)]);
 
-    PScore eval =
-      PScore::sum({psqt, pawns, pieces, space, threats,
+    PScore eval = psqt->sum(pawns, pieces, space, threats,
                    king_safeties[static_cast<usize>(Color::White)],
                    king_safeties[static_cast<usize>(Color::Black)],
-                   tempo, coordination});
+                   tempo, coordination);
     return static_cast<Score>(eval->phase<24>(static_cast<i32>(phase)));
 };
 

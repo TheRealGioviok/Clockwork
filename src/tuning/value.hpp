@@ -533,26 +533,43 @@ public:
         return result;
     }
 
-    // sum of a vector of PairPtr
+    // sum of a vector of PairPtr to the single PairPtr
     // ------------------- Sum -------------------
-    static PairPtr sum(const std::vector<PairPtr>& inputs) {
+    template<typename... Args>
+    PairPtr sum(Args&&... args) {
+        static_assert((std::is_same_v<PairPtr, std::decay_t<Args>> && ...),
+                      "All arguments to sum() must be PairPtr");
+
+        std::array<PairPtr, sizeof...(Args)> inputs{std::forward<Args>(args)...};
+
         if (inputs.empty()) {
-            return Pair::create(0.0, 0.0);
+            // Sum of only self, transparent to grad
+            return this->shared_from_this();
         }
-        f128 sum = f128::zero();
+
+        // Start from this to include self in sum
+        f128 sum = this->m_values;
         f128 c   = f128::zero();
+
         for (auto& p : inputs) {
             f128 y = f128::sub(p->m_values, c);
             f128 t = f128::add(sum, y);
             c      = f128::sub(f128::sub(t, sum), y);
             sum    = t;
         }
+
+
         PairPtr result          = Pair::create(sum);
-        result->m_backward_func = [inputs](PairPtr out) {
+        result->m_backward_func = [inputs, self = this->shared_from_this()](PairPtr out) {
+            // Add self gradient
+            self->m_gradients = f128::add(self->m_gradients, out->m_gradients);
+
+            // Add gradients from inputs
             for (auto& p : inputs) {
                 p->m_gradients = f128::add(p->m_gradients, out->m_gradients);
             }
         };
+
         return result;
     }
 

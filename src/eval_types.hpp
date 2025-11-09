@@ -99,6 +99,12 @@ public:
         return static_cast<Value>((mg() * alpha + eg() * (max - alpha)) / max);
     }
 
+    // Variadic sum
+    template<typename... Args>
+    PScore sum(Args&&... args) const {
+        return (*this + ... + args);
+    }
+
     friend std::ostream& operator<<(std::ostream& stream, const PScore& score) {
         stream << "(" << score.mg() << "\t" << score.eg() << ")";
         return stream;
