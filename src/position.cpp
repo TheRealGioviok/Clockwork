@@ -226,6 +226,10 @@ void Position::incrementally_move_piece(
     m_attack_table[1].raw ^= (src_at & src_color) ^ (dst_at & dst_color);
 
     add_attacks(color, p.id(), to, p.ptype(), ret);
+
+    // Update piece count (promotion could change piece type)
+    --m_piece_counts[static_cast<usize>(color)][static_cast<usize>(ptype) - 1];
+    ++m_piece_counts[static_cast<usize>(color)][static_cast<usize>(p.ptype()) - 1];
 }
 
 void Position::remove_attacks(bool color, PieceId id) {

@@ -307,7 +307,7 @@ private:
     std::array<HashKey, 2>              m_non_pawn_key;
     HashKey                             m_major_key;
     HashKey                             m_minor_key;
-    std::array<std::array<u8, 5>, 2>    m_piece_counts{}; 
+    std::array<std::array<u8, 6>, 2>    m_piece_counts{}; 
 
     void incrementally_remove_piece(bool color, PieceId id, Square sq, PsqtUpdates& updates);
     void incrementally_add_piece(bool color, Place p, Square sq, PsqtUpdates& updates);
