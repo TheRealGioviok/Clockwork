@@ -40,6 +40,9 @@ void Position::incrementally_remove_piece(bool         color,
     }
     updates.removes.push_back({pcolor, ptype, from});
     m_board[from] = Place::empty();
+
+    // Update piece count
+    --m_piece_counts[static_cast<usize>(pcolor)][static_cast<usize>(ptype) - 1];
 }
 
 void Position::incrementally_add_piece(bool color, Place p, Square to, PsqtUpdates& updates) {
@@ -65,6 +68,9 @@ void Position::incrementally_add_piece(bool color, Place p, Square to, PsqtUpdat
 
     m8x64 m = toggle_rays(to);
     add_attacks(color, p.id(), to, p.ptype(), m);
+
+    // Update piece count
+    ++m_piece_counts[static_cast<usize>(pcolor)][static_cast<usize>(ptype) - 1];
 }
 
 void Position::incrementally_mutate_piece(
@@ -107,6 +113,10 @@ void Position::incrementally_mutate_piece(
 
     remove_attacks(old_color, old_id);
     add_attacks(new_color, p.id(), sq, p.ptype());
+
+    // Update piece count
+    --m_piece_counts[static_cast<usize>(old_color)][static_cast<usize>(ptype) - 1];
+    ++m_piece_counts[static_cast<usize>(new_color)][static_cast<usize>(ptype) - 1];
 }
 
 void Position::incrementally_move_piece(
@@ -863,6 +873,15 @@ std::optional<Position> Position::parse(std::string_view board,
     result.m_non_pawn_key = result.calc_non_pawn_key_slow();
     result.m_major_key    = result.calc_major_key_slow();
     result.m_minor_key    = result.calc_minor_key_slow();
+
+    // Set piece counts
+    for (const Color color : {Color::White, Color::Black}) {
+        for (const PieceType ptype : {PieceType::Pawn, PieceType::Knight, PieceType::Bishop,
+                                PieceType::Rook, PieceType::Queen, PieceType::King}) {
+            result.m_piece_counts[static_cast<usize>(color)][static_cast<usize>(ptype) - 1] =
+              static_cast<u8>(result.piece_list(color).mask_eq(ptype).popcount());
+        }
+    }
 
     return result;
 }

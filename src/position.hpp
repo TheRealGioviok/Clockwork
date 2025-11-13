@@ -162,7 +162,11 @@ public:
     }
 
     [[nodiscard]] usize piece_count(Color color, PieceType ptype) const {
-        return piece_list(color).mask_eq(ptype).popcount();
+        return m_piece_counts[static_cast<usize>(color)][static_cast<usize>(ptype) - 1];
+    }
+
+    [[nodiscard]] isize ipiece_count(Color color, PieceType ptype) const {
+        return static_cast<isize>(piece_count(color, ptype));
     }
 
     template<PieceType... ptypes>
@@ -216,10 +220,6 @@ public:
 
     [[nodiscard]] usize piece_count(Color color) const {
         return 16 - piece_count(color, PieceType::None);
-    }
-
-    [[nodiscard]] isize ipiece_count(Color color, PieceType ptype) const {
-        return static_cast<isize>(piece_count(color, ptype));
     }
 
     [[nodiscard]] bool is_kp_endgame() const {
@@ -307,6 +307,7 @@ private:
     std::array<HashKey, 2>              m_non_pawn_key;
     HashKey                             m_major_key;
     HashKey                             m_minor_key;
+    std::array<std::array<u8, 5>, 2>    m_piece_counts{}; 
 
     void incrementally_remove_piece(bool color, PieceId id, Square sq, PsqtUpdates& updates);
     void incrementally_add_piece(bool color, Place p, Square sq, PsqtUpdates& updates);
