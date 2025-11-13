@@ -179,6 +179,8 @@ PScore evaluate_pieces(const Position& pos) {
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
         eval += KNIGHT_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
+        eval +=
+          KNIGHT_PROTECTOR * chebyshev_distance(pos.piece_list_sq(color)[id], pos.king_sq(color));
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
         eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
@@ -189,6 +191,8 @@ PScore evaluate_pieces(const Position& pos) {
                   (own_pawns & Bitboard::squares_of_color(sq.color()))
                     .popcount())  // Weird non standard positions which can have more than 8 pawns
         ] * (1 + (blocked_pawns & Bitboard::central_files()).ipopcount());
+        eval +=
+          BISHOP_PROTECTOR * chebyshev_distance(pos.piece_list_sq(color)[id], pos.king_sq(color));
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
         eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];

@@ -31,7 +31,7 @@ int main() {
 
     // List of files to load
     const std::vector<std::string> fenFiles = {
-      "data/dfrc-1m.txt", "data/dfrcv0.txt", "data/v2.2.txt", "data/v2.1.txt", "data/v3/v3.txt",
+      "data/dfrcv1.txt", "data/dfrcv0.txt", "data/v2.2.txt", "data/v2.1.txt", "data/v3.txt",
     };
 
     // Number of threads to use, default to half available
@@ -238,6 +238,12 @@ int main() {
         std::cout << "inline const PParam OUTPOST_BISHOP_VAL    = " << OUTPOST_BISHOP_VAL << ";"
                   << std::endl;
 
+        std::cout << std::endl;
+
+        std::cout << "inline const PParam KNIGHT_PROTECTOR = " << KNIGHT_PROTECTOR
+                  << ";" << std::endl;
+        std::cout << "inline const PParam BISHOP_PROTECTOR = " << BISHOP_PROTECTOR
+                  << ";" << std::endl;
         std::cout << std::endl;
 
         std::cout << "inline const PParam PAWN_PUSH_THREAT_KNIGHT = " << PAWN_PUSH_THREAT_KNIGHT
