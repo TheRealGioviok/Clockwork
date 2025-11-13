@@ -432,7 +432,7 @@ Value Worker::search(
     if (!is_in_check) {
         correction      = m_td.history.get_correction(pos);
         raw_eval        = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
-        ss->static_eval = raw_eval + correction;
+        ss->static_eval = std::clamp(raw_eval + correction, -VALUE_ALMOST_MATING, VALUE_ALMOST_MATING);
         improving = (ss - 2)->static_eval != -VALUE_INF && ss->static_eval > (ss - 2)->static_eval;
 
         if (!tt_data) {
@@ -848,7 +848,7 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
     if (!is_in_check) {
         correction  = m_td.history.get_correction(pos);
         raw_eval    = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
-        static_eval = raw_eval + correction;
+        static_eval = std::clamp(raw_eval + correction, -VALUE_ALMOST_MATING, VALUE_ALMOST_MATING);
 
         if (!tt_data) {
             m_searcher.tt.store(pos, ply, raw_eval, Move::none(), -VALUE_INF, 0, ttpv, Bound::None);
@@ -921,7 +921,7 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
 
     // Checkmate check
     if (is_in_check && moves_searched == 0) {
-        return -VALUE_WIN + 1;
+        return -VALUE_ALMOST_MATING;
     }
 
     // Store to the TT
