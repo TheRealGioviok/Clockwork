@@ -410,18 +410,27 @@ Value Worker::search(
     }
 
     auto tt_data = excluded ? std::nullopt : m_searcher.tt.probe(pos, ply);
-    bool ttpv    = PV_NODE;
+    bool       ttpv    = PV_NODE;
+    
+    // Movepicker for both movegen and legality checking
+    MovePicker moves{pos, m_td.history, tt_data ? tt_data->move : Move::none(), ply, ss};
 
     if (!PV_NODE && tt_data) {
         if (tt_data->depth >= depth
             && (tt_data->bound() == Bound::Exact
                 || (tt_data->bound() == Bound::Lower && tt_data->score >= beta)
                 || (tt_data->bound() == Bound::Upper && tt_data->score <= alpha))) {
-            return tt_data->score;
+            if (moves.is_legal(tt_data->move)) {
+                return tt_data->score;
+            }
+            else {
+                // Illegal TT move : entry is collision or corrupted, discard it
+                tt_data = std::nullopt;
+            }
         }
 
         // Update ttpv
-        ttpv |= tt_data->ttpv();
+        ttpv |= tt_data && tt_data->ttpv();
     }
 
     bool  is_in_check = pos.is_in_check();
@@ -499,7 +508,6 @@ Value Worker::search(
         }
     }
 
-    MovePicker moves{pos, m_td.history, tt_data ? tt_data->move : Move::none(), ply, ss};
     Move       best_move    = Move::none();
     Value      best_value   = -VALUE_INF;
     i32        moves_played = 0;
@@ -830,11 +838,19 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
 
     // TT Probing
     auto tt_data = m_searcher.tt.probe(pos, ply);
+
+    MovePicker moves{pos, m_td.history, Move::none(), ply, ss};
+
     if (tt_data
         && (tt_data->bound() == Bound::Exact
             || (tt_data->bound() == Bound::Lower && tt_data->score >= beta)
             || (tt_data->bound() == Bound::Upper && tt_data->score <= alpha))) {
-        return tt_data->score;
+        if (moves.is_legal(tt_data->move)) {
+            return tt_data->score;
+        } else {
+            // Illegal TT move : entry is collision or corrupted, discard it
+            tt_data = std::nullopt;
+        }
     }
 
     bool is_in_check = pos.is_in_check();
@@ -860,8 +876,6 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         return static_eval;
     }
     alpha = std::max(alpha, static_eval);
-
-    MovePicker moves{pos, m_td.history, Move::none(), ply, ss};
     if (!is_in_check) {
         moves.skip_quiets();
     }
