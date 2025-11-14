@@ -93,7 +93,8 @@ int main() {
     using namespace Clockwork::Autograd;
 
     const ParameterCountInfo parameter_count          = Globals::get().get_parameter_counts();
-    Parameters               current_parameter_values = Graph::get().get_all_parameter_values();
+    Parameters               current_parameter_values =
+      Parameters::zeros(parameter_count);  // Graph::get().get_all_parameter_values();
 
     AdamW optim(parameter_count, 10, 0.9, 0.999, 1e-8, 0.0);
 
@@ -118,6 +119,7 @@ int main() {
 
     for (u32 thread_idx = 0; thread_idx < thread_count; thread_idx++) {
         std::thread([&, thread_idx] {
+
             Graph::get().cleanup();
 
             std::vector<ValuePtr> subbatch_outputs;
@@ -348,7 +350,7 @@ int main() {
                   << "s" << std::endl;
 
         if (epoch > 5) {
-            optim.set_lr(optim.get_lr() * 0.91);
+            optim.set_lr(optim.get_lr() * 0.975);
         }
     }
 
