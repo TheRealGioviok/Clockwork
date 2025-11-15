@@ -34,7 +34,7 @@ struct Parameters {
         }
     }
 
-    void weighted_accumulate(double weight, const Parameters& b) {
+    void weighted_accumulate(f64 weight, const Parameters& b) {
         assert(b.parameters.size() == parameters.size());
         assert(b.pair_parameters.size() == pair_parameters.size());
         for (usize i = 0; i < parameters.size(); i++) {
@@ -43,6 +43,16 @@ struct Parameters {
         for (usize i = 0; i < pair_parameters.size(); i++) {
             pair_parameters[i] =
               f128::madd(pair_parameters[i], f128::broadcast(weight), b.pair_parameters[i]);
+        }
+    }
+
+    void scale(f64 factor) {
+        for (usize i = 0; i < parameters.size(); i++) {
+            parameters[i] *= factor;
+        }
+        f128 factor_f128 = f128::broadcast(factor);
+        for (usize i = 0; i < pair_parameters.size(); i++) {
+            pair_parameters[i] = f128::mul(pair_parameters[i], factor_f128);
         }
     }
 };
