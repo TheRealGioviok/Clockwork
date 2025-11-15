@@ -213,7 +213,7 @@ void Worker::start_searching() {
 
 template<bool IS_MAIN>
 Move Worker::iterative_deepening(const Position& root_position) {
-    constexpr usize                             SS_PADDING = 2;
+    constexpr usize                             SS_PADDING = 6;
     std::array<Stack, MAX_PLY + SS_PADDING + 1> ss;
 
     Depth last_search_depth = 0;
