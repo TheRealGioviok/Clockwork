@@ -358,6 +358,13 @@ int main(int argc, char* argv[]) {
 
         std::cout << std::endl;
 
+        std::cout << "inline const PParam KNIGHT_PROTECTOR = " << KNIGHT_PROTECTOR << ";"
+                  << std::endl;
+        std::cout << "inline const PParam BISHOP_PROTECTOR = " << BISHOP_PROTECTOR << ";"
+                  << std::endl;
+
+        std::cout << std::endl;
+
         std::cout << "inline const PParam PAWN_PUSH_THREAT_KNIGHT = " << PAWN_PUSH_THREAT_KNIGHT
                   << ";" << std::endl;
         std::cout << "inline const PParam PAWN_PUSH_THREAT_BISHOP = " << PAWN_PUSH_THREAT_BISHOP

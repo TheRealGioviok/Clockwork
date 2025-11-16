@@ -21,6 +21,9 @@ inline const PParam POTENTIAL_CHECKER_VAL = S(-74, -2);
 inline const PParam OUTPOST_KNIGHT_VAL    = S(7, 51);
 inline const PParam OUTPOST_BISHOP_VAL    = S(43, 44);
 
+inline const PParam KNIGHT_PROTECTOR = S(0,0);
+inline const PParam BISHOP_PROTECTOR = S(0,0);
+
 inline const PParam PAWN_PUSH_THREAT_KNIGHT = S(54, 18);
 inline const PParam PAWN_PUSH_THREAT_BISHOP = S(56, -14);
 inline const PParam PAWN_PUSH_THREAT_ROOK   = S(34, 33);
