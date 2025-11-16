@@ -1,6 +1,7 @@
 #include "eval_constants.hpp"
 #include "eval_types.hpp"
 #include "evaluation.hpp"
+#include "tuning/dataset.hpp"
 #include "position.hpp"
 #include "tuning/graph.hpp"
 #include "tuning/loss.hpp"
@@ -8,6 +9,7 @@
 #include "tuning/value.hpp"
 #include "util/pretty.hpp"
 #include "util/types.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <barrier>
@@ -17,19 +19,17 @@
 #include <iostream>
 #include <mutex>
 #include <numeric>
-#include <random>
-#include <sstream>
-#include <thread>
-#include <tuple>
 #include <optional>
+#include <random>
 #include <span>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
+#include <tuple>
 #include <type_traits>
 #include <unordered_map>
-
 
 using namespace Clockwork;
 
@@ -38,15 +38,13 @@ public:
     ArgParser(std::span<char*> args) {
         for (size_t i = 1; i < args.size(); ++i) {
             std::string_view key = args[i];
-            if (key.starts_with("--")) {
-
+            if (key.rfind("--", 0) == 0) {
                 if (i + 1 >= args.size()) {
                     throw std::runtime_error("Missing value after " + std::string(key));
                 }
-
                 std::string_view val       = args[i + 1];
                 options_[std::string(key)] = std::string(val);
-                i++;  // skip value
+                ++i;
             }
         }
     }
@@ -77,23 +75,12 @@ private:
     }
 };
 
-
 int main(int argc, char* argv[]) {
-
-    // Load fens from multiple files.
-    std::vector<Position> positions;
-    std::vector<f64>      results;
-
-    // List of files to load
-    const std::vector<std::string> fenFiles = {
-      "data/dfrcv1.txt", "data/dfrcv0.txt", "data/v2.2.txt", "data/v2.1.txt", "data/v3.txt",
-    };
-
-    // Number of threads to use, default to half available
+    // CLI
     std::span<char*> args(argv, argc);
     ArgParser        ap(args);
 
-    u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
+    u32    thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
     i32    epochs       = 1000;
     size_t batch_size   = 16 * 16384;
 
@@ -101,9 +88,8 @@ int main(int argc, char* argv[]) {
         thread_count = *t;
     }
     if (auto t = ap.get<u32>("--t")) {
-        thread_count = *t;  // alias
+        thread_count = *t;
     }
-
     if (auto bs = ap.get<size_t>("--batch")) {
         batch_size = *bs;
     }
@@ -113,160 +99,114 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Running on " << thread_count << " threads" << std::endl;
 
-    for (const auto& filename : fenFiles) {
-        std::ifstream fenFile(filename);
-        if (!fenFile) {
-            std::cerr << "Error opening " << filename << std::endl;
-            return 1;
-        }
+    // Construct dataset (files)
+    Clockwork::Autograd::PersyFormatDataset dataset{"data/dfrcv1.txt", "data/dfrcv0.txt", "data/v2.2.txt",
+                               "data/v2.1.txt", "data/v3.txt"};
 
-        std::string line;
-        while (std::getline(fenFile, line)) {
-            size_t pos = line.find(';');
-            if (pos != std::string::npos) {
-                std::string fen    = line.substr(0, pos);
-                auto        parsed = Position::parse(fen);
-                if (parsed) {
-                    positions.push_back(*parsed);
-                } else {
-                    std::cerr << "Failed to parse FEN in file " << filename << ": " << fen
-                              << std::endl;
-                    continue;
-                }
+    // Load parsed positions/results into memory
+    dataset.load();
 
-                std::string result = line.substr(pos + 1);
-                result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
-
-                if (result == "w") {
-                    results.push_back(1.0);
-                } else if (result == "d") {
-                    results.push_back(0.5);
-                } else if (result == "b") {
-                    results.push_back(0.0);
-                } else {
-                    std::cerr << "Invalid result in file " << filename << " line: " << line
-                              << " (result is '" << result << "')" << std::endl;
-                }
-            } else {
-                std::cerr << "Invalid line format in " << filename << ": " << line << std::endl;
-            }
-        }
-
-        fenFile.close();
-    }
-
-    // Print the number of positions loaded
-    std::cout << "Loaded " << positions.size() << " FENs from " << fenFiles.size() << " files."
-              << std::endl;
-
-    if (positions.size() == 0) {
+    std::cout << "Loaded " << dataset.size() << " FENs." << std::endl;
+    if (dataset.size() == 0) {
         std::cerr << "No positions loaded!" << std::endl;
         return 1;
     }
 
     using namespace Clockwork::Autograd;
 
-    const ParameterCountInfo parameter_count = Globals::get().get_parameter_counts();
-    Parameters               current_parameter_values =
-      Parameters::zeros(parameter_count);  // Graph::get().get_all_parameter_values(); // Switch this to continue from saved values
+    const ParameterCountInfo parameter_count          = Globals::get().get_parameter_counts();
+    Parameters               current_parameter_values = Parameters::zeros(parameter_count);
 
-    AdamW optim(parameter_count, 10, 0.9, 0.999, 1e-8, 0.0);
+    AdamW        optim(parameter_count, 10, 0.9, 0.999, 1e-8, 0.0);
+    const f64    K = 1.0 / 400.0;
+    std::mt19937 rng(std::random_device{}());
 
-    const f64    K          = 1.0 / 400;
+    const size_t total_batches = (dataset.size() + batch_size - 1) / batch_size;
 
-    std::mt19937 rng(std::random_device{}());  // Random number generator for shuffling
-
-    const size_t        total_batches = (positions.size() + batch_size - 1) / batch_size;
-    std::vector<size_t> indices(positions.size());
-
-    Parameters batch_gradients = Parameters::zeros(parameter_count);
-
-    // Global batch size to avoid last batch issues
+    Parameters          batch_gradients = Parameters::zeros(parameter_count);
     std::atomic<size_t> current_batch_size_global{0};
 
-
     std::mutex   mutex;
-    std::barrier epoch_barrier{thread_count + 1};
+    std::barrier epoch_barrier{static_cast<int>(thread_count + 1)};
 
-    // Barrier completion will be run exactly once per batch (when all threads + main arrive)
-    std::barrier batch_barrier{thread_count + 1, [&]() noexcept {
-        const size_t N =
-            current_batch_size_global.load(std::memory_order_relaxed);
-        if (N == 0) {
-            // Should not happen. 
-            std::cerr << "Error: batch size is zero!" << std::endl;
-            return;
-        }
+    // Barrier completion: normalize accumulated gradients and step optimizer.
+    std::barrier batch_barrier{static_cast<int>(thread_count + 1), [&]() noexcept {
+                                   const size_t N =
+                                     current_batch_size_global.load(std::memory_order_relaxed);
+                                   if (N == 0) {
+                                       std::cerr << "Error: batch size is zero!" << std::endl;
+                                       return;
+                                   }
 
-        std::lock_guard guard{mutex};
+                                   std::lock_guard guard{mutex};
+                                   batch_gradients.scale(1.0 / static_cast<double>(N));
+                                   optim.step(current_parameter_values, batch_gradients);
+                                   batch_gradients = Parameters::zeros(parameter_count);
+                               }};
 
-        // IMPORTANT: scale accumulated gradients from all microbatches by the true batch size (once per optimizer step)
-        batch_gradients.scale(1.0 / static_cast<double>(N));
-
-        optim.step(current_parameter_values, batch_gradients);
-
-        batch_gradients = Parameters::zeros(parameter_count);
-    }};
-
-    for (u32 thread_idx = 0; thread_idx < thread_count; thread_idx++) {
+    // Worker threads
+    for (u32 thread_idx = 0; thread_idx < thread_count; ++thread_idx) {
         std::thread([&, thread_idx] {
             Graph::get().cleanup();
 
             std::vector<ValuePtr> subbatch_outputs;
             std::vector<f64>      subbatch_targets;
 
-            for (i32 epoch = 0; epoch < epochs; epoch++) {
+            const size_t prefetch_depth = 2;  // tuneable
 
+            for (i32 epoch = 0; epoch < epochs; ++epoch) {
+                // wait until main has shuffled and is ready
                 epoch_barrier.arrive_and_wait();
 
-                for (size_t batch_start = 0; batch_start < positions.size();
-                     batch_start += batch_size) {
+                // Iterate over zero-copy batches (span-based)
+                for (auto it  = dataset.batches(batch_size, prefetch_depth).begin(),
+                          end = dataset.batches(batch_size, prefetch_depth).end();
+                     it != end; ++it) {
 
-                    size_t batch_end = std::min(batch_start + batch_size, positions.size());
-                    size_t current_batch_size = batch_end - batch_start;
-                    size_t subbatch_size = (current_batch_size + thread_count - 1) / thread_count;
+                    auto batch =
+                      *it;  // BatchView: { std::span<const Position>, std::span<const f64> }
+                    const size_t current_batch_size = batch.positions.size();
 
-                    size_t subbatch_start = batch_start + subbatch_size * thread_idx;
-                    size_t subbatch_end   = std::min(subbatch_start + subbatch_size, batch_end);
-                    size_t current_subbatch_size = subbatch_end - subbatch_start;
+                    // Split this batch among threads (index slicing)
+                    const size_t subbatch_size =
+                      (current_batch_size + thread_count - 1) / thread_count;
+                    const size_t subbatch_start =
+                      std::min(subbatch_size * static_cast<size_t>(thread_idx), current_batch_size);
+                    const size_t subbatch_end =
+                      std::min(subbatch_start + subbatch_size, current_batch_size);
+                    const size_t current_subbatch_size =
+                      (subbatch_end > subbatch_start) ? (subbatch_end - subbatch_start) : 0;
 
                     subbatch_outputs.clear();
                     subbatch_targets.clear();
                     subbatch_outputs.reserve(current_subbatch_size);
                     subbatch_targets.reserve(current_subbatch_size);
 
-                    // Copy the latest parameters into this thread's graph before computing the subbatch
+                    // Copy the latest parameters into this thread's graph
                     Graph::get().copy_parameter_values(current_parameter_values);
 
+                    // Process items in this thread's slice; produce microbatches of 1024 as before
                     uint32_t i = 0;
-                    for (size_t j = subbatch_start; j < subbatch_end; ++j) {
-                        size_t   idx    = indices[j];
-                        f64      y      = results[idx];
-                        Position pos    = positions[idx];
-                        auto     result = (evaluate_white_pov(pos) * K)->sigmoid();
+                    for (size_t local_idx = subbatch_start; local_idx < subbatch_end; ++local_idx) {
+                        const Position& pos = batch.positions[local_idx];
+                        f64             y   = batch.results[local_idx];
+
+                        auto result = (evaluate_white_pov(pos) * K)->sigmoid();
                         subbatch_outputs.push_back(result);
                         subbatch_targets.push_back(y);
 
                         if (++i == 1024) {
                             i = 0;
-
-                            // NOTE: use Reduction::Sum and DO NOT scale by current_batch_size here.
-                            // We want the backward to produce gradients of the summed loss for this
-                            // microbatch so that gradient accumulation across microbatches is
-                            // correct. We'll normalize by the full batch size exactly once in the
-                            // barrier completion.
                             auto subbatch_loss =
                               mse<f64, Reduction::Sum>(subbatch_outputs, subbatch_targets);
-
                             Graph::get().backward();
                             Graph::get().clear_backwardables();
-
                             subbatch_outputs.clear();
                             subbatch_targets.clear();
                         }
                     }
 
-                    // Handle leftover items (final microbatch for this thread's slice)
+                    // final microbatch for this thread's slice
                     if (!subbatch_outputs.empty()) {
                         auto subbatch_loss =
                           mse<f64, Reduction::Sum>(subbatch_outputs, subbatch_targets);
@@ -276,57 +216,57 @@ int main(int argc, char* argv[]) {
                         subbatch_targets.clear();
                     }
 
-                    // After this thread has done all its microbatch backward passes for its
-                    // portion of the batch, extract the accumulated parameter gradients
+                    // Extract accumulated parameter gradients for this thread's work
                     Parameters subbatch_gradients = Graph::get().get_all_parameter_gradients();
-
                     {
                         std::lock_guard guard{mutex};
                         batch_gradients.accumulate(subbatch_gradients);
                     }
 
-                    // Wait for main thread (which will set current batch size) + other workers.
+                    // Wait for main thread to set global batch size + other workers
                     batch_barrier.arrive_and_wait();
 
                     Graph::get().cleanup();
-                }
-            }
+                }  // end batch loop
+            }  // end epoch
         }).detach();
-    }
+    }  // end spawn threads
 
-    for (i32 epoch = 0; epoch < epochs; epoch++) {
-        // Print epoch header
+    // Main thread: orchestrates epochs and barrier sync. Uses same batch iteration order.
+    const size_t prefetch_depth_main = 2;
+    for (i32 epoch = 0; epoch < epochs; ++epoch) {
         std::cout << "Epoch " << (epoch + 1) << "/" << epochs << std::endl;
-
         const auto epoch_start_time = time::Clock::now();
 
-        std::iota(indices.begin(), indices.end(), 0);
-        std::shuffle(indices.begin(), indices.end(), rng);
+        // shuffle dataset indices before workers start
+        dataset.shuffle_indices(rng);
 
+        // let workers start epoch
         epoch_barrier.arrive_and_wait();
 
-        for (size_t batch_idx = 0, batch_start = 0; batch_start < positions.size();
-             batch_start += batch_size, ++batch_idx) {
+        // Iterate batches in the same order as workers; for each batch set global batch size
+        size_t batch_idx = 0;
+        for (auto it  = dataset.batches(batch_size, prefetch_depth_main).begin(),
+                  end = dataset.batches(batch_size, prefetch_depth_main).end();
+             it != end; ++it, ++batch_idx) {
 
-            size_t batch_end = std::min(batch_start + batch_size, positions.size());
+            auto         batch              = *it;
+            const size_t current_batch_size = batch.positions.size();
 
-            // Set the global batch size so the barrier completion function can normalize
-            // correctly. Store before arriving to the barrier so workers will see it.
-            current_batch_size_global.store(batch_end - batch_start, std::memory_order_relaxed);
+            // publish true (possibly smaller for last batch) batch size
+            current_batch_size_global.store(current_batch_size, std::memory_order_relaxed);
 
-            // Synchronize with workers: when everyone arrives the barrier completion will
-            // normalize accumulated gradients and call optimizer.step
+            // synchronize with workers; barrier completion will normalize & step optimizer
             batch_barrier.arrive_and_wait();
 
-            // Print batch progress bar
+            // print progress
             print_progress(batch_idx + 1, total_batches);
         }
 
         const auto epoch_end_time = time::Clock::now();
+        std::cout << std::endl;  // finish progress bar line
 
-        std::cout << std::endl;  // Finish progress bar line
-
-        // Print current values
+        // show parameter snapshot
         Graph::get().copy_parameter_values(current_parameter_values);
 
         std::cout << "inline const PParam PAWN_MAT   = " << PAWN_MAT << ";" << std::endl;
