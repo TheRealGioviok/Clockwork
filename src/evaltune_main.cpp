@@ -31,7 +31,7 @@ int main() {
 
     // List of files to load
     const std::vector<std::string> fenFiles = {
-      "data/dfrc-1m.txt", "data/dfrcv0.txt", "data/v2.2.txt", "data/v2.1.txt", "data/v3/v3.txt",
+      "data/dfrcv0.txt", "data/dfrcv1.txt", "data/v2.1.txt", "data/v2.2.txt", "data/v3.txt",
     };
 
     // Number of threads to use, default to half available
@@ -93,7 +93,7 @@ int main() {
     using namespace Clockwork::Autograd;
 
     const ParameterCountInfo parameter_count          = Globals::get().get_parameter_counts();
-    Parameters               current_parameter_values = Graph::get().get_all_parameter_values();
+    Parameters               current_parameter_values = Parameters::zeros(parameter_count); // Initialize to zero
 
     AdamW optim(parameter_count, 10, 0.9, 0.999, 1e-8, 0.0);
 
@@ -145,7 +145,6 @@ int main() {
 
                     Graph::get().copy_parameter_values(current_parameter_values);
 
-                    uint32_t i = 0;
                     for (size_t j = subbatch_start; j < subbatch_end; ++j) {
                         size_t   idx    = indices[j];
                         f64      y      = results[idx];
@@ -153,31 +152,24 @@ int main() {
                         auto     result = (evaluate_white_pov(pos) * K)->sigmoid();
                         subbatch_outputs.push_back(result);
                         subbatch_targets.push_back(y);
-                        if (++i == 1024) {
-                            i = 0;
-                            auto subbatch_loss =
-                              mse<f64, Reduction::Sum>(subbatch_outputs, subbatch_targets)
-                              * Autograd::Value::create(1.0 / static_cast<f64>(current_batch_size));
-                            Graph::get().backward();
-                            Graph::get().clear_backwardables();
-                            subbatch_outputs.clear();
-                            subbatch_targets.clear();
-                        }
                     }
 
+                    // One single loss for the whole batch:
                     auto subbatch_loss =
                       mse<f64, Reduction::Sum>(subbatch_outputs, subbatch_targets)
                       * Autograd::Value::create(1.0 / static_cast<f64>(current_batch_size));
+
                     Graph::get().backward();
 
+                    // Get gradients after full-batch backward
                     Parameters subbatch_gradients = Graph::get().get_all_parameter_gradients();
 
                     {
                         std::lock_guard guard{mutex};
                         batch_gradients.accumulate(subbatch_gradients);
                     }
-                    batch_barrier.arrive_and_wait();
 
+                    batch_barrier.arrive_and_wait();
                     Graph::get().cleanup();
                 }
             }
