@@ -63,7 +63,9 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
         // Adjustment based on difference between depth 1 search score and current score
         // This essentially estimates the complexity of a position
         const auto compute_complexitytm_factor = [&]() -> f64 {
-            return std::max<f64>(0.77 + std::clamp<f64>(complexity, 0.0, 200.0) / 386.0, 1.0);
+            const f64 x      = std::clamp<f64>(complexity, 0.0, 200.0);
+            const f64 factor = 1.0 + 0.27 / (1.0 + std::exp(-(x - 120.0) / 15.0));
+            return factor;
         };
 
         soft_limit =
