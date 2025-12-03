@@ -177,13 +177,16 @@ PScore evaluate_pieces(const Position& pos) {
     Bitboard bb = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn);
     Bitboard opp_king_ring = king_ring_table[pos.king_sq(opp).raw];
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
+        Square sq = pos.piece_list_sq(color)[id];
         eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
         eval += KNIGHT_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
+        eval += KNIGHT_PROTECTOR * chebyshev_distance(sq, pos.king_sq(color));
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
+        Square sq = pos.piece_list_sq(color)[id];
         eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
         eval += BISHOP_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
-        Square sq = pos.piece_list_sq(color)[id];
+        eval += BISHOP_PROTECTOR * chebyshev_distance(sq, pos.king_sq(color));
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
                   (own_pawns & Bitboard::squares_of_color(sq.color()))
