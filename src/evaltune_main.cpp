@@ -230,6 +230,10 @@ int main() {
                   << std::endl;
         std::cout << "inline const PParam OUTPOST_BISHOP_VAL    = " << OUTPOST_BISHOP_VAL << ";"
                   << std::endl;
+        std::cout << "inline const PParam REACHABLE_OUTPOST_KNIGHT_VAL    = "
+                  << REACHABLE_OUTPOST_KNIGHT_VAL << ";" << std::endl;
+        std::cout << "inline const PParam REACHABLE_OUTPOST_BISHOP_VAL    = "
+                  << REACHABLE_OUTPOST_BISHOP_VAL << ";" << std::endl;
 
         std::cout << std::endl;
 
@@ -336,7 +340,7 @@ int main() {
                   << "s\n";
 
         if (epoch > 5) {
-            optim.set_lr(optim.get_lr() * 0.91);
+            optim.set_lr(optim.get_lr() * 0.95);
         }
     }
 

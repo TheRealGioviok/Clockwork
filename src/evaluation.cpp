@@ -235,8 +235,14 @@ PScore evaluate_outposts(const Position& pos) {
       OUTPOST_KNIGHT_VAL
       * static_cast<i32>((pos.bitboard_for(color, PieceType::Knight) & viable_outposts).popcount());
     eval +=
+      REACHABLE_OUTPOST_KNIGHT_VAL
+      * static_cast<i32>((pos.attacked_by(color, PieceType::Knight) & viable_outposts).popcount());
+    eval +=
       OUTPOST_BISHOP_VAL
       * static_cast<i32>((pos.bitboard_for(color, PieceType::Bishop) & viable_outposts).popcount());
+    eval +=
+      REACHABLE_OUTPOST_BISHOP_VAL
+      * static_cast<i32>((pos.attacked_by(color, PieceType::Bishop) & viable_outposts).popcount());
     return eval;
 }
 
