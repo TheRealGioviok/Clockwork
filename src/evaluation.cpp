@@ -37,6 +37,11 @@ Bitboard static_pawn_attacks(const Bitboard pawns) {
     return attacks;
 }
 
+template <Color color>
+Bitboard static_pawn_attacks(Square sq){
+    return static_pawn_attacks<color>(Bitboard::from_square(sq));
+}
+
 template<Color color>
 Bitboard pawn_spans(const Bitboard pawns, Bitboard blockers) {
     Bitboard res = pawns;
@@ -103,24 +108,43 @@ PScore evaluate_pawns(const Position& pos) {
     for (Square sq : pawns) {
         Square   push     = sq.push<color>();
         Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
-        if (stoppers.empty()) {
-            eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-            if (pos.attack_table(color).read(push).popcount()
-                > pos.attack_table(them).read(push).popcount()) {
-                eval +=
-                  DEFENDED_PASSED_PUSH[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+        bool candidate = false;
+            if (stoppers.empty()) {
+                eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                candidate = true; // Full passers are of course candidates
             }
-            if (pos.piece_at(push) != PieceType::None) {
-                eval +=
-                  BLOCKED_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+            else {
+                Bitboard levers = static_pawn_attacks<color>(sq) & opp_pawns;
+                Bitboard lever_push = static_pawn_attacks<color>(push) & opp_pawns.shift_relative(color, Direction::North);
+                i32      support_count = (static_pawn_attacks<color>(sq) & pawns).ipopcount();
+                Bitboard phal          = pawns &Bitboard::from_square(sq).horizontal_adjacent();
+                candidate = (stoppers == (levers | lever_push))  // No extra blockers behind levers
+                && !(levers.ipopcount() - support_count > 1) // Levers don't outnumber support
+                && !(lever_push.ipopcount() - phal.popcount() > 0) // Lever pushes dont outnumber phalanxes
+                && !(levers && lever_push); // Not both lever types present
+                if (candidate) {
+                    eval += CANDIDATE_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
             }
+            
+            if (candidate) {
+                if (pos.attack_table(color).read(push).popcount()
+                    > pos.attack_table(them).read(push).popcount()) {
+                    eval +=
+                    DEFENDED_PASSED_PUSH[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                }
+                if (pos.piece_at(push) != PieceType::None) {
+                    eval +=
+                    BLOCKED_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                }
 
-            i32 our_king_dist   = chebyshev_distance(our_king, sq);
-            i32 their_king_dist = chebyshev_distance(their_king, sq);
+                i32 our_king_dist   = chebyshev_distance(our_king, sq);
+                i32 their_king_dist = chebyshev_distance(their_king, sq);
 
-            eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
-            eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+                eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
+                eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+            }
         }
+        
     }
 
     Bitboard phalanx = pawns & pawns.shift(Direction::East);

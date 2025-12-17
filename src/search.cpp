@@ -472,9 +472,9 @@ Value Worker::search(
     }
 
     if (!PV_NODE && !is_in_check && !pos.is_kp_endgame() && depth >= tuned::nmp_depth && !excluded
-        && tt_adjusted_eval >= beta + 30 && !is_being_mated_score(beta) && !m_in_nmp_verification) {
-        int R =
-          tuned::nmp_base_r + depth / 4 + std::min(3, (tt_adjusted_eval - beta) / 400) + improving;
+        && tt_adjusted_eval >= beta + tuned::nmp_beta_margin && !is_being_mated_score(beta) && !m_in_nmp_verification) {
+        int R = tuned::nmp_base_r + depth / 4
+              + std::min(3, (tt_adjusted_eval - beta) / tuned::nmp_eval_diff_div) + improving;
         Position pos_after = pos.null_move();
 
         repetition_info.push(pos_after.get_hash_key(), true);

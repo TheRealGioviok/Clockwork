@@ -107,6 +107,12 @@ public:
         }
     }
 
+    [[nodiscard]] Bitboard horizontal_adjacent() const {
+        constexpr u64 FILE_A = file_mask(0).m_raw;
+        constexpr u64 FILE_H = file_mask(7).m_raw;
+        return Bitboard{((m_raw & ~FILE_H) << 1) | ((m_raw & ~FILE_A) >> 1)};
+    }
+
     [[nodiscard]] Bitboard shift_relative(Color perspective, Direction dir) const {
         if (perspective == Color::Black) {
             dir = static_cast<Direction>((static_cast<u32>(dir) + 4) % 8);
@@ -204,6 +210,9 @@ public:
     }
     friend constexpr Bitboard operator<<(Bitboard a, i32 shift) {
         return Bitboard{a.m_raw << shift};
+    }
+    friend constexpr bool operator&&(Bitboard a, Bitboard b) {
+        return static_cast<bool>(a.m_raw & b.m_raw);
     }
 
     friend constexpr Bitboard& operator&=(Bitboard& a, Bitboard b) {

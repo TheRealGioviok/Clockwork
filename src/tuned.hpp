@@ -19,6 +19,8 @@ namespace Clockwork::tuned {
     NO_TUNE(nmp_depth, 3, 1, 10, .5, 0.002)                       \
     NO_TUNE(nmp_base_r, 3, 1, 10, .5, 0.002)                      \
     NO_TUNE(nmp_verif_min_depth, 14, 1, 40, .5, 0.002)            \
+    TUNE(nmp_beta_margin, 30, 5, 90, 4, 0.002)                    \
+    TUNE(nmp_eval_diff_div, 400, 200, 800, 30, 0.002)             \
                                                                   \
     /* ProbCut Values */                                          \
     TUNE(probcut_margin, 300, 100, 500, 10, 0.002)                \
