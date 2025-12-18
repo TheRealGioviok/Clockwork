@@ -108,9 +108,7 @@ public:
     }
 
     [[nodiscard]] Bitboard horizontal_adjacent() const {
-        constexpr u64 FILE_A = file_mask(0).m_raw;
-        constexpr u64 FILE_H = file_mask(7).m_raw;
-        return Bitboard{((m_raw & ~FILE_H) << 1) | ((m_raw & ~FILE_A) >> 1)};
+        return (this->shift(Direction::East) | this->shift(Direction::West));
     }
 
     [[nodiscard]] Bitboard shift_relative(Color perspective, Direction dir) const {

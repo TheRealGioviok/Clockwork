@@ -120,7 +120,7 @@ PScore evaluate_pawns(const Position& pos) {
                 Bitboard phal          = pawns &Bitboard::from_square(sq).horizontal_adjacent();
                 candidate = (stoppers == (levers | lever_push))  // No extra blockers behind levers
                 && !(levers.ipopcount() - support_count > 1) // Levers don't outnumber support
-                && !(lever_push.ipopcount() - phal.popcount() > 0) // Lever pushes dont outnumber phalanxes
+                && !(lever_push.ipopcount() - phal.ipopcount() > 0) // Lever pushes dont outnumber phalanxes
                 && !(levers && lever_push); // Not both lever types present
                 if (candidate) {
                     eval += CANDIDATE_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
