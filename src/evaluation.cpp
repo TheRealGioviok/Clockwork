@@ -116,8 +116,8 @@ PScore evaluate_pawns(const Position& pos) {
             else {
                 Bitboard levers = static_pawn_attacks<color>(sq) & opp_pawns;
                 Bitboard lever_push = static_pawn_attacks<color>(push) & opp_pawns.shift_relative(color, Direction::North);
-                i32      support_count = (static_pawn_attacks<color>(sq) & pawns).ipopcount();
-                Bitboard phal          = pawns &Bitboard::from_square(sq).horizontal_adjacent();
+                i32      support_count = (static_pawn_attacks<them>(sq) & pawns).ipopcount();
+                Bitboard phal          = pawns & Bitboard::from_square(sq).horizontal_adjacent();
                 candidate = (stoppers == (levers | lever_push))  // No extra blockers behind levers
                 && !(levers.ipopcount() - support_count > 1) // Levers don't outnumber support
                 && !(lever_push.ipopcount() - phal.ipopcount() > 0) // Lever pushes dont outnumber phalanxes
