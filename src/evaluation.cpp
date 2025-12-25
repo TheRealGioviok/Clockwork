@@ -38,6 +38,13 @@ Bitboard static_pawn_attacks(const Bitboard pawns) {
 }
 
 template<Color color>
+Bitboard static_pawn_double_attacks(const Bitboard pawns) {
+    Bitboard attacks = pawns.shift_relative(color, Direction::NorthEast)
+                     & pawns.shift_relative(color, Direction::NorthWest);
+    return attacks;
+}
+
+template<Color color>
 Bitboard pawn_spans(const Bitboard pawns, Bitboard blockers) {
     Bitboard res = pawns;
     // rank 1 -> 2
@@ -285,14 +292,19 @@ PScore evaluate_king_safety(const Position& pos) {
     // Iterate over the opponent's attack bbs
     PScore eval = PSCORE_ZERO;
 
+    Bitboard our_pawns = pos.bitboard_for(opp, PieceType::Pawn);
+
     Bitboard king_ring     = king_ring_table[pos.king_sq(color).raw];
     Bitboard extended_ring = extended_ring_table[pos.king_sq(color).raw];
+
+    Bitboard twice_pawn_defended = static_pawn_double_attacks<color>(our_pawns);
+    Bitboard allow               = ~twice_pawn_defended;
 
     for (PieceType pt : {PieceType::Pawn, PieceType::Knight, PieceType::Bishop, PieceType::Rook,
                          PieceType::Queen}) {
         Bitboard attacked = pos.attacked_by(opp, pt);
-        Bitboard inner    = attacked & king_ring;
-        Bitboard outer    = attacked & extended_ring & ~king_ring;
+        Bitboard inner    = attacked & king_ring & allow;
+        Bitboard outer    = attacked & extended_ring & allow;
         eval += PT_INNER_RING_ATTACKS[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)]
               * inner.ipopcount();
         eval += PT_OUTER_RING_ATTACKS[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)]

@@ -36,7 +36,7 @@ int main() {
       "data/dfrcv1.txt", "data/dfrcv0.txt", "data/v2.2.txt", "data/v2.1.txt", "data/v3.txt",
     };
 
-    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
+    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 4);
 
     std::cout << "Running on " << thread_count << " threads\n";
 
