@@ -1,3 +1,4 @@
+import math
 import re
 
 # Change config as needed
@@ -6,6 +7,14 @@ HEADER_FILE = "src/tuned.hpp"
 OUTPUT_FILE = "src/tuned.hpp"
 
 PREFIX_TO_STRIP = "tune_"
+RECOMPUTE_RANGES = True
+
+RECOMPUTE_MIN_DIVIDE = 2
+RECOMPUTE_MAX_MULTIPLY = 2
+RECOMPUTE_STEP_DIVISOR = 10
+
+import re
+
 
 def load_values(path):
     values = {}
@@ -22,7 +31,7 @@ def load_values(path):
             if name.startswith(PREFIX_TO_STRIP):
                 name = name[len(PREFIX_TO_STRIP):]
 
-            values[name] = value
+            values[name] = round(float(value))
 
     return values
 
@@ -30,27 +39,47 @@ def load_values(path):
 def replace_macro_values(text, values):
     macro_re = re.compile(
         r"""
-        (?P<macro>TUNE|NO_TUNE)      # macro name
+        (?P<macro>TUNE|NO_TUNE)
         \(
-        (?P<name>\s*[\w\d_]+)\s*,   # parameter name
-        (?P<value>\s*[^,]+)\s*,     # value to replace (2nd arg)
+        (?P<name>\s*[\w\d_]+)\s*,
+        (?P<v2>\s*[^,]+)\s*,
+        (?P<v3>\s*[^,]+)\s*,
+        (?P<v4>\s*[^,]+)\s*,
+        (?P<v5>\s*[^,]+)
         """,
         re.VERBOSE,
     )
 
     def repl(match):
         name = match.group("name").strip()
-        old_value = match.group("value")
 
         if name not in values:
             return match.group(0)
 
-        new_value = values[name]
+        new_v2 = values[name]
+
+        if not RECOMPUTE_RANGES:
+            return (
+                f"{match.group('macro')}("
+                f"{match.group('name')}, "
+                f"{new_v2}, "
+                f"{match.group('v3')}, "
+                f"{match.group('v4')}, "
+                f"{match.group('v5')}"
+            )
+
+        # Recompute and round values
+        new_v3 = math.ceil(new_v2 * RECOMPUTE_MAX_MULTIPLY)
+        new_v4 = math.ceil(new_v2 / RECOMPUTE_MIN_DIVIDE)
+        new_v5 = math.ceil((new_v3 - new_v2) / RECOMPUTE_STEP_DIVISOR)
 
         return (
             f"{match.group('macro')}("
             f"{match.group('name')}, "
-            f"{new_value},"
+            f"{new_v2}, "
+            f"{new_v3}, "
+            f"{new_v4}, "
+            f"{new_v5}"
         )
 
     return macro_re.sub(repl, text)
