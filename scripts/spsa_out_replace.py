@@ -56,30 +56,30 @@ def replace_macro_values(text, values):
         if name not in values:
             return match.group(0)
 
-        new_v2 = values[name]
+        value = values[name]
 
         if not RECOMPUTE_RANGES:
             return (
                 f"{match.group('macro')}("
                 f"{match.group('name')}, "
-                f"{new_v2}, "
+                f"{value}, "
                 f"{match.group('v3')}, "
                 f"{match.group('v4')}, "
                 f"{match.group('v5')}"
             )
 
         # Recompute and round values
-        new_v3 = math.ceil(new_v2 * RECOMPUTE_MAX_MULTIPLY)
-        new_v4 = math.ceil(new_v2 / RECOMPUTE_MIN_DIVIDE)
-        new_v5 = math.ceil((new_v3 - new_v2) / RECOMPUTE_STEP_DIVISOR)
+        max = math.ceil(value * RECOMPUTE_MAX_MULTIPLY)
+        min = math.ceil(value / RECOMPUTE_MIN_DIVIDE)
+        step = math.ceil((max - min) / RECOMPUTE_STEP_DIVISOR)
 
         return (
             f"{match.group('macro')}("
             f"{match.group('name')}, "
-            f"{new_v2}, "
-            f"{new_v3}, "
-            f"{new_v4}, "
-            f"{new_v5}"
+            f"{value}, "
+            f"{min}, "
+            f"{max}, "
+            f"{step}"
         )
 
     return macro_re.sub(repl, text)
