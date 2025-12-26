@@ -68,17 +68,18 @@ def replace_macro_values(text, values):
                 f"{match.group('v5')}"
             )
 
-        # Recompute and round values
-        max = math.ceil(value * RECOMPUTE_MAX_MULTIPLY)
-        min = math.ceil(value / RECOMPUTE_MIN_DIVIDE)
-        step = math.ceil((max - min) / RECOMPUTE_STEP_DIVISOR)
+        # Recompute and round values, handle negative values
+        a, b = math.ceil(value * RECOMPUTE_MAX_MULTIPLY), math.ceil(value / RECOMPUTE_MIN_DIVIDE)
+        max_val = max(a, b)
+        min_val = min(a, b)
+        step = max(1, math.ceil((max_val - min_val) / RECOMPUTE_STEP_DIVISOR))
 
         return (
             f"{match.group('macro')}("
             f"{match.group('name')}, "
             f"{value}, "
-            f"{min}, "
-            f"{max}, "
+            f"{min_val}, "
+            f"{max_val}, "
             f"{step}"
         )
 

@@ -57,11 +57,11 @@ namespace Clockwork::tuned {
                                                                   \
     /* Quiet History Pruning */                                   \
     NO_TUNE(qhp_depth, 4, 1, 20, 0.5, 0.002)                      \
-    TUNE(qhp_threshold, -2183, -1091, -4366, -327, 0.002)          \
+    TUNE(qhp_threshold, -2183, -4366, -1091, 328, 0.002)          \
                                                                   \
     /* SEE PVS */                                                 \
-    TUNE(see_pvs_quiet, -65, -32, -130, -9, 0.002)                 \
-    TUNE(see_pvs_noisy_quad, -20, -10, -40, -3, 0.002)             \
+    TUNE(see_pvs_quiet, -65, -130, -32, 10, 0.002)                 \
+    TUNE(see_pvs_noisy_quad, -20, -40, -10, 3, 0.002)             \
     TUNE(see_pvs_hist_mult, 16, 8, 32, 3, 0.002)                 \
                                                                   \
     /* Singular Extensions */                                     \
