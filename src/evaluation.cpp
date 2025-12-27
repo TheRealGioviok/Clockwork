@@ -248,11 +248,24 @@ PScore evaluate_outposts(const Position& pos) {
     Bitboard viable_outposts =
       viable_outposts_ranks & pawn_defended_squares & ~opp_pawn_span_attacks;
     // Check for minor pieces on outposts
-    PScore eval = PSCORE_ZERO;
-    eval += OUTPOST_KNIGHT_VAL
-          * (pos.bitboard_for(color, PieceType::Knight) & viable_outposts).ipopcount();
-    eval += OUTPOST_BISHOP_VAL
-          * (pos.bitboard_for(color, PieceType::Bishop) & viable_outposts).ipopcount();
+    PScore   eval      = PSCORE_ZERO;
+    Bitboard noutposts = pos.bitboard_for(color, PieceType::Knight) & viable_outposts;
+    Bitboard boutposts = pos.bitboard_for(color, PieceType::Bishop) & viable_outposts;
+    // "Super" outposts: outposts which are not challangeable by enemy minor pieces ever
+    // Possible cases:
+    // - Enemy has no minor pieces
+    // - Enemy only has 1 bishop and the outpost is on the opposite color (todo)
+    // - Enemy has not more than 1 knight, but our outpost is defended by another outposted minor piece (todo)
+
+
+    eval += OUTPOST_KNIGHT_VAL * noutposts.ipopcount();
+    eval += OUTPOST_BISHOP_VAL * boutposts.ipopcount();
+
+    if (pos.piece_count(opp, PieceType::Knight) == 0
+        && pos.piece_count(opp, PieceType::Bishop) == 0) {
+        eval += SUPER_KNIGHT_OUTPOST_VAL * noutposts.ipopcount();
+        eval += SUPER_BISHOP_OUTPOST_VAL * boutposts.ipopcount();
+    }
     return eval;
 }
 
@@ -298,6 +311,7 @@ PScore evaluate_king_safety(const Position& pos) {
         eval += PT_OUTER_RING_ATTACKS[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)]
               * outer.ipopcount();
     }
+
     return eval;
 }
 

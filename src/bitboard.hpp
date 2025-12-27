@@ -29,6 +29,10 @@ public:
         m_raw(raw) {
     }
 
+    static constexpr Bitboard full() {
+        return Bitboard{0xFFFFFFFFFFFFFFFF};
+    }
+
     static constexpr Bitboard from_square(Square sq) {
         return Bitboard{static_cast<u64>(1) << sq.raw};
     }

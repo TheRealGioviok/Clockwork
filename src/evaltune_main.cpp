@@ -230,7 +230,12 @@ int main() {
                   << std::endl;
         std::cout << "inline const PParam OUTPOST_BISHOP_VAL    = " << OUTPOST_BISHOP_VAL << ";"
                   << std::endl;
+        std::cout << std::endl;
 
+        std::cout << "inline const PParam SUPER_KNIGHT_OUTPOST_VAL = " << SUPER_KNIGHT_OUTPOST_VAL
+                  << ";" << std::endl;
+        std::cout << "inline const PParam SUPER_BISHOP_OUTPOST_VAL = " << SUPER_BISHOP_OUTPOST_VAL
+                  << ";" << std::endl;
         std::cout << std::endl;
 
         std::cout << "inline const PParam PAWN_PUSH_THREAT_KNIGHT = " << PAWN_PUSH_THREAT_KNIGHT
