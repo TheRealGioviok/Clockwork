@@ -163,20 +163,22 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     Bitboard all_pieces = pos.board().get_occupied_bitboard();
 
     Bitboard pushable = our_pawns & ~all_pieces.shift_relative(color, Direction::South);
-
+    Bitboard supported_pushable = pushable
+                                & pos.attacked_by(color, PieceType::Pawn).shift_relative(
+                                    color, Direction::South);
     Bitboard push_attacks =
-      pushable.shift_relative(color, Direction::North).shift_relative(color, Direction::NorthEast)
-      | pushable.shift_relative(color, Direction::North)
-          .shift_relative(color, Direction::NorthWest);
+      static_pawn_attacks<color>(pushable.shift_relative(color, Direction::North));
+    Bitboard defended_push_attacks =
+      static_pawn_attacks<color>(supported_pushable.shift_relative(color, Direction::North));
 
     eval += PAWN_PUSH_THREAT_KNIGHT
           * (push_attacks & pos.bitboard_for(opp, PieceType::Knight)).ipopcount();
     eval += PAWN_PUSH_THREAT_BISHOP
-          * (push_attacks & pos.bitboard_for(opp, PieceType::Bishop)).ipopcount();
+          * (defended_push_attacks & pos.bitboard_for(opp, PieceType::Bishop)).ipopcount();
     eval +=
       PAWN_PUSH_THREAT_ROOK * (push_attacks & pos.bitboard_for(opp, PieceType::Rook)).ipopcount();
-    eval +=
-      PAWN_PUSH_THREAT_QUEEN * (push_attacks & pos.bitboard_for(opp, PieceType::Queen)).ipopcount();
+    eval += PAWN_PUSH_THREAT_QUEEN
+          * (defended_push_attacks & pos.bitboard_for(opp, PieceType::Queen)).ipopcount();
 
     return eval;
 }
