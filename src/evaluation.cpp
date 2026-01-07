@@ -261,6 +261,35 @@ PScore evaluate_outposts(const Position& pos) {
     return eval;
 }
 
+template<Color color>
+PScore imbalance(const Position& pos) {
+    constexpr Color opp = ~color;
+    PScore          val = PSCORE_ZERO;
+
+    // Lambda to get piece counts idx for the imbalance table
+    auto imb_count = [&](const Color c, const i32 idx) -> usize {
+        // special case, return "bishop pair"
+        if (idx == 0) {
+            return pos.piece_count(c, PieceType::Bishop) >= 2;
+        }
+        return pos.piece_count(c, static_cast<PieceType>(idx));
+    };
+
+    for (i32 pt1 = 0; pt1 <= static_cast<i32>(PieceType::Queen); ++pt1) {
+        i32 c1 = imb_count(color, pt1);
+        if (!c1) {
+            continue;
+        }
+        PScore v = IMBALANCE_OWN_QUAD[pt1][pt1] * c1;
+        for (i32 pt2 = 0; pt2 <= static_cast<i32>(PieceType::Queen); ++pt2) {
+            v += IMBALANCE_OWN_QUAD[pt1][pt2] * imb_count(color, pt2) +
+                   IMBALANCE_OPP_QUAD[pt1][pt2] * imb_count(opp, pt2);
+        }
+        val += v * c1;
+    }
+
+    return val;
+}
 
 template<Color color>
 PScore evaluate_potential_checkers(const Position& pos) {
@@ -382,6 +411,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
+    eval += imbalance<Color::White>(pos) - imbalance<Color::Black>(pos);
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
 };
 

@@ -334,6 +334,22 @@ int main() {
         printPsqtArray("QUEEN_PSQT", QUEEN_PSQT);
         printPsqtArray("KING_PSQT", KING_PSQT);
         std::cout << std::endl;
+
+        auto print_imbalance_table = [](const std::string& name, const auto& table) {
+            std::cout << "inline const std::array<std::array<PParam, " << table[0].size()
+                      << ">, " << table.size() << "> " << name << " = {{" << std::endl;
+            for (const auto& row : table) {
+                std::cout << "   {{";
+                for (const auto& val : row) {
+                    std::cout << " " << val << ",";
+                }
+                std::cout << " }}," << std::endl;
+            }
+            std::cout << "}};" << std::endl;
+        };
+        print_imbalance_table("IMBALANCE_OWN_QUAD", IMBALANCE_OWN_QUAD);
+        print_imbalance_table("IMBALANCE_OPP_QUAD", IMBALANCE_OPP_QUAD);
+
 #endif
         const auto end = time::Clock::now();
         std::cout << "// Epoch duration: " << time::cast<time::FloatSeconds>(end - start).count()
