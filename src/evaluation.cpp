@@ -297,12 +297,20 @@ PScore evaluate_king_safety(const Position& pos) {
                          PieceType::Queen}) {
         Bitboard attacked = pos.attacked_by(opp, pt);
         Bitboard inner    = attacked & king_ring;
-        Bitboard outer    = attacked & extended_ring & ~king_ring;
+        Bitboard outer    = attacked & extended_ring;
         eval += PT_INNER_RING_ATTACKS[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)]
               * inner.ipopcount();
         eval += PT_OUTER_RING_ATTACKS[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)]
               * outer.ipopcount();
     }
+
+    Bitboard our_pawns = pos.bitboard_for(color, PieceType::Pawn);
+    Bitboard inner_shelter_pawns = our_pawns & king_ring;
+    Bitboard outer_shelter_pawns = our_pawns & extended_ring;
+
+    eval += INNER_SHELTER_PAWNS * inner_shelter_pawns.ipopcount();
+    eval += OUTER_SHELTER_PAWNS * outer_shelter_pawns.ipopcount();
+    
     return eval;
 }
 
