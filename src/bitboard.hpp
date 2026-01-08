@@ -78,6 +78,10 @@ public:
         return Square{static_cast<u8>(std::countr_zero(m_raw))};
     }
 
+    [[nodiscard]] bool any() const {
+        return static_cast<bool>(m_raw);
+    }
+
     // Rank closest to player
     [[nodiscard]] u8 front_rank(Color color) const {
         i32 color_shift = color == Color::White ? 0 : 56;

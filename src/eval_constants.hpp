@@ -36,6 +36,9 @@ inline const std::array<PParam, 5> DEFENDED_PAWN = {
 inline const std::array<PParam, 6> PASSED_PAWN = {
     S(-81, -96), S(-81, -74), S(-54, 7), S(27, 76), S(102, 196), S(302, 277),
 };
+inline const std::array<PParam, 6> CANDIDATE_PASSED_PAWN = {
+    S(0,0), S(0,0), S(0,0), S(0,0), S(0,0), S(0,0), 
+};
 inline const std::array<PParam, 6> DEFENDED_PASSED_PUSH = {
     S(43, -38), S(38, -6), S(29, 20), S(26, 66), S(97, 129), S(211, 209),
 };

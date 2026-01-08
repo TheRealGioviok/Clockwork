@@ -139,6 +139,25 @@ PScore evaluate_pawns(const Position& pos) {
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
         }
+        else {
+            Bitboard pawnbb = Bitboard::from_square(sq);
+            // Look for candidate passers
+            Bitboard levers = static_pawn_attacks<color>(pawnbb) & stoppers;
+            Bitboard lever_pushes = static_pawn_attacks<color>(pawnbb).shift_relative(color, Direction::North) & stoppers;
+            i32 support_count = (static_pawn_attacks<them>(pawnbb) & pawns).ipopcount();
+            i32 phal = (pawns & (pawnbb.shift(Direction::East) | pawnbb.shift(Direction::West))).ipopcount();
+
+            bool candidate = (
+                (stoppers == (levers | lever_pushes)) // No extra stoppers behind the initial blockade
+                && (levers.ipopcount() - support_count > 1) // Levers don't outnumber our supporters
+                && !(lever_pushes.ipopcount() - phal > 0) // We can safely push into their levers
+                && !(levers.any() && lever_pushes.any()) // Can't have both lever and lever push blockers
+            );
+
+            if (candidate) {
+                eval += CANDIDATE_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+            }
+        }
     }
 
     Bitboard phalanx = pawns & pawns.shift(Direction::East);
