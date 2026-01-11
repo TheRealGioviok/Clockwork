@@ -281,7 +281,7 @@ PScore imbalance(const Position& pos) {
             continue;
         }
         PScore v = IMBALANCE_OWN_QUAD[pt1][pt1] * c1;
-        for (i32 pt2 = 0; pt2 <= static_cast<i32>(PieceType::Queen); ++pt2) {
+        for (i32 pt2 = 0; pt2 < pt1; ++pt2) {
             v += IMBALANCE_OWN_QUAD[pt1][pt2] * imb_count(color, pt2) +
                    IMBALANCE_OPP_QUAD[pt1][pt2] * imb_count(opp, pt2);
         }
