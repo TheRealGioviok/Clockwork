@@ -310,6 +310,15 @@ int main() {
         print_table("BISHOP_PAWNS", BISHOP_PAWNS);
         std::cout << std::endl;
 
+        std::cout << "inline const PParam KNIGHT_BEHIND_PAWN_VAL = " << KNIGHT_BEHIND_PAWN_VAL
+                  << ";" << std::endl;
+        std::cout << "inline const PParam KNIGHT_BEHIND_DEFENDED_PAWN_VAL = " << KNIGHT_BEHIND_DEFENDED_PAWN_VAL
+                  << ";" << std::endl;
+        std::cout << "inline const PParam BISHOP_BEHIND_PAWN_VAL = " << BISHOP_BEHIND_PAWN_VAL << ";" << std::endl;
+        std::cout << "inline const PParam BISHOP_BEHIND_DEFENDED_PAWN_VAL = " << BISHOP_BEHIND_DEFENDED_PAWN_VAL
+                  << ";" << std::endl;
+        std::cout << std::endl;
+
         auto printPsqtArray = [](const std::string& name, const auto& arr) {
             std::cout << "inline const std::array<PParam, " << arr.size() << "> " << name << " = {"
                       << std::endl;

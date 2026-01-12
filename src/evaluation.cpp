@@ -351,6 +351,20 @@ PScore evaluate_space(const Position& pos) {
     eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
     eval +=
       ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
+    
+    Bitboard our_pawns = pos.bitboard_for(color, PieceType::Pawn);
+    Bitboard defended_pawms = pos.attacked_by(color, PieceType::Pawn) & our_pawns;
+    // Minors behind pawns
+    Bitboard knights = pos.bitboard_for(color, PieceType::Knight);
+    Bitboard bishops = pos.bitboard_for(color, PieceType::Bishop);
+
+    Bitboard behind_pawns = our_pawns.shift_relative(color, Direction::South);
+    Bitboard behind_defended_pawns = defended_pawms.shift_relative(color, Direction::South);
+    
+    eval += KNIGHT_BEHIND_PAWN_VAL * (knights & behind_pawns).ipopcount();
+    eval += KNIGHT_BEHIND_DEFENDED_PAWN_VAL * (knights & behind_defended_pawns).ipopcount();
+    eval += BISHOP_BEHIND_PAWN_VAL * (bishops & behind_pawns).ipopcount();
+    eval += BISHOP_BEHIND_DEFENDED_PAWN_VAL * (bishops & behind_defended_pawns).ipopcount();
 
     return eval;
 }
