@@ -107,8 +107,8 @@ void History::update_correction_history(const Position& pos, i32 depth, i32 diff
         i32 update =
           entry * (CORRECTION_HISTORY_WEIGHT_SCALE - new_weight) + scaled_diff * new_weight;
 
-        entry = std::clamp(update / CORRECTION_HISTORY_WEIGHT_SCALE, -CORRECTION_HISTORY_MAX,
-                           CORRECTION_HISTORY_MAX);
+        entry = std::clamp(update / CORRECTION_HISTORY_WEIGHT_SCALE, -CORRECTION_HISTORY_MAX / 4,
+                           CORRECTION_HISTORY_MAX / 4);
     };
 
     update_entry(m_pawn_corr_hist[side_index][pawn_index]);
