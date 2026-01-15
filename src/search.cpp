@@ -604,7 +604,7 @@ Value Worker::search(
         bool       quiet        = quiet_move(m);
 
         auto move_history = quiet ? m_td.history.get_quiet_stats(pos, m, ply, ss) : 
-                                   m_td.history.get_noisy_stats(pos, m, ply, ss);
+                                   m_td.history.get_noisy_stats(pos, m);
 
         if (!ROOT_NODE && !is_being_mated_score(best_value)) {
             // Late Move Pruning (LMP)
