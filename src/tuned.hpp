@@ -82,6 +82,7 @@ namespace Clockwork::tuned {
     TUNE(lmr_alpha_raise_red, 514, 256, 1024, 38, 0.002)          \
     TUNE(lmr_not_improving_red, 520, 256, 1024, 38, 0.002)        \
     TUNE(lmr_in_check_red, 1021, 512, 2048, 77, 0.002)            \
+    TUNE(lmr_correction_red, 25, 4, 96, 5, 0.002)                 \
     TUNE(lmr_cutnode_red, 1087, 512, 2048, 77, 0.002)             \
     TUNE(lmr_no_tt_red, 997, 512, 2048, 77, 0.002)                \
     TUNE(lmr_ttpv_red, 1097, 512, 2048, 77, 0.002)                \

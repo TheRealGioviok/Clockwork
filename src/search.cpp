@@ -738,6 +738,10 @@ Value Worker::search(
 
             reduction -= tuned::lmr_in_check_red * pos_after.is_in_check();
 
+            if (correction < 0) {
+                reduction -= (correction * correction) / tuned::lmr_correction_red; // Max correction is 32 * 5 = 160, so the square is at most 25600. We can scale it into a 0-1024 range
+            }
+            
             if (cutnode) {
                 reduction += tuned::lmr_cutnode_red;
                 // If there is no available tt move, increase reduction
