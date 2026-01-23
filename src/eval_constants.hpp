@@ -179,6 +179,12 @@ inline const std::array<std::array<PParam, 7>, 4> SHELTER_STORM = {{
   {{ S(4, -9), S(28, -37), S(15, -12), S(2, 4), S(8, 8), S(17, -11), S(24, -37), }},
   {{ S(-3, 16), S(14, 11), S(35, 3), S(8, -5), S(6, -4), S(34, 7), S(27, 6), }},
 }};
+
+// Tunable Sigmoid Functions for king safety
+inline TunableSigmoid<32> KING_SAFETY_ACTIVATION(
+    0,0,0,0
+);
+
 // Epoch duration: 5.20419s
 // clang-format on
 }  // namespace Clockwork
