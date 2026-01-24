@@ -154,12 +154,9 @@ private:
     static constexpr f64 B = static_cast<f64>(B_SCALE);
 
 public:
-    TunableSigmoid(PParam a, PParam c)
-        m_a(a),
-        m_c(c) {
-            std::cout << m_a;
-            std::cout << m_c;
-    }
+    TunableSigmoid(i32 a_mg, i32 a_eg, i32 c_mg, i32 c_eg) :
+        m_a(S(a_mg, a_eg)), m_c(S(c_mg, c_eg)) {}
+    
 
     PScore operator()(PScore x) const {
         auto scaled  = x / B;
