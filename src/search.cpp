@@ -638,7 +638,7 @@ Value Worker::search(
         if (!excluded && tt_data && m == tt_data->move && depth >= tuned::sing_min_depth
             && tt_data->depth >= depth - tuned::sing_depth_margin
             && tt_data->bound() != Bound::Upper) {
-            Value singular_beta  = tt_data->score - depth * tuned::sing_beta_margin;
+            Value singular_beta  = tt_data->score - depth * tuned::sing_beta_margin / 64;
             int   singular_depth = depth / 2;
 
             ss->excluded_move    = m;

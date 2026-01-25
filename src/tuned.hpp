@@ -67,7 +67,7 @@ namespace Clockwork::tuned {
     /* Singular Extensions */                                     \
     NO_TUNE(sing_min_depth, 6, 1, 20, 0.5, 0.002)                 \
     NO_TUNE(sing_depth_margin, 3, 1, 20, 0.5, 0.002)              \
-    TUNE(sing_beta_margin, 5, 2, 10, 1, 0.002)                    \
+    TUNE(sing_beta_margin, 160, 80, 360, 1, 0.002)                \
     TUNE(dext_margin, 40, 20, 80, 3, 0.002)                       \
     TUNE(dext_hist_div, 491, 256, 1024, 39, 0.002)                \
     TUNE(triext_margin, 126, 60, 240, 9, 0.002)                   \
