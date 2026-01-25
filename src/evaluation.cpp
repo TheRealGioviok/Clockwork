@@ -353,6 +353,7 @@ PScore evaluate_king_safety(const Position& pos) {
     }
 
     eval += king_shelter<color>(pos);
+    eval += evaluate_potential_checkers<color>(pos);
 
     return eval;
 }
@@ -439,8 +440,6 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
     eval +=
       evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
-    eval += evaluate_potential_checkers<Color::White>(pos)
-          - evaluate_potential_checkers<Color::Black>(pos);
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
     eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
