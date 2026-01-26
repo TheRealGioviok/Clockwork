@@ -354,7 +354,7 @@ PScore evaluate_king_safety(const Position& pos, PScore& mobility_diff) {
     }
 
     eval += king_shelter<color>(pos);
-    eval += color == Color::White ? mobility_diff : - mobility_diff;
+    eval += KS_MOBILITY_WEIGHT.scaled_mul<64>(color == Color::White ? -mobility_diff : mobility_diff);
 
     return eval;
 }
@@ -453,6 +453,9 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     // Nonlinear king safety components
     PScore white_king_attack_total = white_king_attack + evaluate_king_safety<Color::Black>(pos, mobility);
     PScore black_king_attack_total = black_king_attack + evaluate_king_safety<Color::White>(pos, mobility);
+
+    // Skip-connect mobility into lineval as well
+    eval += mobility;
 
     // Nonlinear adjustment
     eval += king_safety_activation<Color::White>(pos, white_king_attack_total)

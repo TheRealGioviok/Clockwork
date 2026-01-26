@@ -415,9 +415,11 @@ int main() {
                       << ")\n";
         };
         print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
+        std::cout << "inline const PParam KS_MOBILITY_WEIGHT = "
+                  << KS_MOBILITY_WEIGHT << ";" << std::endl;
 
 #endif
-        const auto end = time::Clock::now();
+          const auto end = time::Clock::now();
         std::cout << "// Epoch duration: " << time::cast<time::FloatSeconds>(end - start).count()
                   << "s\n";
 
