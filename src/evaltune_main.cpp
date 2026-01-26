@@ -333,6 +333,8 @@ int main() {
         print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
         std::cout << std::endl;
 
+        std::cout << "inline const PParam KS_NOQUEEN_ATTACK = " << KS_NOQUEEN_ATTACK << ";" << std::endl;
+
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
                   << std::endl;
         std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"

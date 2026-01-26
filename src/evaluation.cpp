@@ -352,6 +352,9 @@ PScore evaluate_king_safety(const Position& pos) {
               * outer.ipopcount();
     }
 
+    // If opponent has no queen left to attack, the attack strength is diminished
+    eval += KS_NOQUEEN_ATTACK * pos.bitboard_for(opp, PieceType::Queen).empty();
+
     eval += king_shelter<color>(pos);
 
     return eval;
