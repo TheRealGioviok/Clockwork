@@ -66,7 +66,6 @@ struct PairHandle {
 
     // Internal helper to avoid including Graph in header
     ValueHandle phase_impl(f64 scaled_alpha) const;
-
     template<i32 max>
     ValueHandle phase(f64 alpha) const {
         return phase_impl(alpha / max);
@@ -123,5 +122,6 @@ PairHandle& operator*=(PairHandle& a, f64 scalar);
 PairHandle& operator*=(PairHandle& a, ValueHandle v);
 PairHandle& operator/=(PairHandle& a, f64 scalar);
 PairHandle& operator/=(PairHandle& a, ValueHandle v);
+
 
 }  // namespace Clockwork::Autograd

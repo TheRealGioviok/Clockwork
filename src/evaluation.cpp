@@ -354,7 +354,12 @@ PScore evaluate_king_safety(const Position& pos, PScore& mobility_diff) {
     }
 
     eval += king_shelter<color>(pos);
+
+    #ifndef EVAL_TUNING
     eval += KS_MOBILITY_WEIGHT.scaled_mul<64>(color == Color::White ? -mobility_diff : mobility_diff);
+    #else
+    eval += KS_MOBILITY_WEIGHT * (color == Color::White ? -mobility_diff : mobility_diff) / 64;
+    #endif
 
     return eval;
 }
@@ -416,6 +421,20 @@ PScore king_safety_activation(const Position& pos, PScore& king_safety_score) {
     return activated;
 }
 
+template <Color color>
+PScore mobility_activation(const Position& pos, PScore& mobility){
+    // Apply sigmoid activation to mobility score. Scale the sigmoid depending on the material left.
+    PScore mat_total_scale = MOB_KNIGHT_SCALE * pos.piece_count(color, PieceType::Knight)
+                     + MOB_BISHOP_SCALE * pos.piece_count(color, PieceType::Bishop)
+                     + MOB_ROOK_SCALE * pos.piece_count(color, PieceType::Rook)
+                     + MOB_QUEEN_SCALE * pos.piece_count(color, PieceType::Queen)
+                     + MOB_BIAS_SCALE;
+
+    PScore activated = KING_SAFETY_ACTIVATION(king_safety_score);
+    PScore multiplied = activated * mat_total_scale / 64;
+    return multiplied;
+}
+
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     const Color us    = pos.active_color();
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
@@ -437,8 +456,10 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     auto [black_piece_score, black_king_attack, black_mobility] =
       evaluate_pieces<Color::Black>(pos);
     eval += white_piece_score - black_piece_score;
+
     // Merge mobility scores
-    PScore mobility = white_mobility - black_mobility;
+    PScore mobility = mobility_activation<Color::White>(pos, white_mobility)
+                    - mobility_activation<Color::Black>(pos, black_mobility);
 
     // Other linear components
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
@@ -454,7 +475,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     PScore white_king_attack_total = white_king_attack + evaluate_king_safety<Color::Black>(pos, mobility);
     PScore black_king_attack_total = black_king_attack + evaluate_king_safety<Color::White>(pos, mobility);
 
-    // Skip-connect mobility into lineval as well
+    // Skip-connect mobility into eval as well
     eval += mobility;
 
     // Nonlinear adjustment
