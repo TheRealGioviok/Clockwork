@@ -72,6 +72,11 @@ struct PairHandle {
         return phase_impl(alpha / max);
     }
 
+    template<i32 div>
+    PairHandle scaled_mul(PairHandle other) {
+        return (*this) * other / div;
+    }
+
     PairHandle sigmoid() const;
 };
 
