@@ -412,9 +412,10 @@ int main() {
                       << "\t" << std::lround(a_h.first()) << ", " << std::lround(a_h.second())
                       << ", " << std::lround(c_h.first()) << ", " << std::lround(c_h.second())
                       << "\n"
-                      << ")\n";
+                      << ");\n";
         };
         print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
+        print_sigmoid("THREATS_ACTIVATION", THREATS_ACTIVATION, 32);
 
 #endif
         const auto end = time::Clock::now();

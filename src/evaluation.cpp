@@ -407,10 +407,15 @@ PScore evaluate_space(const Position& pos) {
     return eval;
 }
 
-template<Color color>
 PScore king_safety_activation(const Position& pos, PScore& king_safety_score) {
     // Apply sigmoid activation to king safety score
     PScore activated = KING_SAFETY_ACTIVATION(king_safety_score);
+    return activated;
+}
+
+PScore threats_activation(const Position& pos, PScore& threat_score) {
+    // Apply sigmoid activation to king safety score
+    PScore activated = THREATS_ACTIVATION(threat_score);
     return activated;
 }
 
@@ -435,13 +440,15 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     auto [black_piece_score, black_king_attack] = evaluate_pieces<Color::Black>(pos);
     eval += white_piece_score - black_piece_score;
 
+    PScore white_threats = evaluate_threats<Color::White>(pos) + evaluate_pawn_push_threats<Color::White>(pos);
+    PScore black_threats = evaluate_threats<Color::Black>(pos) + evaluate_pawn_push_threats<Color::Black>(pos);
+    PScore threat_score = threats_activation(pos, white_threats) - threats_activation(pos, black_threats);
+    eval += threat_score;
+
     // Other linear components
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
-    eval +=
-      evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
     eval += evaluate_potential_checkers<Color::White>(pos)
           - evaluate_potential_checkers<Color::Black>(pos);
-    eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
     eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
 
@@ -450,8 +457,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     PScore black_king_attack_total = black_king_attack + evaluate_king_safety<Color::White>(pos);
 
     // Nonlinear adjustment
-    eval += king_safety_activation<Color::White>(pos, white_king_attack_total)
-          - king_safety_activation<Color::Black>(pos, black_king_attack_total);
+    eval += king_safety_activation(pos, white_king_attack_total)
+          - king_safety_activation(pos, black_king_attack_total);
 
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
