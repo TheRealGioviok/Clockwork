@@ -204,7 +204,7 @@ public:
 
     template<PieceType ptype>
     [[nodiscard]] Bitboard attacked_by_two_or_more(Color attacker) const {
-      return attack_table(attacker).two_or_more(piece_list(attacker).mask_eq<ptype>());
+        return attack_table(attacker).two_or_more(piece_list(attacker).mask_eq<ptype>());
     }
 
     [[nodiscard]] usize mobility_of(Color color, PieceId id) const {

@@ -272,8 +272,8 @@ struct Wordboard {
     }
 
     [[nodiscard]] Bitboard two_or_more(PieceMask piece_mask) const {
-        u16x64 p = raw & u16x64::splat(piece_mask.value());
-        u64 pred = (p & (p - u16x64::splat(1))).nonzeros().to_bits();
+        u16x64 p    = raw & u16x64::splat(piece_mask.value());
+        u64    pred = (p & (p - u16x64::splat(1))).nonzeros().to_bits();
         return Bitboard{pred};
     }
 
