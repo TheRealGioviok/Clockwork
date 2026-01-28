@@ -202,6 +202,11 @@ public:
         return attack_table(color).get_piece_mask_bitboard(piece_list(color).mask_eq(ptype));
     }
 
+    template<PieceType ptype>
+    [[nodiscard]] Bitboard attacked_by_two_or_more(Color attacker) const {
+      return attack_table(attacker).two_or_more(piece_list(attacker).mask_eq<ptype>());
+    }
+
     [[nodiscard]] usize mobility_of(Color color, PieceId id) const {
         return attack_table(color).count_matching_mask(id.to_piece_mask());
     }

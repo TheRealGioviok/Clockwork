@@ -223,9 +223,9 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
 
 template<Color color>
 PScore evaluate_pieces(const Position& pos) {
-    constexpr Color opp               = ~color;
-    PScore          eval              = PSCORE_ZERO;
-    Bitboard        own_pawns         = pos.bitboard_for(color, PieceType::Pawn);
+    constexpr Color opp       = ~color;
+    PScore          eval      = PSCORE_ZERO;
+    Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
     Bitboard        blocked_pawns =
       own_pawns & pos.board().get_occupied_bitboard().shift_relative(color, Direction::South);
     constexpr Bitboard early_ranks     = color == Color::White
@@ -397,8 +397,72 @@ PScore evaluate_space(const Position& pos) {
     eval +=
       ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
 
-
     return eval;
+}
+
+PScore evaluate_square_control(const Position& pos){
+    // Loosely approximate see without considering discoveries or pins:
+    // Lower-value attackers claim squares first; higher-value pieces cannot override previously assigned control
+    Bitboard neutral = Bitboard::all();
+    Bitboard w       = Bitboard{0};
+    Bitboard b       = Bitboard{0};
+
+    // Pawn
+    Bitboard watt = pos.attacked_by(Color::White, PieceType::Pawn) & neutral;
+    Bitboard batt  = pos.attacked_by(Color::Black, PieceType::Pawn) & neutral;
+    Bitboard w2att = pos.attacked_by_two_or_more<PieceType::Pawn>(Color::White) & neutral;
+    Bitboard b2att = pos.attacked_by_two_or_more<PieceType::Pawn>(Color::Black) & neutral;
+
+    w |= (watt & ~batt) | (w2att & ~b2att);
+    b |= (batt & ~watt) | (b2att & ~w2att);
+    neutral &= ~(w | b);
+
+    // Knight
+    watt  = pos.attacked_by(Color::White, PieceType::Knight) & neutral;
+    batt  = pos.attacked_by(Color::Black, PieceType::Knight) & neutral;
+    w2att = pos.attacked_by_two_or_more<PieceType::Knight>(Color::White) & neutral;
+    b2att = pos.attacked_by_two_or_more<PieceType::Knight>(Color::Black) & neutral;
+
+    w |= (watt & ~batt) | (w2att & ~b2att);
+    b |= (batt & ~watt) | (b2att & ~w2att);
+    neutral &= ~(w | b);
+
+    // Bishop, don't check double attacks, they only arise from extreme edge cases (2 same colored bishop for a player)
+    watt  = pos.attacked_by(Color::White, PieceType::Bishop) & neutral;
+    batt  = pos.attacked_by(Color::Black, PieceType::Bishop) & neutral;
+
+    w |= (watt & ~batt);
+    b |= (batt & ~watt);
+    neutral &= ~(w | b);
+
+    // Rooks
+    watt  = pos.attacked_by(Color::White, PieceType::Rook) & neutral;
+    batt  = pos.attacked_by(Color::Black, PieceType::Rook) & neutral;
+    w2att = pos.attacked_by_two_or_more<PieceType::Rook>(Color::White) & neutral;
+    b2att = pos.attacked_by_two_or_more<PieceType::Rook>(Color::Black) & neutral;
+
+    w |= (watt & ~batt) | (w2att & ~b2att);
+    b |= (batt & ~watt) | (b2att & ~w2att);
+    neutral &= ~(w | b);
+
+    // Queens, don't check double attacks: double queens are extremely rare
+    watt = pos.attacked_by(Color::White, PieceType::Queen) & neutral;
+    batt = pos.attacked_by(Color::Black, PieceType::Queen) & neutral;
+
+    w |= (watt & ~batt);
+    b |= (batt & ~watt);
+    neutral &= ~(w | b);
+
+    // King, there are no double attacks
+    watt = pos.attacked_by(Color::White, PieceType::King) & neutral;
+    batt = pos.attacked_by(Color::Black, PieceType::King) & neutral;
+
+    w |= (watt & ~batt);
+    b |= (batt & ~watt);
+
+    PScore s = SEE_CONTROL_VALUE * (w.ipopcount() - b.ipopcount());
+    return s;
+    
 }
 
 template<Color color>
@@ -441,6 +505,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     // Nonlinear adjustment
     eval += king_safety_activation<Color::White>(pos, white_king_attack_total)
           - king_safety_activation<Color::Black>(pos, black_king_attack_total);
+    
+    eval += evaluate_square_control(pos);
 
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));

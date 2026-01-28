@@ -922,8 +922,7 @@ std::optional<Position> Position::parse(std::string_view board,
     result.m_non_pawn_key = result.calc_non_pawn_key_slow();
     result.m_major_key    = result.calc_major_key_slow();
     result.m_minor_key    = result.calc_minor_key_slow();
-
-    return result;
+      return result;
 }
 
 HashKey Position::calc_hash_key_slow() const {
