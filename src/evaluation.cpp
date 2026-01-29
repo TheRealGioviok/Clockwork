@@ -222,12 +222,13 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_pieces(const Position& pos) {
+PScore evaluate_pieces(const Position& pos, Bitboard dominated_by_enemy) {
     constexpr Color opp       = ~color;
     PScore          eval      = PSCORE_ZERO;
     Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
     Bitboard        blocked_pawns =
-      own_pawns & pos.board().get_occupied_bitboard().shift_relative(color, Direction::South);
+      own_pawns & (pos.board().get_occupied_bitboard() | dominated_by_enemy).shift_relative(color, Direction::South);
+    
     constexpr Bitboard early_ranks     = color == Color::White
                                          ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
                                          : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
@@ -400,10 +401,10 @@ PScore evaluate_space(const Position& pos) {
     return eval;
 }
 
-PScore evaluate_square_control(const Position& pos) {
+std::tuple<Bitboard, Bitboard, Bitboard> evaluate_square_control(const Position& pos) {
     // Loosely approximate see without considering discoveries or pins:
     // Lower-value attackers claim squares first; higher-value pieces cannot override previously assigned control
-    Bitboard neutral = Bitboard::all();
+    Bitboard neutral = Bitboard::all() ^ pos.board().get_occupied_bitboard();
     Bitboard w       = Bitboard{0};
     Bitboard b       = Bitboard{0};
 
@@ -460,8 +461,7 @@ PScore evaluate_square_control(const Position& pos) {
     w |= (watt & ~batt);
     b |= (batt & ~watt);
 
-    PScore s = SEE_CONTROL_VALUE * (w.ipopcount() - b.ipopcount());
-    return s;
+    return {w,b,neutral};
 }
 
 template<Color color>
@@ -472,7 +472,8 @@ PScore king_safety_activation(const Position& pos, PScore& king_safety_score) {
 }
 
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
-    const Color us    = pos.active_color();
+    const Color us              = pos.active_color();
+    auto [w, b, neutral] = evaluate_square_control(pos);
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
                 + pos.piece_count(Color::Black, PieceType::Knight)
                 + pos.piece_count(Color::White, PieceType::Bishop)
@@ -487,7 +488,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     phase       = std::min<usize>(phase, 24);
     PScore eval = psqt_state.score();  // Used for linear components
 
-    eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
+    eval += evaluate_pieces<Color::White>(pos, b) - evaluate_pieces<Color::Black>(pos, w);
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
     eval +=
       evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
@@ -504,8 +505,6 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     // Nonlinear adjustment
     eval += king_safety_activation<Color::White>(pos, white_king_attack_total)
           - king_safety_activation<Color::Black>(pos, black_king_attack_total);
-
-    eval += evaluate_square_control(pos);
 
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
