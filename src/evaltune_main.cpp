@@ -257,45 +257,39 @@ int main() {
         Graph::get().cleanup();
         Graph::get().zero_grad();
 #ifndef PROFILE_RUN
-        std::cout << "inline const PParam PAWN_MAT   = " << PAWN_MAT << ";" << std::endl;
-        std::cout << "inline const PParam KNIGHT_MAT = " << KNIGHT_MAT << ";" << std::endl;
-        std::cout << "inline const PParam BISHOP_MAT = " << BISHOP_MAT << ";" << std::endl;
-        std::cout << "inline const PParam ROOK_MAT   = " << ROOK_MAT << ";" << std::endl;
-        std::cout << "inline const PParam QUEEN_MAT  = " << QUEEN_MAT << ";" << std::endl;
-        std::cout << "inline const PParam TEMPO_VAL  = " << TEMPO_VAL << ";" << std::endl;
+        std::cout << "inline const PParam PAWN_MAT   = " << PAWN_MAT << ";\n";
+        std::cout << "inline const PParam KNIGHT_MAT = " << KNIGHT_MAT << ";\n";
+        std::cout << "inline const PParam BISHOP_MAT = " << BISHOP_MAT << ";\n";
+        std::cout << "inline const PParam ROOK_MAT   = " << ROOK_MAT << ";\n";
+        std::cout << "inline const PParam QUEEN_MAT  = " << QUEEN_MAT << ";\n";
+        std::cout << "inline const PParam TEMPO_VAL  = " << TEMPO_VAL << ";\n";
         std::cout << std::endl;
 
-        std::cout << "inline const PParam BISHOP_PAIR_VAL   = " << BISHOP_PAIR_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam ROOK_OPEN_VAL     = " << ROOK_OPEN_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
-                  << std::endl;
+        std::cout << "inline const PParam BISHOP_PAIR_VAL   = " << BISHOP_PAIR_VAL << ";\n";
+        std::cout << "inline const PParam ROOK_OPEN_VAL     = " << ROOK_OPEN_VAL << ";\n";
+        std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";\n";
         std::cout << std::endl;
-        std::cout << "inline const PParam DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam ISOLATED_PAWN_VAL = " << ISOLATED_PAWN_VAL << ";"
-                  << std::endl;
+        std::cout << "inline const PParam DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";\n";
+        std::cout << "inline const PParam ISOLATED_PAWN_VAL = " << ISOLATED_PAWN_VAL << ";\n";
+        std::cout << "inline const PParam BACKWARD_PAWN_VAL = " << BACKWARD_PAWN_VAL << ";\n";
         std::cout << std::endl;
 
-        std::cout << "inline const PParam POTENTIAL_CHECKER_VAL = " << POTENTIAL_CHECKER_VAL << ";"
-                  << std::endl;
+        std::cout << "inline const PParam POTENTIAL_CHECKER_VAL = " << POTENTIAL_CHECKER_VAL
+                  << ";\n";
 
-        std::cout << "inline const PParam OUTPOST_KNIGHT_VAL    = " << OUTPOST_KNIGHT_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam OUTPOST_BISHOP_VAL    = " << OUTPOST_BISHOP_VAL << ";"
-                  << std::endl;
+        std::cout << "inline const PParam OUTPOST_KNIGHT_VAL    = " << OUTPOST_KNIGHT_VAL << ";\n";
+        std::cout << "inline const PParam OUTPOST_BISHOP_VAL    = " << OUTPOST_BISHOP_VAL << ";\n";
 
         std::cout << std::endl;
 
         std::cout << "inline const PParam PAWN_PUSH_THREAT_KNIGHT = " << PAWN_PUSH_THREAT_KNIGHT
-                  << ";" << std::endl;
+                  << ";\n";
         std::cout << "inline const PParam PAWN_PUSH_THREAT_BISHOP = " << PAWN_PUSH_THREAT_BISHOP
-                  << ";" << std::endl;
+                  << ";\n";
         std::cout << "inline const PParam PAWN_PUSH_THREAT_ROOK   = " << PAWN_PUSH_THREAT_ROOK
-                  << ";" << std::endl;
+                  << ";\n";
         std::cout << "inline const PParam PAWN_PUSH_THREAT_QUEEN  = " << PAWN_PUSH_THREAT_QUEEN
-                  << ";" << std::endl;
+                  << ";\n";
         std::cout << std::endl;
 
         auto print_table = [](const std::string& name, const auto& table) {
@@ -330,35 +324,25 @@ int main() {
         print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
         std::cout << std::endl;
 
-        std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_ROOK   = " << PAWN_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_QUEEN  = " << PAWN_THREAT_QUEEN << ";"
-                  << std::endl;
+        std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";\n";
+        std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";\n";
+        std::cout << "inline const PParam PAWN_THREAT_ROOK   = " << PAWN_THREAT_ROOK << ";\n";
+        std::cout << "inline const PParam PAWN_THREAT_QUEEN  = " << PAWN_THREAT_QUEEN << ";\n";
         std::cout << std::endl;
 
-        std::cout << "inline const PParam KNIGHT_THREAT_BISHOP = " << KNIGHT_THREAT_BISHOP << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KNIGHT_THREAT_ROOK   = " << KNIGHT_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KNIGHT_THREAT_QUEEN  = " << KNIGHT_THREAT_QUEEN << ";"
-                  << std::endl;
+        std::cout << "inline const PParam KNIGHT_THREAT_BISHOP = " << KNIGHT_THREAT_BISHOP << ";\n";
+        std::cout << "inline const PParam KNIGHT_THREAT_ROOK   = " << KNIGHT_THREAT_ROOK << ";\n";
+        std::cout << "inline const PParam KNIGHT_THREAT_QUEEN  = " << KNIGHT_THREAT_QUEEN << ";\n";
         std::cout << std::endl;
 
-        std::cout << "inline const PParam BISHOP_THREAT_KNIGHT = " << BISHOP_THREAT_KNIGHT << ";"
-                  << std::endl;
-        std::cout << "inline const PParam BISHOP_THREAT_ROOK   = " << BISHOP_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam BISHOP_THREAT_QUEEN  = " << BISHOP_THREAT_QUEEN << ";"
-                  << std::endl;
+        std::cout << "inline const PParam BISHOP_THREAT_KNIGHT = " << BISHOP_THREAT_KNIGHT << ";\n";
+        std::cout << "inline const PParam BISHOP_THREAT_ROOK   = " << BISHOP_THREAT_ROOK << ";\n";
+        std::cout << "inline const PParam BISHOP_THREAT_QUEEN  = " << BISHOP_THREAT_QUEEN << ";\n";
         std::cout << std::endl;
 
         print_table("BISHOP_PAWNS", BISHOP_PAWNS);
         std::cout << std::endl;
-        std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;
+        std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";\n";
         std::cout << std::endl;
         auto printPsqtArray = [](const std::string& name, const auto& arr) {
             std::cout << "inline const std::array<PParam, " << arr.size() << "> " << name << " = {"

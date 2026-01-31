@@ -165,8 +165,19 @@ PScore evaluate_pawns(const Position& pos) {
     eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
 
     for (Square sq : pawns) {
-        Square   push     = sq.push<color>();
-        Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
+        Square push = sq.push<color>();
+
+        Bitboard sqb      = Bitboard::from_square(sq);
+        Bitboard push_sqb = sqb.shift_relative(color, Direction::North);
+
+        Bitboard stoppers        = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
+        Bitboard backward_mask = Bitboard::forward_ranks(them, sq.push<color>());
+        Bitboard adjacent_files  = Bitboard::file_mask(sq.file()).shift(Direction::East)
+                                | Bitboard::file_mask(sq.file()).shift(Direction::West);
+
+        Bitboard lever_push   = opp_pawns & static_pawn_attacks<color>(push_sqb);
+        Bitboard blocked_push = opp_pawns & push_sqb;
+
         if (stoppers.empty()) {
             eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
             if (pos.attack_table(color).read(push).popcount()
@@ -185,6 +196,11 @@ PScore evaluate_pawns(const Position& pos) {
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
         }
+
+        // Backward pawn
+        bool backward =
+          (adjacent_files & backward_mask & pawns).empty() && (lever_push | blocked_push).any();
+        eval += BACKWARD_PAWN_VAL * backward;
     }
 
 
