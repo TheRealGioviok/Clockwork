@@ -705,6 +705,8 @@ Value Worker::search(
             }
         }
 
+        cutnode |= extension < 0;
+
         // Do move
         ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
 
