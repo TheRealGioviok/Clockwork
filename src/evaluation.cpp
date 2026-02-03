@@ -420,7 +420,10 @@ PScore apply_winnable(const Position& pos, PScore& score) {
     i32 pawn_count = (pos.bitboard_for(Color::White, PieceType::Pawn)
                       | pos.bitboard_for(Color::Black, PieceType::Pawn))
                        .ipopcount();
-    Score winnable = WINNABLE_PAWNS * pawn_count + WINNABLE_BIAS;
+    i32  piece_count  = pos.board().get_occupied_bitboard().ipopcount();
+    bool pawn_endgame = piece_count == pawn_count + 2;
+
+    Score winnable = WINNABLE_PAWNS * pawn_count + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_BIAS;
 
     if (score.eg() < 0) {
         winnable = -winnable;
