@@ -355,6 +355,10 @@ PScore evaluate_king_safety(const Position& pos) {
 
     eval += king_shelter<color>(pos);
 
+    if (color == pos.active_color()) {
+        eval += KING_SAFETY_TEMPO;
+    }
+
     return eval;
 }
 
