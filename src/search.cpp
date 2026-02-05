@@ -771,7 +771,7 @@ Value Worker::search(
                   * tuned::lmr_fut_red;
             }
 
-            reduction -= std::abs(correction) * 3;
+            reduction -= std::abs(correction) * 2;
 
             if (!quiet) {
                 reduction = std::min(reduction, tuned::lmr_max_red);
