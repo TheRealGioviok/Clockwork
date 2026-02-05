@@ -250,6 +250,59 @@ int main() {
 
         std::cout << "\n";
 
+        // Print lambdas
+
+
+        auto print_table = [](const std::string& name, const auto& table) {
+            std::cout << "inline const std::array<PParam, " << table.size() << "> " << name
+                      << " = {" << std::endl
+                      << "   ";
+            for (const auto& val : table) {
+                std::cout << " " << val << ",";
+            }
+            std::cout << std::endl << "};" << std::endl;
+        };
+
+        auto printPsqtArray = [](const std::string& name, const auto& arr) {
+            std::cout << "inline const std::array<PParam, " << arr.size() << "> " << name << " = {"
+                      << std::endl;
+            for (std::size_t i = 0; i < arr.size(); ++i) {
+                if ((i & 7) == 0) {
+                    std::cout << "    ";
+                }
+                std::stringstream ss;
+                ss << arr[i] << ",";
+                std::cout << std::left << std::setw(16) << ss.str();
+                if ((i & 7) == 7) {
+                    std::cout << "//" << std::endl;
+                }
+            }
+            std::cout << "};" << std::endl;
+        };
+
+        auto print_2d_array = [](const std::string& name, const auto& arr) {
+            std::cout << "inline const std::array<std::array<PParam, " << arr[0].size() << ">, "
+                      << arr.size() << "> " << name << " = {{" << std::endl;
+            for (const auto& subarr : arr) {
+                std::cout << "  {{";
+                for (const auto& val : subarr) {
+                    std::cout << " " << val << ",";
+                }
+                std::cout << " }}," << std::endl;
+            }
+            std::cout << "}};" << std::endl;
+        };
+
+        auto print_sigmoid = [](const std::string& name, const auto& sigmoid, const i32 templ) {
+            PairHandle a_h = static_cast<PairHandle>(sigmoid.a());
+            PairHandle c_h = static_cast<PairHandle>(sigmoid.c());
+            std::cout << "inline TunableSigmoid<" << templ << "> " << name << "(\n"
+                      << "\t" << std::lround(a_h.first()) << ", " << std::lround(a_h.second())
+                      << ", " << std::lround(c_h.first()) << ", " << std::lround(c_h.second())
+                      << "\n"
+                      << ");\n";
+        };
+
         // Dump current parameter values
         Graph::get().copy_parameter_values(current_parameter_values);
 
@@ -297,18 +350,15 @@ int main() {
                   << ";" << std::endl;
         std::cout << std::endl;
 
-        auto print_table = [](const std::string& name, const auto& table) {
-            std::cout << "inline const std::array<PParam, " << table.size() << "> " << name
-                      << " = {" << std::endl
-                      << "   ";
-            for (const auto& val : table) {
-                std::cout << " " << val << ",";
-            }
-            std::cout << std::endl << "};" << std::endl;
-        };
+        print_table("CONNECTED_OPPOSED", CONNECTED_OPPOSED);
+        print_table("CONNECTED_PHALANX", CONNECTED_PHALANX);
+        print_table("CONNECTED_SUPPORTED", CONNECTED_SUPPORTED);
+        print_table("CONNECTED_BLOCKED", CONNECTED_BLOCKED);
+        std::cout << "inline const PParam CONNECTED_CORRECT_SUPPORTED_PHALANX  = "
+                  << CONNECTED_CORRECT_SUPPORTED_PHALANX << ";" << std::endl;
+        
+        print_sigmoid("CONNECTED_SIGMOID", CONNECTED_SIGMOID, 32);
 
-        print_table("PAWN_PHALANX", PAWN_PHALANX);
-        print_table("DEFENDED_PAWN", DEFENDED_PAWN);
         print_table("PASSED_PAWN", PASSED_PAWN);
         print_table("DEFENDED_PASSED_PUSH", DEFENDED_PASSED_PUSH);
         print_table("BLOCKED_PASSED_PAWN", BLOCKED_PASSED_PAWN);
@@ -359,22 +409,6 @@ int main() {
         std::cout << std::endl;
         std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;
         std::cout << std::endl;
-        auto printPsqtArray = [](const std::string& name, const auto& arr) {
-            std::cout << "inline const std::array<PParam, " << arr.size() << "> " << name << " = {"
-                      << std::endl;
-            for (std::size_t i = 0; i < arr.size(); ++i) {
-                if ((i & 7) == 0) {
-                    std::cout << "    ";
-                }
-                std::stringstream ss;
-                ss << arr[i] << ",";
-                std::cout << std::left << std::setw(16) << ss.str();
-                if ((i & 7) == 7) {
-                    std::cout << "//" << std::endl;
-                }
-            }
-            std::cout << "};" << std::endl;
-        };
 
         printPsqtArray("PAWN_PSQT", PAWN_PSQT);
         printPsqtArray("KNIGHT_PSQT", KNIGHT_PSQT);
@@ -384,32 +418,10 @@ int main() {
         printPsqtArray("KING_PSQT", KING_PSQT);
         std::cout << std::endl;
 
-        auto print_2d_array = [](const std::string& name, const auto& arr) {
-            std::cout << "inline const std::array<std::array<PParam, " << arr[0].size() << ">, "
-                      << arr.size() << "> " << name << " = {{" << std::endl;
-            for (const auto& subarr : arr) {
-                std::cout << "  {{";
-                for (const auto& val : subarr) {
-                    std::cout << " " << val << ",";
-                }
-                std::cout << " }}," << std::endl;
-            }
-            std::cout << "}};" << std::endl;
-        };
-
         print_2d_array("KING_SHELTER", KING_SHELTER);
         print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
         print_2d_array("SHELTER_STORM", SHELTER_STORM);
 
-        auto print_sigmoid = [](const std::string& name, const auto& sigmoid, const i32 templ) {
-            PairHandle a_h = static_cast<PairHandle>(sigmoid.a());
-            PairHandle c_h = static_cast<PairHandle>(sigmoid.c());
-            std::cout << "inline TunableSigmoid<" << templ << "> " << name << "(\n"
-                      << "\t" << std::lround(a_h.first()) << ", " << std::lround(a_h.second())
-                      << ", " << std::lround(c_h.first()) << ", " << std::lround(c_h.second())
-                      << "\n"
-                      << ");\n";
-        };
         print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
 
         std::cout << std::endl;

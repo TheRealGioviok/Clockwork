@@ -147,7 +147,6 @@ PScore king_shelter(const Position& pos) {
 template<Color color>
 PScore evaluate_pawns(const Position& pos) {
     constexpr i32   RANK_2 = 1;
-    constexpr i32   RANK_3 = 2;
     constexpr Color them   = color == Color::White ? Color::Black : Color::White;
 
     Square our_king   = pos.king_sq(color);
@@ -164,9 +163,31 @@ PScore evaluate_pawns(const Position& pos) {
     eval += DOUBLED_PAWN_VAL * doubled.ipopcount();
     eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
 
+    Bitboard defended = pos.attacked_by(color, PieceType::Pawn);
+
     for (Square sq : pawns) {
         Square   push     = sq.push<color>();
+        Bitboard sqb = Bitboard::from_square(sq);
         Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
+        usize rank = static_cast<usize>(sq.relative_rank(color));
+
+        bool opposed = (stoppers & Bitboard::file_mask(sq.file())).any();
+        bool phalanx = ((sqb.shift(Direction::East) | sqb.shift(Direction::West)) & pawns).any();
+        bool supported = (sqb & defended).any();
+        bool blocked = (sqb.shift_relative(color, Direction::North) & opp_pawns).any();
+
+        if (supported || phalanx){
+            PScore connected = CONNECTED_OPPOSED[rank - RANK_2] * opposed
+                             + CONNECTED_PHALANX[rank - RANK_2] * phalanx
+                             + CONNECTED_SUPPORTED[rank - RANK_2] * supported
+                             + CONNECTED_BLOCKED[rank - RANK_2] * blocked;
+            if (supported && phalanx){
+                connected += CONNECTED_CORRECT_SUPPORTED_PHALANX;
+            }
+
+            eval += CONNECTED_SIGMOID(connected);
+        }
+
         if (stoppers.empty()) {
             eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
             if (pos.attack_table(color).read(push).popcount()
@@ -185,17 +206,6 @@ PScore evaluate_pawns(const Position& pos) {
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
         }
-    }
-
-
-    Bitboard phalanx = pawns & pawns.shift(Direction::East);
-    for (Square sq : phalanx) {
-        eval += PAWN_PHALANX[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-    }
-
-    Bitboard defended = pawns & pos.attacked_by(color, PieceType::Pawn);
-    for (Square sq : defended) {
-        eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
     }
 
     return eval;
