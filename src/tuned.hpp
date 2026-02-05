@@ -24,6 +24,7 @@ namespace Clockwork::tuned {
                                                                   \
     /* ProbCut Values */                                          \
     TUNE(probcut_margin, 332, 100, 500, 10, 0.002)                \
+    TUNE(probcut_improving, 74, 25, 125, 10, 0.002)               \
     TUNE(probcut_see, 108, 0, 200, 10, 0.002)                     \
     NO_TUNE(probcut_min_depth, 5, 1, 20, 0.5, 0.002)              \
                                                                   \

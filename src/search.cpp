@@ -545,7 +545,7 @@ Value Worker::search(
     // moves in positions that are likely to be cutoffs anyway.
     if (!PV_NODE && !is_in_check && depth >= tuned::probcut_min_depth && !excluded
         && !is_mate_score(beta)) {
-        const Value probcut_beta  = beta + tuned::probcut_margin;
+        const Value probcut_beta  = beta + tuned::probcut_margin - tuned::probcut_improving * improving;
         const Depth probcut_depth = std::clamp<Depth>(depth - 4, 1, depth - 1);
 
         if (!tt_data || tt_data->depth + 3 < depth || tt_data->score >= probcut_beta) {
