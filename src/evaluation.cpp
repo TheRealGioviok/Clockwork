@@ -209,7 +209,7 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     Bitboard our_pawns  = pos.bitboard_for(color, PieceType::Pawn);
     Bitboard block = pos.board().get_occupied_bitboard() // cant go through pieces
                     | pos.attacked_by(opp, PieceType::Pawn) // exclude lever pushes
-                    | (~pos.attacked_by(color, PieceType::Pawn) & pos.attack_table(color).get_attacked_bitboard());
+                    | (~pos.attacked_by(color, PieceType::Pawn) & pos.attack_table(opp).get_attacked_bitboard());
 
     Bitboard push_attacks = static_pawn_attacks<color>(
         our_pawns.shift_relative(color, Direction::North) & ~block
