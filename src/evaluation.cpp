@@ -484,10 +484,10 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += king_safety_activation<Color::White>(pos, white_king_attack_total)
           - king_safety_activation<Color::Black>(pos, black_king_attack_total);
 
-    eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
-
     // Winnable
     eval = apply_winnable(pos, eval, phase);
+
+    eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
 
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
 };
