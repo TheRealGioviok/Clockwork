@@ -99,7 +99,8 @@ void UCIHandler::execute_command(const std::string& line) {
     }
 #ifndef EVAL_TUNING
     else if (command == "eval") {
-        std::cout << "Evaluation (stm): " << evaluate_stm_pov(m_position) << std::endl;
+        auto eval = evaluate_stm_pov(m_position);
+        std::cout << "Evaluation (stm): " << eval / 4 << " (" << eval << " unnormalized)" << std::endl;
     }
 #endif
     else if (command == "genfens") {
