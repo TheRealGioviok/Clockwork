@@ -210,6 +210,10 @@ public:
         return (attack_table(color).get_piece_mask_bitboard(id.to_piece_mask()) & mask).popcount();
     }
 
+    [[nodiscard]] Bitboard attacked_by(Color color, PieceId id) const {
+        return attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+    }
+
     [[nodiscard]] Wordboard create_attack_table_superpiece_mask(Square                   sq,
                                                                 CreateSuperpieceMaskInfo cmi) const;
 

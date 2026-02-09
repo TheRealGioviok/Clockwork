@@ -399,10 +399,35 @@ PScore evaluate_space(const Position& pos) {
     Bitboard        theirfiles = Bitboard::fill_verticals(pos.bitboard_for(them, PieceType::Pawn));
     Bitboard        openfiles  = ~(ourfiles | theirfiles);
     Bitboard        half_open_files = (~ourfiles) & theirfiles;
+    Bitboard        controlled      = (pos.attack_table(them).get_attacked_bitboard()
+                           & ~pos.attack_table(color).get_attacked_bitboard())
+                        | pos.attacked_by(them, PieceType::Pawn)
+                        | pos.attacked_by(them, PieceType::Knight)
+                        | pos.attacked_by(them, PieceType::Pawn);
 
     eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
     eval +=
       ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
+
+    // Evaluate access to open and semiopen files
+    for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
+        Square   sq      = pos.piece_list_sq(color)[id];
+        Bitboard sqb     = Bitboard::from_square(sq);
+        Bitboard attacks = pos.attacked_by(color, id);
+        if ((sqb & openfiles).any()) {
+            eval += ROOK_OPEN_VAL;
+        }
+        if ((sqb & half_open_files).any()) {
+            eval += ROOK_SEMIOPEN_VAL;
+        }
+
+        if ((attacks & openfiles).any()) {
+            eval += OPEN_FILE_ACCESS_VAL[(attacks & openfiles & ~controlled).any()];
+        }
+        if ((attacks & half_open_files).any()) {
+            eval += SEMIOPEN_FILE_ACCESS_VAL[(attacks & half_open_files & ~controlled).any()];
+        }
+    }
 
 
     return eval;
