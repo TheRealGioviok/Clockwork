@@ -229,6 +229,49 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
 }
 
 template<Color color>
+PScore evaluate_rooks(const Position& pos, Bitboard bb, Bitboard bb2) {
+    PScore          eval       = PSCORE_ZERO;
+    constexpr Color them       = color == Color::White ? Color::Black : Color::White;
+    Bitboard        ourfiles   = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
+    Bitboard        theirfiles = Bitboard::fill_verticals(pos.bitboard_for(them, PieceType::Pawn));
+    Bitboard        openfiles  = ~(ourfiles | theirfiles);
+    Bitboard        half_open_files = (~ourfiles) & theirfiles;
+
+    // Open / semiopen file placement
+    eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
+    eval += ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
+
+    // Evaluate access to open and semiopen files
+    for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
+        Square   sq      = pos.piece_list_sq(color)[id];
+        Bitboard sqb     = Bitboard::from_square(sq);
+        Bitboard attacks = pos.attacked_by(color, id);
+
+        // Mobility
+        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+
+        // Rook lineups
+        Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
+        eval += ROOK_LINEUP
+                * (rook_file
+                    & (pos.bitboard_for(~color, PieceType::Queen)
+                    | pos.bitboard_for(color, PieceType::Queen)))
+                    .ipopcount();
+
+        // Open / semiopen file access
+        if ((attacks & openfiles).any()) {
+            eval += OPEN_FILE_ACCESS_VAL[(attacks & openfiles & ~bb2).any()];
+        }
+        if ((attacks & half_open_files).any()) {
+            eval += SEMIOPEN_FILE_ACCESS_VAL[(attacks & half_open_files & ~bb2).any()];
+        }
+    }
+
+    return eval;
+}
+
+template<Color color>
 PScore evaluate_pieces(const Position& pos) {
     constexpr Color opp       = ~color;
     PScore          eval      = PSCORE_ZERO;
@@ -255,18 +298,12 @@ PScore evaluate_pieces(const Position& pos) {
               * (!pos.is_square_attacked_by(sq, color, PieceType::Pawn)
                  + (blocked_pawns & Bitboard::central_files()).ipopcount());
     }
+
+    // Add minor attacks to rook controlled bb2
     bb2 |= pos.attacked_by(opp, PieceType::Knight) | pos.attacked_by(opp, PieceType::Bishop);
-    for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
-        // Rook lineups
-        Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
-        eval += ROOK_LINEUP
-              * (rook_file
-                 & (pos.bitboard_for(~color, PieceType::Queen)
-                    | pos.bitboard_for(color, PieceType::Queen)))
-                  .ipopcount();
-    }
+    // Rooks evaluation
+    eval += evaluate_rooks<color>(pos, bb, bb2);
+
     bb2 |= pos.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
         eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
@@ -276,7 +313,6 @@ PScore evaluate_pieces(const Position& pos) {
         eval += BISHOP_PAIR_VAL;
     }
     eval += KING_MOBILITY[pos.mobility_of(color, PieceId::king(), ~bb)];
-
 
     return eval;
 }
@@ -391,47 +427,7 @@ PScore evaluate_threats(const Position& pos) {
     return eval;
 }
 
-template<Color color>
-PScore evaluate_space(const Position& pos) {
-    PScore          eval       = PSCORE_ZERO;
-    constexpr Color them       = color == Color::White ? Color::Black : Color::White;
-    Bitboard        ourfiles   = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
-    Bitboard        theirfiles = Bitboard::fill_verticals(pos.bitboard_for(them, PieceType::Pawn));
-    Bitboard        openfiles  = ~(ourfiles | theirfiles);
-    Bitboard        half_open_files = (~ourfiles) & theirfiles;
-    Bitboard        controlled      = (pos.attack_table(them).get_attacked_bitboard()
-                           & ~pos.attack_table(color).get_attacked_bitboard())
-                        | pos.attacked_by(them, PieceType::Pawn)
-                        | pos.attacked_by(them, PieceType::Knight)
-                        | pos.attacked_by(them, PieceType::Pawn);
 
-    eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
-    eval +=
-      ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
-
-    // Evaluate access to open and semiopen files
-    for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
-        Square   sq      = pos.piece_list_sq(color)[id];
-        Bitboard sqb     = Bitboard::from_square(sq);
-        Bitboard attacks = pos.attacked_by(color, id);
-        if ((sqb & openfiles).any()) {
-            eval += ROOK_OPEN_VAL;
-        }
-        if ((sqb & half_open_files).any()) {
-            eval += ROOK_SEMIOPEN_VAL;
-        }
-
-        if ((attacks & openfiles).any()) {
-            eval += OPEN_FILE_ACCESS_VAL[(attacks & openfiles & ~controlled).any()];
-        }
-        if ((attacks & half_open_files).any()) {
-            eval += SEMIOPEN_FILE_ACCESS_VAL[(attacks & half_open_files & ~controlled).any()];
-        }
-    }
-
-
-    return eval;
-}
 
 template<Color color>
 PScore king_safety_activation(const Position& pos, PScore& king_safety_score) {
@@ -487,10 +483,9 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     // pawn eval
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
 
-    // pieces & space
+    // pieces
     eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
-    eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
 
     // Threats
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
