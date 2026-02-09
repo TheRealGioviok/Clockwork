@@ -467,6 +467,9 @@ Value Worker::search(
         correction      = m_td.history.get_correction(pos);
         raw_eval        = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         ss->static_eval = adj_shuffle(pos, raw_eval) + correction;
+        if (sign(ss->static_eval) != sign(raw_eval)){
+            ss->static_eval /= 2;
+        }
         improving = (ss - 2)->static_eval != -VALUE_INF && ss->static_eval > (ss - 2)->static_eval;
 
         if (!tt_data) {
@@ -958,6 +961,9 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         correction  = m_td.history.get_correction(pos);
         raw_eval    = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         static_eval = adj_shuffle(pos, raw_eval) + correction;
+        if (sign(static_eval) != sign(raw_eval)) {
+            static_eval /= 2;
+        }
 
         if (!tt_data) {
             m_searcher.tt.store(pos, ply, raw_eval, Move::none(), -VALUE_INF, 0, ttpv, Bound::None);
