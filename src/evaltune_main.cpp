@@ -410,7 +410,7 @@ int main() {
                       << "\n"
                       << ");\n";
         };
-        print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
+        print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 64);
 
         std::cout << std::endl;
 
