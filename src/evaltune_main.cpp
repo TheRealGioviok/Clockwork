@@ -30,7 +30,7 @@ using namespace Clockwork::Autograd;
 int main() {
 
     // Todo: make these CLI-specifiable
-    const size_t batch_size       = 16 * 16384;
+    const size_t batch_size       = 64 * 16384;
     const size_t micro_batch_size = 160;
 
     std::vector<Position> positions;
@@ -137,7 +137,7 @@ int main() {
 #ifdef PROFILE_RUN
     const i32 epochs = 8;
 #else
-    const i32 epochs = 1000;
+    const i32 epochs = 4000;
 #endif
     const f64 K = 1.0 / 400;
 
@@ -426,8 +426,8 @@ int main() {
         std::cout << "// Epoch duration: " << time::cast<time::FloatSeconds>(end - start).count()
                   << "s\n";
 
-        if (epoch > 5) {
-            optim.set_lr(optim.get_lr() * 0.99);
+        if (epoch > 20) {
+            optim.set_lr(optim.get_lr() * 0.9974905699336811);
         }
     }
 
