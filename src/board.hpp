@@ -271,6 +271,12 @@ struct Wordboard {
         return count;
     }
 
+    [[nodiscard]] Bitboard two_or_more(PieceMask piece_mask) const {
+        u16x64 p    = raw & u16x64::splat(piece_mask.value());
+        u64    pred = (p & (p - u16x64::splat(1))).nonzeros().to_bits();
+        return Bitboard{pred};
+    }
+
     friend inline Wordboard operator&(const Wordboard& a, const Wordboard& b) {
         return Wordboard{a.raw & b.raw};
     }

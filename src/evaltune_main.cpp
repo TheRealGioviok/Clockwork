@@ -270,6 +270,16 @@ int main() {
                   << std::endl;
         std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
                   << std::endl;
+
+        std::cout << "inline const PParam SEE_CONTROL_VALUE = " << SEE_CONTROL_VALUE << ";"
+                  << std::endl;
+        std::cout << "inline const PParam SEE_CONTROL_OPENFILE_VALUE = "
+                  << SEE_CONTROL_OPENFILE_VALUE << ";" << std::endl;
+        std::cout << "inline const PParam SEE_CONTROL_SEMIOPENFILE_VALUE = "
+                  << SEE_CONTROL_SEMIOPENFILE_VALUE << ";" << std::endl;
+        std::cout << "inline const PParam SEE_RESTRICTED_SQUARES = " << SEE_RESTRICTED_SQUARES
+                  << ";" << std::endl;
+
         std::cout << std::endl;
         std::cout << "inline const PParam DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";"
                   << std::endl;
@@ -410,6 +420,7 @@ int main() {
                       << "\n"
                       << ");\n";
         };
+
         print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
 
         std::cout << std::endl;
@@ -417,6 +428,8 @@ int main() {
         std::cout << "inline VParam WINNABLE_PAWNS = " << WINNABLE_PAWNS << ";\n";
         std::cout << "inline VParam WINNABLE_SYM = " << WINNABLE_SYM << ";\n";
         std::cout << "inline VParam WINNABLE_ASYM = " << WINNABLE_ASYM << ";\n";
+        std::cout << "inline VParam WINNABLE_NEUTRAL_SQUARES = " << WINNABLE_NEUTRAL_SQUARES
+                  << ";\n";
         std::cout << "inline VParam WINNABLE_PAWN_ENDGAME = " << WINNABLE_PAWN_ENDGAME << ";\n";
         std::cout << "inline VParam WINNABLE_BIAS = " << WINNABLE_BIAS << ";\n";
         std::cout << std::endl;

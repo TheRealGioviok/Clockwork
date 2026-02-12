@@ -104,6 +104,69 @@ std::array<std::array<Bitboard, 64>, 2> passed_pawn_spans = []() {
     return passed_pawn_masks;
 }();
 
+std::tuple<Bitboard, Bitboard, Bitboard> evaluate_square_control(const Position& pos) {
+    // Loosely approximate see without considering discoveries or pins:
+    // Lower-value attackers claim squares first; higher-value pieces cannot override previously assigned control
+    Bitboard neutral = Bitboard::all();
+    Bitboard w       = Bitboard{0};
+    Bitboard b       = Bitboard{0};
+
+    // Pawn
+    Bitboard watt  = pos.attacked_by(Color::White, PieceType::Pawn) & neutral;
+    Bitboard batt  = pos.attacked_by(Color::Black, PieceType::Pawn) & neutral;
+    Bitboard w2att = pos.attacked_by_two_or_more<PieceType::Pawn>(Color::White) & neutral;
+    Bitboard b2att = pos.attacked_by_two_or_more<PieceType::Pawn>(Color::Black) & neutral;
+
+    w |= (watt & ~batt) | (w2att & ~b2att);
+    b |= (batt & ~watt) | (b2att & ~w2att);
+    neutral = ~(w | b);
+
+    // Knight
+    watt  = pos.attacked_by(Color::White, PieceType::Knight) & neutral;
+    batt  = pos.attacked_by(Color::Black, PieceType::Knight) & neutral;
+    w2att = pos.attacked_by_two_or_more<PieceType::Knight>(Color::White) & neutral;
+    b2att = pos.attacked_by_two_or_more<PieceType::Knight>(Color::Black) & neutral;
+
+    w |= (watt & ~batt) | (w2att & ~b2att);
+    b |= (batt & ~watt) | (b2att & ~w2att);
+    neutral = ~(w | b);
+
+    // Bishop, don't check double attacks, they only arise from extreme edge cases (2 same colored bishop for a player)
+    watt = pos.attacked_by(Color::White, PieceType::Bishop) & neutral;
+    batt = pos.attacked_by(Color::Black, PieceType::Bishop) & neutral;
+
+    w |= (watt & ~batt);
+    b |= (batt & ~watt);
+    neutral = ~(w | b);
+
+    // Rooks
+    watt  = pos.attacked_by(Color::White, PieceType::Rook) & neutral;
+    batt  = pos.attacked_by(Color::Black, PieceType::Rook) & neutral;
+    w2att = pos.attacked_by_two_or_more<PieceType::Rook>(Color::White) & neutral;
+    b2att = pos.attacked_by_two_or_more<PieceType::Rook>(Color::Black) & neutral;
+
+    w |= (watt & ~batt) | (w2att & ~b2att);
+    b |= (batt & ~watt) | (b2att & ~w2att);
+    neutral = ~(w | b);
+
+    // Queens, don't check double attacks: double queens are extremely rare
+    watt = pos.attacked_by(Color::White, PieceType::Queen) & neutral;
+    batt = pos.attacked_by(Color::Black, PieceType::Queen) & neutral;
+
+    w |= (watt & ~batt);
+    b |= (batt & ~watt);
+    neutral = ~(w | b);
+
+    // King, there are no double attacks
+    watt = pos.attacked_by(Color::White, PieceType::King) & neutral;
+    batt = pos.attacked_by(Color::Black, PieceType::King) & neutral;
+
+    w |= (watt & ~batt);
+    b |= (batt & ~watt);
+
+    return {w, b, neutral};
+}
+
 template<Color color>
 PScore king_shelter(const Position& pos) {
     constexpr Color opp = ~color;
@@ -392,7 +455,7 @@ PScore evaluate_threats(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_space(const Position& pos) {
+PScore evaluate_space(const Position& pos, Bitboard our_controlled) {
     PScore          eval       = PSCORE_ZERO;
     constexpr Color them       = color == Color::White ? Color::Black : Color::White;
     Bitboard        ourfiles   = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
@@ -403,6 +466,15 @@ PScore evaluate_space(const Position& pos) {
     eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
     eval +=
       ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
+
+    // Control squares
+    eval += SEE_CONTROL_VALUE * our_controlled.ipopcount();
+
+    eval += SEE_CONTROL_OPENFILE_VALUE * (our_controlled & openfiles).ipopcount();
+
+    eval += SEE_CONTROL_SEMIOPENFILE_VALUE * (our_controlled & half_open_files).ipopcount();
+
+    eval += SEE_RESTRICTED_SQUARES * (pos.attack_table(them).get_attacked_bitboard() & our_controlled).ipopcount();
 
 
     return eval;
@@ -415,7 +487,7 @@ PScore king_safety_activation(const Position& pos, PScore& king_safety_score) {
     return activated;
 }
 
-PScore apply_winnable(const Position& pos, PScore& score, u32 phase) {
+PScore apply_winnable(const Position& pos, PScore& score, usize phase, Bitboard neutral) {
 
     bool pawn_endgame = phase == 0;
 
@@ -433,7 +505,7 @@ PScore apply_winnable(const Position& pos, PScore& score, u32 phase) {
     Score symmetry = WINNABLE_SYM * sym_files + WINNABLE_ASYM * asym_files;
 
     Score winnable =
-      WINNABLE_PAWNS * pawn_count + symmetry + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_BIAS;
+      WINNABLE_PAWNS * pawn_count + symmetry + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_NEUTRAL_SQUARES * neutral.ipopcount() + WINNABLE_BIAS;
 
     if (score.eg() < 0) {
         winnable = -winnable;
@@ -459,13 +531,16 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     PScore eval = psqt_state.score();  // Used for linear components
 
+    // See approximation tables (lily bail us out pls)
+    auto [white_controlled, black_controlled, neutral] = evaluate_square_control(pos);
+
     // pawn eval
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
 
     // pieces & space
     eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
-    eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
+    eval += evaluate_space<Color::White>(pos, white_controlled) - evaluate_space<Color::Black>(pos, black_controlled);
 
     // Threats
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
@@ -487,7 +562,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
 
     // Winnable
-    eval = apply_winnable(pos, eval, phase);
+    eval = apply_winnable(pos, eval, phase, neutral);
 
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
 };
