@@ -271,8 +271,6 @@ int main() {
         std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
                   << std::endl;
 
-        std::cout << "inline const PParam SEE_CONTROL_VALUE = " << SEE_CONTROL_VALUE << ";"
-                  << std::endl;
         std::cout << "inline const PParam SEE_STABLE_PIECES_VALUE = " << SEE_STABLE_PIECES_VALUE
                   << ";" << std::endl;
         std::cout << "inline const PParam SEE_RESTRICTED_SQUARES = " << SEE_RESTRICTED_SQUARES

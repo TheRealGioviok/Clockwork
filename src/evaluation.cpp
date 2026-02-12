@@ -507,15 +507,11 @@ PScore evaluate_space(const Position& pos, Bitboard our_controlled) {
     Bitboard        theirfiles = Bitboard::fill_verticals(pos.bitboard_for(them, PieceType::Pawn));
     Bitboard        openfiles  = ~(ourfiles | theirfiles);
     Bitboard        half_open_files = (~ourfiles) & theirfiles;
-    Bitboard empty = pos.board().get_empty_bitboard();
     Bitboard ourpieces = pos.board().get_color_bitboard(color);
 
     eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
     eval +=
       ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
-
-    // Control squares
-    eval += SEE_CONTROL_VALUE * (our_controlled & empty).ipopcount();
 
     // Reward being stable
     eval += SEE_STABLE_PIECES_VALUE * (our_controlled & ourpieces).ipopcount();
