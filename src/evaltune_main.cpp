@@ -273,10 +273,8 @@ int main() {
 
         std::cout << "inline const PParam SEE_CONTROL_VALUE = " << SEE_CONTROL_VALUE << ";"
                   << std::endl;
-        std::cout << "inline const PParam SEE_CONTROL_OPENFILE_VALUE = "
-                  << SEE_CONTROL_OPENFILE_VALUE << ";" << std::endl;
-        std::cout << "inline const PParam SEE_CONTROL_SEMIOPENFILE_VALUE = "
-                  << SEE_CONTROL_SEMIOPENFILE_VALUE << ";" << std::endl;
+        std::cout << "inline const PParam SEE_STABLE_PIECES_VALUE = " << SEE_STABLE_PIECES_VALUE
+                  << ";" << std::endl;
         std::cout << "inline const PParam SEE_RESTRICTED_SQUARES = " << SEE_RESTRICTED_SQUARES
                   << ";" << std::endl;
 
@@ -435,8 +433,6 @@ int main() {
         std::cout << "inline VParam WINNABLE_PAWNS = " << WINNABLE_PAWNS << ";\n";
         std::cout << "inline VParam WINNABLE_SYM = " << WINNABLE_SYM << ";\n";
         std::cout << "inline VParam WINNABLE_ASYM = " << WINNABLE_ASYM << ";\n";
-        std::cout << "inline VParam WINNABLE_NEUTRAL_SQUARES = " << WINNABLE_NEUTRAL_SQUARES
-                  << ";\n";
         std::cout << "inline VParam WINNABLE_PAWN_ENDGAME = " << WINNABLE_PAWN_ENDGAME << ";\n";
         std::cout << "inline VParam WINNABLE_BIAS = " << WINNABLE_BIAS << ";\n";
         std::cout << std::endl;

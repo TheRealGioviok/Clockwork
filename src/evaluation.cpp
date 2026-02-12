@@ -507,20 +507,21 @@ PScore evaluate_space(const Position& pos, Bitboard our_controlled) {
     Bitboard        theirfiles = Bitboard::fill_verticals(pos.bitboard_for(them, PieceType::Pawn));
     Bitboard        openfiles  = ~(ourfiles | theirfiles);
     Bitboard        half_open_files = (~ourfiles) & theirfiles;
+    Bitboard empty = pos.board().get_empty_bitboard();
+    Bitboard ourpieces = pos.board().get_color_bitboard(color);
 
     eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
     eval +=
       ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
 
     // Control squares
-    eval += SEE_CONTROL_VALUE * our_controlled.ipopcount();
+    eval += SEE_CONTROL_VALUE * (our_controlled & empty).ipopcount();
 
-    eval += SEE_CONTROL_OPENFILE_VALUE * (our_controlled & openfiles).ipopcount();
+    // Reward being stable
+    eval += SEE_STABLE_PIECES_VALUE * (our_controlled & ourpieces).ipopcount();
 
-    eval += SEE_CONTROL_SEMIOPENFILE_VALUE * (our_controlled & half_open_files).ipopcount();
-
+    // Restrict opponent movement
     eval += SEE_RESTRICTED_SQUARES * (pos.attack_table(them).get_attacked_bitboard() & our_controlled).ipopcount();
-
 
     return eval;
 }
@@ -532,7 +533,7 @@ PScore king_safety_activation(const Position& pos, PScore& king_safety_score) {
     return activated;
 }
 
-PScore apply_winnable(const Position& pos, PScore& score, usize phase, Bitboard neutral) {
+PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
 
     bool pawn_endgame = phase == 0;
 
@@ -550,7 +551,7 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase, Bitboard 
     Score symmetry = WINNABLE_SYM * sym_files + WINNABLE_ASYM * asym_files;
 
     Score winnable =
-      WINNABLE_PAWNS * pawn_count + symmetry + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_NEUTRAL_SQUARES * neutral.ipopcount() + WINNABLE_BIAS;
+      WINNABLE_PAWNS * pawn_count + symmetry + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_BIAS;
 
     if (score.eg() < 0) {
         winnable = -winnable;
@@ -607,7 +608,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
 
     // Winnable
-    eval = apply_winnable(pos, eval, phase, neutral);
+    eval = apply_winnable(pos, eval, phase);
 
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
 };
