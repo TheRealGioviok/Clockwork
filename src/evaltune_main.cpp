@@ -365,6 +365,13 @@ int main() {
                   << std::endl;
         std::cout << std::endl;
 
+        std::cout << "inline const PParam HANGING_PAWN = " << HANGING_PAWN << ";" << std::endl;
+        std::cout << "inline const PParam HANGING_KNIGHT = " << HANGING_KNIGHT << ";" << std::endl;
+        std::cout << "inline const PParam HANGING_BISHOP = " << HANGING_BISHOP << ";" << std::endl;
+        std::cout << "inline const PParam HANGING_ROOK = " << HANGING_ROOK << ";" << std::endl;
+        std::cout << "inline const PParam HANGING_QUEEN = " << HANGING_QUEEN << ";" << std::endl;
+        std::cout << std::endl;
+
         print_table("BISHOP_PAWNS", BISHOP_PAWNS);
         std::cout << std::endl;
         std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;

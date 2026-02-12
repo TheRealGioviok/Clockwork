@@ -110,6 +110,8 @@ std::tuple<Bitboard, Bitboard, Bitboard> evaluate_square_control(const Position&
     Bitboard neutral = Bitboard::all();
     Bitboard w       = Bitboard{0};
     Bitboard b       = Bitboard{0};
+    Bitboard white_material = pos.board().get_color_bitboard(Color::White) ^ pos.bitboard_for(Color::White, PieceType::Pawn);
+    Bitboard black_material = pos.board().get_color_bitboard(Color::Black) ^ pos.bitboard_for(Color::Black, PieceType::Pawn);
 
     // Pawn
     Bitboard watt  = pos.attacked_by(Color::White, PieceType::Pawn) & neutral;
@@ -117,9 +119,18 @@ std::tuple<Bitboard, Bitboard, Bitboard> evaluate_square_control(const Position&
     Bitboard w2att = pos.attacked_by_two_or_more<PieceType::Pawn>(Color::White) & neutral;
     Bitboard b2att = pos.attacked_by_two_or_more<PieceType::Pawn>(Color::Black) & neutral;
 
-    w |= (watt & ~batt) | (w2att & ~b2att);
-    b |= (batt & ~watt) | (b2att & ~w2att);
+    w |= (watt & ~batt) |  // Attacked and not defended
+         (w2att & ~b2att) | // Attacked more by us than them
+         (watt & black_material); // We attacking a piece of greater value
+
+    b |= (batt & ~watt) |         // Attacked and not defended
+         (b2att & ~w2att) |       // Attacked more by us than them
+         (batt & white_material);  // We attacking a piece of greater value
+
     neutral = ~(w | b);
+
+    white_material ^= pos.bitboard_for(Color::White, PieceType::Knight);
+    black_material ^= pos.bitboard_for(Color::Black, PieceType::Knight);
 
     // Knight
     watt  = pos.attacked_by(Color::White, PieceType::Knight) & neutral;
@@ -127,17 +138,33 @@ std::tuple<Bitboard, Bitboard, Bitboard> evaluate_square_control(const Position&
     w2att = pos.attacked_by_two_or_more<PieceType::Knight>(Color::White) & neutral;
     b2att = pos.attacked_by_two_or_more<PieceType::Knight>(Color::Black) & neutral;
 
-    w |= (watt & ~batt) | (w2att & ~b2att);
-    b |= (batt & ~watt) | (b2att & ~w2att);
+    w |= (watt & ~batt) |          // Attacked and not defended
+         (w2att & ~b2att) |        // Attacked more by us than them
+         (watt & black_material);  // We attacking a piece of greater value
+
+    b |= (batt & ~watt) |          // Attacked and not defended
+         (b2att & ~w2att) |        // Attacked more by us than them
+         (batt & white_material);  // We attacking a piece of greater value
+
     neutral = ~(w | b);
+
+    white_material ^= pos.bitboard_for(Color::White, PieceType::Bishop);
+    black_material ^= pos.bitboard_for(Color::Black, PieceType::Bishop);
 
     // Bishop, don't check double attacks, they only arise from extreme edge cases (2 same colored bishop for a player)
     watt = pos.attacked_by(Color::White, PieceType::Bishop) & neutral;
     batt = pos.attacked_by(Color::Black, PieceType::Bishop) & neutral;
 
-    w |= (watt & ~batt);
-    b |= (batt & ~watt);
+    w |= (watt & ~batt) |          // Attacked and not defended
+         (watt & black_material);  // We attacking a piece of greater value
+
+    b |= (batt & ~watt) |          // Attacked and not defended
+         (batt & white_material);  // We attacking a piece of greater value
+
     neutral = ~(w | b);
+
+    white_material ^= pos.bitboard_for(Color::White, PieceType::Rook);
+    black_material ^= pos.bitboard_for(Color::Black, PieceType::Rook);
 
     // Rooks
     watt  = pos.attacked_by(Color::White, PieceType::Rook) & neutral;
@@ -145,22 +172,29 @@ std::tuple<Bitboard, Bitboard, Bitboard> evaluate_square_control(const Position&
     w2att = pos.attacked_by_two_or_more<PieceType::Rook>(Color::White) & neutral;
     b2att = pos.attacked_by_two_or_more<PieceType::Rook>(Color::Black) & neutral;
 
-    w |= (watt & ~batt) | (w2att & ~b2att);
-    b |= (batt & ~watt) | (b2att & ~w2att);
+    w |= (watt & ~batt) |          // Attacked and not defended
+         (w2att & ~b2att) |        // Attacked more by us than them
+         (watt & black_material);  // We attacking a piece of greater value
+
+    b |= (batt & ~watt) |          // Attacked and not defended
+         (b2att & ~w2att) |        // Attacked more by us than them
+         (batt & white_material);  // We attacking a piece of greater value
+
     neutral = ~(w | b);
 
-    // Queens, don't check double attacks: double queens are extremely rare
+    // Queens, don't check double attacks: double queens are rare
     watt = pos.attacked_by(Color::White, PieceType::Queen) & neutral;
     batt = pos.attacked_by(Color::Black, PieceType::Queen) & neutral;
 
-    w |= (watt & ~batt);
-    b |= (batt & ~watt);
+    w |= (watt & ~batt);          // Attacked and not defended
+    b |= (batt & ~watt);          // Attacked and not defended
     neutral = ~(w | b);
 
     // King, there are no double attacks
     watt = pos.attacked_by(Color::White, PieceType::King) & neutral;
     batt = pos.attacked_by(Color::Black, PieceType::King) & neutral;
 
+    // Only cases when opponent does NOT attack: we cannot move into check
     w |= (watt & ~batt);
     b |= (batt & ~watt);
 
@@ -422,7 +456,7 @@ PScore evaluate_king_safety(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_threats(const Position& pos) {
+PScore evaluate_threats(const Position& pos, Bitboard our_controlled, Bitboard their_controlled) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
@@ -450,6 +484,17 @@ PScore evaluate_threats(const Position& pos) {
       BISHOP_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & bishop_attacks).ipopcount();
     eval +=
       BISHOP_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & bishop_attacks).ipopcount();
+
+    eval +=
+      HANGING_PAWN * (pos.bitboard_for(color, PieceType::Pawn) & their_controlled).ipopcount();
+    eval +=
+      HANGING_BISHOP * (pos.bitboard_for(color, PieceType::Knight) & their_controlled).ipopcount();
+    eval +=
+      HANGING_KNIGHT * (pos.bitboard_for(color, PieceType::Bishop) & their_controlled).ipopcount();
+    eval +=
+      HANGING_ROOK * (pos.bitboard_for(color, PieceType::Rook) & their_controlled).ipopcount();
+    eval +=
+      HANGING_QUEEN * (pos.bitboard_for(color, PieceType::Queen) & their_controlled).ipopcount();
 
     return eval;
 }
@@ -543,7 +588,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += evaluate_space<Color::White>(pos, white_controlled) - evaluate_space<Color::Black>(pos, black_controlled);
 
     // Threats
-    eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
+    eval += evaluate_threats<Color::White>(pos, white_controlled, black_controlled) - evaluate_threats<Color::Black>(pos, black_controlled, white_controlled);
     eval +=
       evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
 
