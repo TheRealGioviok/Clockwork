@@ -29,96 +29,178 @@ using namespace Clockwork::Autograd;
 
 int main() {
 
-    // Todo: make these CLI-specifiable
-    const size_t batch_size       = 16 * 16384;
+    const size_t batch_size       = 4 * 16 * 16384;
     const size_t micro_batch_size = 160;
 
     std::vector<Position> positions;
     std::vector<f64>      results;
 
     const std::vector<std::string> fenFiles = {
-      "data/v4_5knpm.txt",   "data/v4_8knpm.txt",   "data/v4_16knpm.txt",
-      "data/v4.1_5knpm.txt", "data/v4.1_8knpm.txt", "data/dfrcv2.txt",
-    };
+      "neov4_5knpm.txt",   "neov4_8knpm.txt",     "neov4_16knpm.txt",    "neov4.1_5knpm.txt",
+      "neov4.1_8knpm.txt", "neodfrcv2_8knpm.txt", "neodfrcv2_16knpm.txt"};
 
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
 
     std::cout << "Running on " << thread_count << " threads\n";
 
-    // Pre-pass: Count total lines to reserve memory
-    size_t total_positions_estimate = 0;
-    auto   count_lines              = [](const std::string& filename) -> size_t {
+    // ============================================================
+    // 1. PARALLEL LINE COUNTING
+    // ============================================================
+
+    auto count_lines = [](const std::string& filename) -> size_t {
         std::ifstream f(filename, std::ios::binary);
         if (!f) {
             return 0;
         }
+
         constexpr size_t  buffer_size = 128 * 1024;
         std::vector<char> buffer(buffer_size);
-        size_t            lines = 0;
+
+        size_t lines = 0;
         while (f.read(buffer.data(), buffer_size) || f.gcount() > 0) {
             lines +=
               static_cast<size_t>(std::count(buffer.data(), buffer.data() + f.gcount(), '\n'));
-            if (!f) {
-                break;
-            }
         }
         return lines;
     };
 
-    std::cout << "Counting positions..." << std::endl;
-    for (const auto& filename : fenFiles) {
-        total_positions_estimate += count_lines(filename);
+    std::cout << "Counting positions...\n";
+
+    std::vector<size_t> file_line_counts(fenFiles.size());
+    std::atomic<size_t> file_index{0};
+
+    auto counter_worker = [&]() {
+        while (true) {
+            size_t i = file_index.fetch_add(1);
+            if (i >= fenFiles.size()) {
+                break;
+            }
+
+            file_line_counts[i] = count_lines(fenFiles[i]);
+        }
+    };
+
+    {
+        std::vector<std::thread> threads;
+        for (u32 t = 0; t < thread_count; ++t) {
+            threads.emplace_back(counter_worker);
+        }
+        for (auto& t : threads) {
+            t.join();
+        }
     }
+
+    size_t total_positions_estimate = 0;
+    for (size_t c : file_line_counts) {
+        total_positions_estimate += c;
+    }
+
     std::cout << "Estimated positions: " << total_positions_estimate << "\n";
 
-    positions.reserve(total_positions_estimate);
-    results.reserve(total_positions_estimate);
+    if (total_positions_estimate == 0) {
+        return 1;
+    }
 
-    // Huge pages optimization for dynamic arrays
-    advise_huge_pages(positions.data(), positions.capacity() * sizeof(Position));
-    advise_huge_pages(results.data(), results.capacity() * sizeof(f64));
+    // ============================================================
+    // 2. PRECOMPUTE WRITE OFFSETS
+    // ============================================================
 
-    for (const auto& filename : fenFiles) {
-        std::ifstream fenFile(filename);
-        if (!fenFile) {
-            std::cerr << "Error opening " << filename << "\n";
-            return 1;
-        }
+    std::vector<size_t> file_offsets(fenFiles.size());
 
-        std::string line;
-        while (std::getline(fenFile, line)) {
-            size_t pos = line.find(';');
-            if (pos == std::string::npos) {
-                std::cerr << "Bad line in " << filename << ": " << line << "\n";
-                continue;
-            }
-
-            std::string fen    = line.substr(0, pos);
-            auto        parsed = Position::parse(fen);
-
-            if (!parsed) {
-                std::cerr << "Failed to parse FEN in " << filename << ": " << fen << "\n";
-                continue;
-            }
-
-            positions.push_back(*parsed);
-
-            std::string result = line.substr(pos + 1);
-            result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
-
-            if (result == "w") {
-                results.push_back(1.0);
-            } else if (result == "d") {
-                results.push_back(0.5);
-            } else if (result == "b") {
-                results.push_back(0.0);
-            } else {
-                std::cerr << "Invalid result in " << filename << ": " << line << "\n";
-            }
+    {
+        size_t offset = 0;
+        for (size_t i = 0; i < fenFiles.size(); ++i) {
+            file_offsets[i] = offset;
+            offset += file_line_counts[i];
         }
     }
 
-    std::cout << "Loaded " << positions.size() << " FENs.\n";
+    // ============================================================
+    // 3. ALLOCATE FINAL STORAGE
+    // ============================================================
+
+    positions.resize(total_positions_estimate);
+    results.resize(total_positions_estimate);
+
+    advise_huge_pages(positions.data(), positions.size() * sizeof(Position));
+    advise_huge_pages(results.data(), results.size() * sizeof(f64));
+
+    // ============================================================
+    // 4. PARALLEL FILE LOADING (NO LOCKS)
+    // ============================================================
+
+    file_index.store(0);
+
+    auto loader_worker = [&]() {
+        while (true) {
+            size_t i = file_index.fetch_add(1);
+            if (i >= fenFiles.size()) {
+                break;
+            }
+
+            const std::string& filename    = fenFiles[i];
+            size_t             write_index = file_offsets[i];
+            size_t             end_index   = write_index + file_line_counts[i];
+
+            std::ifstream fenFile(filename);
+            if (!fenFile) {
+                std::cerr << "Error opening " << filename << "\n";
+                continue;
+            }
+
+            std::string line;
+
+            while (std::getline(fenFile, line) && write_index < end_index) {
+
+                size_t pos = line.find(';');
+                if (pos == std::string::npos) {
+                    continue;
+                }
+
+                std::string fen    = line.substr(0, pos);
+                auto        parsed = Position::parse(fen);
+                if (!parsed) {
+                    continue;
+                }
+
+                std::string result = line.substr(pos + 1);
+                result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
+
+                f64 value;
+                if (result == "w") {
+                    value = 1.0;
+                } else if (result == "d") {
+                    value = 0.5;
+                } else if (result == "b") {
+                    value = 0.0;
+                } else {
+                    continue;
+                }
+
+                positions[write_index] = std::move(*parsed);
+                results[write_index]   = value;
+
+                ++write_index;
+            }
+
+            // If file had invalid lines, shrink gap locally
+            // (optional, dataset dependent)
+        }
+    };
+
+    {
+        std::vector<std::thread> threads;
+        for (u32 t = 0; t < thread_count; ++t) {
+            threads.emplace_back(loader_worker);
+        }
+        for (auto& t : threads) {
+            t.join();
+        }
+    }
+
+    std::cout << "Loaded " << total_positions_estimate << " FEN slots.\n";
+
+    std::cout << "Counted " << positions.size() << " FENs.\n";
     if (positions.empty()) {
         return 1;
     }
