@@ -75,17 +75,22 @@ public:
 class AdamW {
 private:
     ParameterCountInfo m_counts;
-    f64                m_lr;
+    f64                m_default_lr;
     f64                m_beta1;
     f64                m_beta2;
     f64                m_eps;
-    f64                m_weight_decay;
+    f64                m_default_wd;
     long long          m_t;
 
     std::vector<f64>   m_m;
     std::vector<f64>   m_v;
     std::vector<f64x2> m_pair_m;
     std::vector<f64x2> m_pair_v;
+
+    std::vector<f64> m_param_lr;
+    std::vector<f64> m_param_wd;
+    std::vector<f64> m_pair_lr;
+    std::vector<f64> m_pair_wd;
 
 public:
     explicit AdamW(ParameterCountInfo counts,
@@ -95,16 +100,39 @@ public:
                    f64                eps          = 1e-8,
                    f64                weight_decay = 0.01) :
         m_counts(counts),
-        m_lr(lr),
+        m_default_lr(lr),
         m_beta1(beta1),
         m_beta2(beta2),
         m_eps(eps),
-        m_weight_decay(weight_decay),
+        m_default_wd(weight_decay),
         m_t(0) {
         m_m.resize(m_counts.parameter_count, 0.0);
         m_v.resize(m_counts.parameter_count, 0.0);
         m_pair_m.resize(m_counts.pair_parameter_count, f64x2::zero());
         m_pair_v.resize(m_counts.pair_parameter_count, f64x2::zero());
+
+        m_param_lr.resize(m_counts.parameter_count, lr);
+        m_param_wd.resize(m_counts.parameter_count, weight_decay);
+        m_pair_lr.resize(m_counts.pair_parameter_count, lr);
+        m_pair_wd.resize(m_counts.pair_parameter_count, weight_decay);
+    }
+
+    void add_param_group(const std::vector<u32>& value_indices,
+                         const std::vector<u32>& pair_indices,
+                         f64                     lr,
+                         f64                     weight_decay) {
+        for (u32 idx : value_indices) {
+            if (idx < m_counts.parameter_count) {
+                m_param_lr[idx] = lr;
+                m_param_wd[idx] = weight_decay;
+            }
+        }
+        for (u32 idx : pair_indices) {
+            if (idx < m_counts.pair_parameter_count) {
+                m_pair_lr[idx] = lr;
+                m_pair_wd[idx] = weight_decay;
+            }
+        }
     }
 
     void step(Parameters& values, const Parameters& gradients) {
@@ -128,10 +156,13 @@ public:
             m_m[i] = m_beta1 * m_m[i] + (1.0 - m_beta1) * g;
             m_v[i] = m_beta2 * m_v[i] + (1.0 - m_beta2) * g * g;
 
-            const f64 m_hat               = m_m[i] * inv1mb1t;
-            const f64 v_hat               = m_v[i] * inv1mb2t;
-            const f64 adam_update         = m_lr * m_hat / (std::sqrt(v_hat) + m_eps);
-            const f64 weight_decay_update = m_lr * m_weight_decay * p;
+            const f64 m_hat = m_m[i] * inv1mb1t;
+            const f64 v_hat = m_v[i] * inv1mb2t;
+
+            const f64 lr                  = m_param_lr[i];
+            const f64 wd                  = m_param_wd[i];
+            const f64 adam_update         = lr * m_hat / (std::sqrt(v_hat) + m_eps);
+            const f64 weight_decay_update = lr * wd * p;
 
             p += -(adam_update + weight_decay_update);
         }
@@ -160,11 +191,13 @@ public:
             const f64x2 m_hat = f64x2::mul_scalar(m, inv1mb1t);
             const f64x2 v_hat = f64x2::mul_scalar(v, inv1mb2t);
 
-            const f64 adam_upd_f = m_lr * m_hat.first() / (std::sqrt(v_hat.first()) + m_eps);
-            const f64 adam_upd_s = m_lr * m_hat.second() / (std::sqrt(v_hat.second()) + m_eps);
+            const f64 lr         = m_pair_lr[i];
+            const f64 wd         = m_pair_wd[i];
+            const f64 adam_upd_f = lr * m_hat.first() / (std::sqrt(v_hat.first()) + m_eps);
+            const f64 adam_upd_s = lr * m_hat.second() / (std::sqrt(v_hat.second()) + m_eps);
 
-            const f64 decay_upd_f = m_lr * m_weight_decay * p.first();
-            const f64 decay_upd_s = m_lr * m_weight_decay * p.second();
+            const f64 decay_upd_f = lr * wd * p.first();
+            const f64 decay_upd_s = lr * wd * p.second();
 
             const f64 total_upd_f = -(adam_upd_f + decay_upd_f);
             const f64 total_upd_s = -(adam_upd_s + decay_upd_s);
@@ -174,10 +207,32 @@ public:
     }
 
     void set_lr(f64 lr) {
-        m_lr = lr;
+        f64 ratio = lr / (m_default_lr + 1e-12);
+        for (auto& p_lr : m_param_lr) {
+            p_lr *= ratio;
+        }
+        for (auto& p_lr : m_pair_lr) {
+            p_lr *= ratio;
+        }
+        m_default_lr = lr;
     }
     f64 get_lr() const {
-        return m_lr;
+        return m_default_lr;
+    }
+
+    void set_weight_decay(f64 wd) {
+        f64 ratio = wd / (m_default_wd + 1e-12);
+        for (auto& p_wd : m_param_wd) {
+            p_wd *= ratio;
+        }
+        for (auto& p_wd : m_pair_wd) {
+            p_wd *= ratio;
+        }
+        m_default_wd = wd;
+    }
+
+    f64 get_weight_decay() const {
+        return m_default_wd;
     }
 };
 

@@ -133,7 +133,111 @@ int main() {
     current_parameter_values = Parameters::rand_init(parameter_count);
 
     // The optimizer will now start with all-zero parameters
-    AdamW optim(parameter_count, 10, 0.9, 0.999, 1e-8, 0.0);
+    AdamW optim(parameter_count, 10.0, 0.9, 0.999, 1e-8, 0.0);
+
+    std::vector<u32> group1_vals, group1_pairs;
+    std::vector<u32> group2_vals, group2_pairs;
+    std::vector<u32> group3_vals, group3_pairs;
+
+    auto add_p = [](std::vector<u32>& vec, const auto& param) {
+        vec.push_back(static_cast<u32>(param.index()));
+    };
+    auto add_p_arr = [](std::vector<u32>& vec, const auto& arr) {
+        for (const auto& p : arr) {
+            vec.push_back(static_cast<u32>(p.index()));
+        }
+    };
+    auto add_p_2d = [](std::vector<u32>& vec, const auto& arr) {
+        for (const auto& sub : arr) {
+            for (const auto& p : sub) {
+                vec.push_back(static_cast<u32>(p.index()));
+            }
+        }
+    };
+
+    // Group 1: Material
+    add_p(group1_pairs, PAWN_MAT);
+    add_p(group1_pairs, KNIGHT_MAT);
+    add_p(group1_pairs, BISHOP_MAT);
+    add_p(group1_pairs, ROOK_MAT);
+    add_p(group1_pairs, QUEEN_MAT);
+
+    add_p(group1_pairs, BISHOP_PAIR_VAL);
+    add_p(group1_pairs, TEMPO_VAL);
+
+    add_p(group1_vals, WINNABLE_PAWNS);
+    add_p(group1_vals, WINNABLE_SYM);
+    add_p(group1_vals, WINNABLE_ASYM);
+    add_p(group1_vals, WINNABLE_PAWN_ENDGAME);
+    add_p(group1_vals, WINNABLE_BIAS);
+
+    // Group 2: Tables & Mobility
+    add_p_arr(group2_pairs, PAWN_PSQT);
+    add_p_arr(group2_pairs, KNIGHT_PSQT);
+    add_p_arr(group2_pairs, BISHOP_PSQT);
+    add_p_arr(group2_pairs, ROOK_PSQT);
+    add_p_arr(group2_pairs, QUEEN_PSQT);
+    add_p_arr(group2_pairs, KING_PSQT);
+
+    add_p_arr(group2_pairs, PAWN_PHALANX);
+    add_p_arr(group2_pairs, DEFENDED_PAWN);
+    add_p_arr(group2_pairs, PASSED_PAWN);
+    add_p_arr(group2_pairs, DEFENDED_PASSED_PUSH);
+    add_p_arr(group2_pairs, BLOCKED_PASSED_PAWN);
+    add_p_arr(group2_pairs, FRIENDLY_KING_PASSED_PAWN_DISTANCE);
+    add_p_arr(group2_pairs, ENEMY_KING_PASSED_PAWN_DISTANCE);
+
+    add_p_arr(group2_pairs, KNIGHT_MOBILITY);
+    add_p_arr(group2_pairs, BISHOP_MOBILITY);
+    add_p_arr(group2_pairs, ROOK_MOBILITY);
+    add_p_arr(group2_pairs, QUEEN_MOBILITY);
+    add_p_arr(group2_pairs, KING_MOBILITY);
+
+    add_p_2d(group2_pairs, KING_SHELTER);
+    add_p_arr(group2_pairs, BLOCKED_SHELTER_STORM);
+    add_p_2d(group2_pairs, SHELTER_STORM);
+
+    add_p(group2_pairs, KING_SAFETY_ACTIVATION.a());
+    add_p(group2_pairs, KING_SAFETY_ACTIVATION.c());
+
+    // Group 3: Minor Heuristics & Threat Bonuses
+    add_p(group3_pairs, POTENTIAL_CHECKER_VAL);
+    add_p(group3_pairs, OUTPOST_KNIGHT_VAL);
+    add_p(group3_pairs, OUTPOST_BISHOP_VAL);
+
+    add_p(group3_pairs, DOUBLED_PAWN_VAL);
+    add_p(group3_pairs, ISOLATED_PAWN_VAL);
+
+    add_p(group3_pairs, PAWN_PUSH_THREAT_KNIGHT);
+    add_p(group3_pairs, PAWN_PUSH_THREAT_BISHOP);
+    add_p(group3_pairs, PAWN_PUSH_THREAT_ROOK);
+    add_p(group3_pairs, PAWN_PUSH_THREAT_QUEEN);
+
+    add_p_arr(group3_pairs, PT_INNER_RING_ATTACKS);
+    add_p_arr(group3_pairs, PT_OUTER_RING_ATTACKS);
+
+    add_p(group3_pairs, PAWN_THREAT_KNIGHT);
+    add_p(group3_pairs, PAWN_THREAT_BISHOP);
+    add_p(group3_pairs, PAWN_THREAT_ROOK);
+    add_p(group3_pairs, PAWN_THREAT_QUEEN);
+
+    add_p(group3_pairs, KNIGHT_THREAT_BISHOP);
+    add_p(group3_pairs, KNIGHT_THREAT_ROOK);
+    add_p(group3_pairs, KNIGHT_THREAT_QUEEN);
+
+    add_p(group3_pairs, BISHOP_THREAT_KNIGHT);
+    add_p(group3_pairs, BISHOP_THREAT_ROOK);
+    add_p(group3_pairs, BISHOP_THREAT_QUEEN);
+
+    add_p_arr(group3_pairs, BISHOP_PAWNS);
+    add_p(group3_pairs, ROOK_OPEN_VAL);
+    add_p(group3_pairs, ROOK_SEMIOPEN_VAL);
+    add_p(group3_pairs, ROOK_LINEUP);
+
+    optim.add_param_group(group1_vals, group1_pairs, 5.0, 0.0);
+    optim.add_param_group(group2_vals, group2_pairs, 10.0, 1e-5);
+    optim.add_param_group(group3_vals, group3_pairs, 10.0, 1e-4);
+
 #ifdef PROFILE_RUN
     const i32 epochs = 8;
 #else
