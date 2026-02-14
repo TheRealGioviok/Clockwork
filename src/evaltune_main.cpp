@@ -138,6 +138,7 @@ int main() {
     std::vector<u32> group1_vals, group1_pairs;
     std::vector<u32> group2_vals, group2_pairs;
     std::vector<u32> group3_vals, group3_pairs;
+    std::vector<u32> group4_vals, group4_pairs;
 
     auto add_p = [](std::vector<u32>& vec, const auto& param) {
         vec.push_back(static_cast<u32>(param.index()));
@@ -155,7 +156,7 @@ int main() {
         }
     };
 
-    // Group 1: Material
+    // Group 1: Material and unscaled values
     add_p(group1_pairs, PAWN_MAT);
     add_p(group1_pairs, KNIGHT_MAT);
     add_p(group1_pairs, BISHOP_MAT);
@@ -170,6 +171,9 @@ int main() {
     add_p(group1_vals, WINNABLE_ASYM);
     add_p(group1_vals, WINNABLE_PAWN_ENDGAME);
     add_p(group1_vals, WINNABLE_BIAS);
+
+    add_p(group2_pairs, KING_SAFETY_ACTIVATION.a());
+    add_p(group2_pairs, KING_SAFETY_ACTIVATION.c());
 
     // Group 2: Tables & Mobility
     add_p_arr(group2_pairs, PAWN_PSQT);
@@ -193,13 +197,6 @@ int main() {
     add_p_arr(group2_pairs, QUEEN_MOBILITY);
     add_p_arr(group2_pairs, KING_MOBILITY);
 
-    add_p_2d(group2_pairs, KING_SHELTER);
-    add_p_arr(group2_pairs, BLOCKED_SHELTER_STORM);
-    add_p_2d(group2_pairs, SHELTER_STORM);
-
-    add_p(group2_pairs, KING_SAFETY_ACTIVATION.a());
-    add_p(group2_pairs, KING_SAFETY_ACTIVATION.c());
-
     // Group 3: Minor Heuristics & Threat Bonuses
     add_p(group3_pairs, POTENTIAL_CHECKER_VAL);
     add_p(group3_pairs, OUTPOST_KNIGHT_VAL);
@@ -212,9 +209,6 @@ int main() {
     add_p(group3_pairs, PAWN_PUSH_THREAT_BISHOP);
     add_p(group3_pairs, PAWN_PUSH_THREAT_ROOK);
     add_p(group3_pairs, PAWN_PUSH_THREAT_QUEEN);
-
-    add_p_arr(group3_pairs, PT_INNER_RING_ATTACKS);
-    add_p_arr(group3_pairs, PT_OUTER_RING_ATTACKS);
 
     add_p(group3_pairs, PAWN_THREAT_KNIGHT);
     add_p(group3_pairs, PAWN_THREAT_BISHOP);
@@ -234,9 +228,17 @@ int main() {
     add_p(group3_pairs, ROOK_SEMIOPEN_VAL);
     add_p(group3_pairs, ROOK_LINEUP);
 
-    optim.add_param_group(group1_vals, group1_pairs, 5.0, 0.0);
-    optim.add_param_group(group2_vals, group2_pairs, 10.0, 1e-5);
-    optim.add_param_group(group3_vals, group3_pairs, 10.0, 1e-4);
+    // Group 4: King safety sigmoided params
+    add_p_2d(group4_pairs, KING_SHELTER);
+    add_p_arr(group4_pairs, BLOCKED_SHELTER_STORM);
+    add_p_2d(group4_pairs, SHELTER_STORM);
+    add_p_arr(group3_pairs, PT_INNER_RING_ATTACKS);
+    add_p_arr(group3_pairs, PT_OUTER_RING_ATTACKS);
+
+    optim.add_param_group(group1_vals, group1_pairs, 10.0, 0.0);
+    optim.add_param_group(group2_vals, group2_pairs, 1.0, 1e-5);
+    optim.add_param_group(group3_vals, group3_pairs, 1.0, 1e-4);
+    optim.add_param_group(group4_vals, group4_pairs, 1.0, 5e-4);
 
 #ifdef PROFILE_RUN
     const i32 epochs = 8;

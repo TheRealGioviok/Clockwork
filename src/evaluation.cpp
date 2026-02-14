@@ -415,7 +415,7 @@ PScore king_safety_activation(const Position& pos, PScore& king_safety_score) {
     return activated;
 }
 
-PScore apply_winnable(const Position& pos, PScore& score, u32 phase) {
+PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
 
     bool pawn_endgame = phase == 0;
 
