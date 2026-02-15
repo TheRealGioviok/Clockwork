@@ -145,7 +145,7 @@ PScore king_shelter(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_pawns(const Position& pos) {
+std::tuple<PScore, i32> evaluate_pawns(const Position& pos) {
     constexpr i32   RANK_2 = 1;
     constexpr i32   RANK_3 = 2;
     constexpr Color them   = color == Color::White ? Color::Black : Color::White;
@@ -163,7 +163,7 @@ PScore evaluate_pawns(const Position& pos) {
       pawns & ~(pawn_files.shift(Direction::East) | pawn_files.shift(Direction::West));
     eval += DOUBLED_PAWN_VAL * doubled.ipopcount();
     eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
-
+    i32 passers = 0;
     for (Square sq : pawns) {
         Square   push     = sq.push<color>();
         Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
@@ -184,6 +184,7 @@ PScore evaluate_pawns(const Position& pos) {
 
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+            ++passers;
         }
     }
 
@@ -198,7 +199,7 @@ PScore evaluate_pawns(const Position& pos) {
         eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
     }
 
-    return eval;
+    return {eval, passers};
 }
 
 template<Color color>
@@ -415,7 +416,7 @@ PScore king_safety_activation(const Position& pos, PScore& king_safety_score) {
     return activated;
 }
 
-PScore apply_winnable(const Position& pos, PScore& score, u32 phase) {
+PScore apply_winnable(const Position& pos, PScore& score, u32 phase, i32 passers) {
 
     bool pawn_endgame = phase == 0;
 
@@ -433,7 +434,11 @@ PScore apply_winnable(const Position& pos, PScore& score, u32 phase) {
     Score symmetry = WINNABLE_SYM * sym_files + WINNABLE_ASYM * asym_files;
 
     Score winnable =
-      WINNABLE_PAWNS * pawn_count + symmetry + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_BIAS;
+      WINNABLE_PAWNS * pawn_count + 
+      WINNABLE_PASSERS * passers + 
+      symmetry + 
+      WINNABLE_PAWN_ENDGAME * pawn_endgame + 
+      WINNABLE_BIAS;
 
     if (score.eg() < 0) {
         winnable = -winnable;
@@ -460,7 +465,9 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     PScore eval = psqt_state.score();  // Used for linear components
 
     // pawn eval
-    eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
+    auto [white_pawns, white_passers] = evaluate_pawns<Color::White>(pos);
+    auto [black_pawns, black_passers] = evaluate_pawns<Color::Black>(pos);
+    eval += white_pawns - black_pawns;
 
     // pieces & space
     eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
@@ -487,7 +494,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
 
     // Winnable
-    eval = apply_winnable(pos, eval, phase);
+    eval = apply_winnable(pos, eval, phase, white_passers + black_passers);
 
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
 };
