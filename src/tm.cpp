@@ -36,7 +36,8 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
                                    const Search::SearchSettings& settings,
                                    const Color                   stm,
                                    const f64                     nodes_tm_fraction,
-                                   const f64                     complexity) {
+                                   const f64                     complexity,
+                                   const usize                   bm_streak) {
     using namespace std;
     using namespace time;
 
@@ -76,11 +77,22 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
               1.0);
         };
 
-        soft_limit =
-          min(soft_limit,
-              search_start
-                + Milliseconds(static_cast<i64>(compute_buffer_time() * compute_nodestm_factor()
-                                                * compute_complexitytm_factor())));
+        // Adjustment based on the amount of moves in a row that the bestmove holds between iterations
+        const auto compute_bmstability = [&]() -> f64 {
+            const std::array<f64, 5> multipliers = {
+              static_cast<f64>(tuned::bmstability0) / 1000.0,
+              static_cast<f64>(tuned::bmstability1) / 1000.0,
+              static_cast<f64>(tuned::bmstability2) / 1000.0,
+              static_cast<f64>(tuned::bmstability3) / 1000.0,
+              static_cast<f64>(tuned::bmstability4) / 1000.0,
+            };
+            return multipliers[std::min(bm_streak, static_cast<usize>(4))];
+        };
+
+        soft_limit = min(soft_limit, search_start
+                                       + Milliseconds(static_cast<i64>(
+                                         compute_buffer_time() * compute_nodestm_factor()
+                                         * compute_complexitytm_factor() * compute_bmstability())));
     }
 
     return soft_limit;
@@ -88,8 +100,8 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
 
 // Explicit instantiations
 template time::TimePoint compute_soft_limit<true>(
-  time::TimePoint, const Search::SearchSettings&, const Color, const f64, const f64);
+  time::TimePoint, const Search::SearchSettings&, const Color, const f64, const f64, const usize);
 
 template time::TimePoint compute_soft_limit<false>(
-  time::TimePoint, const Search::SearchSettings&, const Color, const f64, const f64);
+  time::TimePoint, const Search::SearchSettings&, const Color, const f64, const f64, const usize);
 }  // namespace Clockwork::TM

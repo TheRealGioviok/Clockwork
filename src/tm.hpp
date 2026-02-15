@@ -14,6 +14,7 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
                                    const Search::SearchSettings& settings,
                                    const Color                   stm,
                                    const f64                     nodes_tm_fraction,
-                                   const f64                     complexity);
+                                   const f64                     complexity,
+                                   const usize                   bm_streak);
 // Will add soft tm and other helper functions here
 }  // namespace Clockwork::TM

@@ -104,6 +104,11 @@ namespace Clockwork::tuned {
     NO_TUNE(d1plexity_base, 788, 394, 1576, 59, 0.002)            \
     NO_TUNE(d1plexity_max_complexity, 200, 100, 400, 15, 0.002)   \
     NO_TUNE(d1plexity_divisor, 386, 193, 772, 29, 0.002)          \
+    NO_TUNE(bmstability0, 2500, 1250, 5000, 188, 0.002)           \
+    NO_TUNE(bmstability1, 1200, 600, 2400, 90, 0.002)             \
+    NO_TUNE(bmstability2, 925, 462, 1850, 69, 0.002)              \
+    NO_TUNE(bmstability3, 815, 408, 1630, 61, 0.002)              \
+    NO_TUNE(bmstability4, 725, 363, 1450, 54, 0.002)              \
                                                                   \
     /* End of Tunables */
 

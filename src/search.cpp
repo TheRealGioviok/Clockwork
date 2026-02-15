@@ -210,8 +210,8 @@ void Worker::start_searching() {
         m_search_limits = {
           .hard_time_limit = TM::compute_hard_limit(m_search_start, m_searcher.settings,
                                                     root_position.active_color()),
-          .soft_time_limit = TM::compute_soft_limit<false>(m_search_start, m_searcher.settings,
-                                                           root_position.active_color(), 0.0, 0.0),
+          .soft_time_limit = TM::compute_soft_limit<false>(
+            m_search_start, m_searcher.settings, root_position.active_color(), 0.0, 0.0, 0),
           .soft_node_limit = m_searcher.settings.soft_nodes > 0 ? m_searcher.settings.soft_nodes
                                                                 : std::numeric_limits<u64>::max(),
           .hard_node_limit = m_searcher.settings.hard_nodes > 0 ? m_searcher.settings.hard_nodes
@@ -241,6 +241,7 @@ Move Worker::iterative_deepening(const Position& root_position) {
     Value last_search_score = -VALUE_INF;
     Value base_search_score = -VALUE_INF;
     Move  last_best_move    = Move::none();
+    usize bm_streak         = 0;
     PV    last_pv{};
 
     const auto print_info_line = [&] {
@@ -321,7 +322,14 @@ Move Worker::iterative_deepening(const Position& root_position) {
         last_seldepth     = m_seldepth;
         last_search_score = score;
         last_pv           = ss[SS_PADDING].pv;
-        last_best_move    = last_pv.first_move();
+
+        Move bm = last_pv.first_move();
+        if (last_best_move == bm) {
+            ++bm_streak;
+        } else {
+            bm_streak = 0;
+        }
+        last_best_move    = bm;
         base_search_score = search_depth == 1 ? score : base_search_score;
 
         m_td.root_score = last_search_score;
@@ -352,7 +360,7 @@ Move Worker::iterative_deepening(const Position& root_position) {
             }
             m_search_limits.soft_time_limit = TM::compute_soft_limit<true>(
               m_search_start, m_searcher.settings, root_position.active_color(), nodes_tm_fraction,
-              complexity);
+              complexity, bm_streak);
         }
 
         // check soft time limit
