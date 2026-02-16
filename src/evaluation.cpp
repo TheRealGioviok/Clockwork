@@ -38,6 +38,13 @@ Bitboard static_pawn_attacks(const Bitboard pawns) {
 }
 
 template<Color color>
+Bitboard static_pawn_double_attacks(const Bitboard pawns) {
+    Bitboard attacks = pawns.shift_relative(color, Direction::NorthEast)
+                     & pawns.shift_relative(color, Direction::NorthWest);
+    return attacks;
+}
+
+template<Color color>
 Bitboard pawn_spans(const Bitboard pawns, Bitboard blockers) {
     Bitboard res = pawns;
     // rank 1 -> 2
@@ -148,6 +155,7 @@ template<Color color>
 PScore evaluate_pawns(const Position& pos) {
     constexpr i32   RANK_2 = 1;
     constexpr i32   RANK_3 = 2;
+    constexpr i32   RANK_5 = 4;
     constexpr Color them   = color == Color::White ? Color::Black : Color::White;
 
     Square our_king   = pos.king_sq(color);
@@ -159,34 +167,64 @@ PScore evaluate_pawns(const Position& pos) {
 
     Bitboard pawn_files = Bitboard::fill_verticals(pawns);
     Bitboard doubled    = pawns & pawns.shift(Direction::North);
-    Bitboard isolated =
-      pawns & ~(pawn_files.shift(Direction::East) | pawn_files.shift(Direction::West));
+    Bitboard isolated   = pawns & ~(pawn_files.horizontal_adjacent());
+
+    Bitboard their_pawn_double_attacks = static_pawn_double_attacks<them>(opp_pawns);
+    Bitboard our_attacks               = pos.attack_table(color).get_attacked_bitboard();
+    Bitboard their_double_attacks      = pos.attacked_by_two_or_more(them);
+
     eval += DOUBLED_PAWN_VAL * doubled.ipopcount();
     eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
 
     for (Square sq : pawns) {
-        Square   push     = sq.push<color>();
-        Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
-        if (stoppers.empty()) {
-            eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-            if (pos.attack_table(color).read(push).popcount()
-                > pos.attack_table(them).read(push).popcount()) {
-                eval +=
-                  DEFENDED_PASSED_PUSH[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-            }
-            if (pos.piece_at(push) != PieceType::None) {
-                eval +=
-                  BLOCKED_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-            }
+        Square push = sq.push<color>();
+        bool   frontmost_in_file =
+          (pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw]).empty();
+        Bitboard stoppers      = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
+        usize    relative_rank = static_cast<usize>(sq.relative_sq(color).rank());
+        if (frontmost_in_file) {
+            if (stoppers.empty()) {
+                eval += PASSED_PAWN[(relative_rank - RANK_2)];
+                if (pos.attack_table(color).read(push).popcount()
+                    > pos.attack_table(them).read(push).popcount()) {
+                    eval += DEFENDED_PASSED_PUSH[static_cast<usize>(relative_rank - RANK_2)];
+                }
+                if (pos.piece_at(push) != PieceType::None) {
+                    eval += BLOCKED_PASSED_PAWN[static_cast<usize>(relative_rank - RANK_2)];
+                }
 
-            i32 our_king_dist   = chebyshev_distance(our_king, sq);
-            i32 their_king_dist = chebyshev_distance(their_king, sq);
+                i32 our_king_dist   = chebyshev_distance(our_king, sq);
+                i32 their_king_dist = chebyshev_distance(their_king, sq);
 
-            eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
-            eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+                eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
+                eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+            } else {
+                // Candidate passed pawns
+                Bitboard sqb          = Bitboard::from_square(sq);
+                Bitboard push_sqb     = sqb.shift_relative(color, Direction::North);
+                Bitboard levers       = static_pawn_attacks<color>(sqb) & opp_pawns;
+                Bitboard lever_push   = static_pawn_attacks<color>(push_sqb) & opp_pawns;
+                Bitboard push_support = static_pawn_attacks<them>(sqb) & pawns;
+                Bitboard phal         = pawns & sqb.horizontal_adjacent();
+                bool     candidate =
+                  // Only stopper are levers (no additional lever pushes behind)
+                  (stoppers ^ levers).empty()
+                  // Only stoppers are lever pushes, but our phalanx outnumbers
+                  || ((stoppers ^ lever_push).empty() && phal.popcount() >= lever_push.popcount())
+                  // The only front stopper is leverable by a phalanx push (phalanx push available)
+                  || (stoppers == push_sqb && relative_rank >= RANK_5
+                      &&  // Directly blocked, high enough to not consider double pushes, we have a pawn which can push to become our phalanx (and lever the stopper)
+                      (push_support.shift_relative(color, Direction::North)
+                       & ~(pos.board().get_color_bitboard(them) | their_pawn_double_attacks
+                           | (their_double_attacks & ~our_attacks)))
+                        .any());
+                if (candidate) {
+                    eval += CANDIDATE_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank()
+                                                                     - RANK_2)];
+                }
+            }
         }
     }
-
 
     Bitboard phalanx = pawns & pawns.shift(Direction::East);
     for (Square sq : phalanx) {
@@ -276,7 +314,6 @@ PScore evaluate_pieces(const Position& pos) {
         eval += BISHOP_PAIR_VAL;
     }
     eval += KING_MOBILITY[pos.mobility_of(color, PieceId::king(), ~bb)];
-
 
     return eval;
 }

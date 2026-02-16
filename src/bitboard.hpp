@@ -111,6 +111,10 @@ public:
         }
     }
 
+    [[nodiscard]] Bitboard horizontal_adjacent() const {
+        return (this->shift(Direction::East) | this->shift(Direction::West));
+    }
+
     [[nodiscard]] Square frontmost_square(Color color) const {
         return color == Color::White ? msb() : lsb();
     }
@@ -234,6 +238,11 @@ public:
     friend constexpr Bitboard& operator<<=(Bitboard& a, i32 shift) {
         return a = a << shift;
     }
+
+    friend constexpr bool operator&&(Bitboard a, Bitboard b) {
+        return static_cast<bool>(a.m_raw & b.m_raw);
+    }
+
 
     // ostream support for debugging
     friend std::ostream& operator<<(std::ostream& os, const Bitboard& bb) {
