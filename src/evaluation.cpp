@@ -178,10 +178,11 @@ PScore evaluate_pawns(const Position& pos) {
 
     for (Square sq : pawns) {
         Square push = sq.push<color>();
+        Bitboard pawn_file = Bitboard::file_mask(sq.file());
         bool   frontmost_in_file =
-          (pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw]).empty();
+          (pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw] & pawn_file).empty();
         Bitboard stoppers      = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
-        usize    relative_rank = static_cast<usize>(sq.relative_sq(color).rank());
+        usize    relative_rank = static_cast<usize>(sq.relative_rank(color));
         if (frontmost_in_file) {
             if (stoppers.empty()) {
                 eval += PASSED_PAWN[(relative_rank - RANK_2)];
