@@ -177,9 +177,9 @@ PScore evaluate_pawns(const Position& pos) {
     eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
 
     for (Square sq : pawns) {
-        Square push = sq.push<color>();
+        Square   push      = sq.push<color>();
         Bitboard pawn_file = Bitboard::file_mask(sq.file());
-        bool   frontmost_in_file =
+        bool     frontmost_in_file =
           (pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw] & pawn_file).empty();
         Bitboard stoppers      = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
         usize    relative_rank = static_cast<usize>(sq.relative_rank(color));
