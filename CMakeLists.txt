@@ -84,6 +84,18 @@ function(target_add_flags target)
         set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
 
+    # Extra clang stuff
+    # Clang-specific inline threshold tuning (Release only)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(${target} PUBLIC
+            $<$<CONFIG:Release>:
+            -mllvm -inline-threshold=500
+            >
+        )
+    endif()
+
+
+
     
 
 endfunction()
