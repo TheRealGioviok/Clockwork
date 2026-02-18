@@ -209,7 +209,9 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     Bitboard our_pawns  = pos.bitboard_for(color, PieceType::Pawn);
     Bitboard all_pieces = pos.board().get_occupied_bitboard();
 
-    Bitboard pushable = our_pawns & ~all_pieces.shift_relative(color, Direction::South);
+    Bitboard safe = pos.attack_table(color).get_attacked_bitboard() | ~pos.attack_table(opp).get_attacked_bitboard();
+
+    Bitboard pushable = our_pawns & (safe & ~all_pieces).shift_relative(color, Direction::South);
 
     Bitboard push_attacks =
       pushable.shift_relative(color, Direction::North).shift_relative(color, Direction::NorthEast)
@@ -363,14 +365,18 @@ PScore evaluate_threats(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
-    Bitboard pawn_attacks = pos.attacked_by(color, PieceType::Pawn);
+
+    Bitboard safe = pos.attack_table(color).get_attacked_bitboard()
+                  | ~pos.attack_table(opp).get_attacked_bitboard();
+
+    Bitboard safe_pawn_attacks = static_pawn_attacks<color>(pos.bitboard_for(color, PieceType::Pawn) & safe);
     eval +=
-      PAWN_THREAT_KNIGHT * (pos.bitboard_for(opp, PieceType::Knight) & pawn_attacks).ipopcount();
+      PAWN_THREAT_KNIGHT * (pos.bitboard_for(opp, PieceType::Knight) & safe_pawn_attacks).ipopcount();
     eval +=
-      PAWN_THREAT_BISHOP * (pos.bitboard_for(opp, PieceType::Bishop) & pawn_attacks).ipopcount();
-    eval += PAWN_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & pawn_attacks).ipopcount();
+      PAWN_THREAT_BISHOP * (pos.bitboard_for(opp, PieceType::Bishop) & safe_pawn_attacks).ipopcount();
+    eval += PAWN_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & safe_pawn_attacks).ipopcount();
     eval +=
-      PAWN_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & pawn_attacks).ipopcount();
+      PAWN_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & safe_pawn_attacks).ipopcount();
 
     Bitboard knight_attacks = pos.attacked_by(color, PieceType::Knight);
     eval += KNIGHT_THREAT_BISHOP
