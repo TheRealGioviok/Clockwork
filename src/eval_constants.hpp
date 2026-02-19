@@ -75,6 +75,11 @@ inline const std::array<PParam, 5> PT_OUTER_RING_ATTACKS = {
     S(4, -0), S(7, -11), S(6, -9), S(5, -5), S(6, 394),
 };
 
+inline const PParam KS_FLANK_ATTACK = S(211, 92);
+inline const PParam KS_FLANK_DEFENSE = S(189, 141);
+inline const PParam KS_FLANK_DOUBLE_ATTACK   = S(190, 126);
+inline const PParam KS_FLANK_DOUBLE_DEFENSE  = S(166, -14);
+
 inline const PParam PAWN_THREAT_KNIGHT = S(211, 92);
 inline const PParam PAWN_THREAT_BISHOP = S(189, 141);
 inline const PParam PAWN_THREAT_ROOK   = S(190, 126);

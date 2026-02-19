@@ -36,10 +36,11 @@ int main() {
     std::vector<Position> positions;
     std::vector<f64>      results;
 
-    const std::vector<std::string> fenFiles = {"data/neov4/neodfrcv2_16knpm.txt",
-                                               "data/neov4/neov4.1_16knpm.txt",
-                                               "data/neov4/neov4_16knpm.txt"};
-
+    const std::vector<std::string> fenFiles = {
+      "data/v4_5knpm.txt",   "data/v4_8knpm.txt",   "data/v4_16knpm.txt",
+      "data/v4.1_5knpm.txt", "data/v4.1_8knpm.txt", "data/dfrcv2.txt",
+    };
+    
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
 
     std::cout << "Running on " << thread_count << " threads\n";
@@ -330,6 +331,15 @@ int main() {
         print_table("PT_INNER_RING_ATTACKS", PT_INNER_RING_ATTACKS);
         print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
         std::cout << std::endl;
+
+        std::cout << "inline const PParam KS_FLANK_ATTACK = " << KS_FLANK_ATTACK << ";"
+                  << std::endl;
+        std::cout << "inline const PParam KS_FLANK_DEFENSE = " << KS_FLANK_DEFENSE << ";"
+                  << std::endl;
+        std::cout << "inline const PParam KS_DLANK_DOUBLE_ATTACK   = " << KS_FLANK_DOUBLE_ATTACK << ";"
+                  << std::endl;
+        std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE << ";"
+                  << std::endl;
 
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
                   << std::endl;
