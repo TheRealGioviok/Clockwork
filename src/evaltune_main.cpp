@@ -333,6 +333,14 @@ int main() {
         std::cout << std::endl;
 
         std::cout << "inline const PParam KS_NO_QUEEN = " << KS_NO_QUEEN << ";" << std::endl;
+        std::cout << "inline const PParam KS_FLANK_ATTACK = " << KS_FLANK_ATTACK << ";"
+                  << std::endl;
+        std::cout << "inline const PParam KS_FLANK_DEFENSE = " << KS_FLANK_DEFENSE << ";"
+                  << std::endl;
+        std::cout << "inline const PParam KS_DLANK_DOUBLE_ATTACK   = " << KS_FLANK_DOUBLE_ATTACK << ";"
+                  << std::endl;
+        std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE << ";"
+                  << std::endl;
 
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
                   << std::endl;
