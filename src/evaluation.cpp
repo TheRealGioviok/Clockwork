@@ -355,6 +355,8 @@ PScore evaluate_king_safety(const Position& pos) {
 
     eval += king_shelter<color>(pos);
 
+    eval += KS_NOQUEEN_VAL * pos.bitboard_for(opp, PieceType::Queen).empty();
+
     return eval;
 }
 
