@@ -35,8 +35,8 @@ namespace Clockwork::tuned {
     TUNE(quiesce_see_threshold, 18, -1000, 200, 20, 0.002)        \
     TUNE(movepicker_see_capthist_divisor, 51, 16, 192, 10, 0.002) \
     TUNE(see_pawn_val, 96, 50, 200, 8, 0.002)                     \
-    TUNE(see_knight_val, 310, 150, 600, 23, 0.002)                \
-    TUNE(see_bishop_val, 278, 150, 600, 23, 0.002)                \
+    TUNE(see_knight_val, 288, 150, 600, 23, 0.002)                \
+    TUNE(see_bishop_val, 300, 150, 600, 23, 0.002)                \
     TUNE(see_rook_val, 570, 250, 1000, 38, 0.002)                 \
     TUNE(see_queen_val, 939, 450, 1800, 68, 0.002)                \
                                                                   \
