@@ -453,7 +453,7 @@ Value Worker::search(
                 || (tt_data->bound() == Bound::Upper && tt_data->score <= alpha))) {
             if (tt_data->score >= beta && tt_data->move != Move::none()
                 && quiet_move(tt_data->move)) {
-                i32 bonus = stat_bonus(depth) / 2;
+                i32 bonus = stat_bonus(depth) / 3;
                 m_td.history.update_quiet_stats(pos, tt_data->move, ply, ss, bonus);
             }
             return tt_data->score;
