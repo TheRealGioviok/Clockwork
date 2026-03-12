@@ -459,20 +459,24 @@ Value Worker::search(
     }
 
     bool  is_in_check = pos.is_in_check();
-    bool  improving   = false;
     Value correction  = 0;
     Value raw_eval    = -VALUE_INF;
     ss->static_eval   = -VALUE_INF;
+
     if (!is_in_check) {
         correction      = excluded ? 0 : m_td.history.get_correction(pos);
         raw_eval        = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         ss->static_eval = adj_shuffle(pos, raw_eval) + correction;
-        improving = (ss - 2)->static_eval != -VALUE_INF && ss->static_eval > (ss - 2)->static_eval;
 
         if (!tt_data) {
             m_searcher.tt.store(pos, ply, raw_eval, Move::none(), -VALUE_INF, 0, ttpv, Bound::None);
         }
     }
+    else {
+        ss->static_eval = (ss-2)->static_eval;
+    }
+
+    bool improving = ss->static_eval > (ss - 2)->static_eval;
 
     // Internal Iterative Reductions
     if ((PV_NODE || cutnode) && depth >= 8 && (!tt_data || tt_data->move == Move::none())) {
