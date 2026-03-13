@@ -189,76 +189,8 @@ Score keep_close(Square sq1, Square sq2) {
     return strong == Color::White ? result : static_cast<Score>(-result);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ── Example 2: KBvKP* — scaling function ─────────────────────────────────────
-//
-//  Strong side has a lone bishop; weak side has any number of pawns (≥1).
-//  A wrong-colour bishop can't stop a rook-pawn → scale toward draw.
-//  The more pawns the weak side has, the harder it is to hold → scale down more.
-//
-//  EgMaterial:
-//    strong: Q=0, R=0, B=1, N=0, P=0
-//    weak:   Q=0, R=0, B=0, N=0, P=at_least(1)
-//    priority=10  (more specific than a generic "KB vs K*" catch-all)
-// ─────────────────────────────────────────────────────────────────────────────
-
-[[nodiscard]] static i32 eg_scale_KBvKPn(const Position& pos, Color strong) {
-    Color weak = ~strong;
-
-    Bitboard bishops = pos.bitboard_for(strong, PieceType::Bishop);
-    Bitboard pawns   = pos.bitboard_for(weak, PieceType::Pawn);
-
-    if (bishops.empty() || pawns.empty()) {
-        return 128;
-    }
-
-    Square bishop_sq = bishops.lsb();
-    Square weak_king = pos.king_sq(weak);
-
-    // For each opposing pawn, check if it's a rook pawn headed to the
-    // wrong-colour promotion square that the bishop can't control
-    i32 unstoppable = 0;
-    for (Square pawn_sq : pawns) {
-        // Promotion square for the weak side's pawn
-        Square promo = weak == Color::White
-                       ? Square{static_cast<u8>(pawn_sq.file() + 56)}  // rank 8 for white
-                       : Square{static_cast<u8>(pawn_sq.file())};      // rank 1 for black
-
-        bool rook_pawn      = (pawn_sq.file() == 0 || pawn_sq.file() == 7);
-        bool wrong_colour   = (bishop_sq.color() != promo.color());
-        bool king_at_corner = (chebyshev(weak_king, promo) <= 1);
-
-        if (rook_pawn && wrong_colour && king_at_corner) {
-            ++unstoppable;
-        }
-    }
-
-    if (unstoppable > 0) {
-        return 0;  // at least one pawn is an unstoppable draw
-    }
-
-    // General case: scale down proportionally to pawn count
-    i32 pawn_count = static_cast<i32>(pawns.popcount());
-    return std::max(0, 128 - pawn_count * 24);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ── Registry ──────────────────────────────────────────────────────────────────
-//
-//  • List entries from most specific (highest priority) to least specific.
-//  • make_sorted_endgame_table() will sort by .priority descending at compile
-//    time, so explicit ordering here is just a readability aid.
-//  • Add/remove entries here; nothing else needs to change.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Registry
-// ─────────────────────────────────────────────────────────────────────────────
-
 // clang-format off
 static constexpr auto kRawTable = std::array{
-
-    // ── Full-eval replacements ────────────────────────────────────────────────
 
     EG_EVAL(
         EgMaterial{
@@ -304,26 +236,10 @@ static constexpr auto kRawTable = std::array{
         eg_KBNK
     ),
 
-    // ── Scaling functions ─────────────────────────────────────────────────────
-
-    // KB vs K + any number of pawns (≥1)
-    EG_SCALE(
-        EgMaterial{
-            .queens  = eg::None, .rooks   = eg::None, .bishops = eg::One,
-            .knights = eg::None, .pawns   = eg::None,
-            .opp_queens  = eg::None, .opp_rooks   = eg::None, .opp_bishops = eg::None,
-            .opp_knights = eg::None, .opp_pawns   = eg::AtLeast1,
-            .priority = 10
-        },
-        eg_scale_KBvKPn
-    ),
-
 };
 // clang-format on
 
 // Partition and sort at compile time into two typed arrays.
-// probe_eg_eval and probe_eg_scale each iterate only their own slice —
-// no runtime kind-check, no wasted iterations.
 
 template<EgKind Kind, std::size_t N>
 consteval auto filter_and_sort(const std::array<EndgameEntry, N>& src) {
@@ -345,7 +261,6 @@ consteval auto filter_and_sort(const std::array<EndgameEntry, N>& src) {
     }
 
     // Sort by priority descending within the filled prefix
-    // (std::sort is constexpr in C++20)
     std::sort(out.begin(), out.begin() + count, [](const EndgameEntry& a, const EndgameEntry& b) {
         return a.material.priority > b.material.priority;
     });
@@ -359,10 +274,6 @@ static constexpr auto kScalePair = filter_and_sort<EgKind::Scale>(kRawTable);
 const std::span<const EndgameEntry> kEgEvalTable{kEvalPair.first.data(), kEvalPair.second};
 const std::span<const EndgameEntry> kEgScaleTable{kScalePair.first.data(), kScalePair.second};
 
-// ─────────────────────────────────────────────────────────────────────────────
-// probe_eg_eval — runs before the main eval; iterates only Eval entries
-// ─────────────────────────────────────────────────────────────────────────────
-
 std::optional<Score> probe_eg_eval(const Position& pos) {
     for (const Color strong : {Color::White, Color::Black}) {
         for (const EndgameEntry& entry : kEgEvalTable) {
@@ -374,10 +285,6 @@ std::optional<Score> probe_eg_eval(const Position& pos) {
     }
     return std::nullopt;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// probe_eg_scale — runs after the main eval; iterates only Scale entries
-// ─────────────────────────────────────────────────────────────────────────────
 
 bool probe_eg_scale(const Position& pos, Score& inout_score) {
     const Color strong = inout_score > 0 ? Color::White : Color::Black;
