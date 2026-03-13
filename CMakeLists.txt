@@ -98,6 +98,8 @@ set(srcs
     src/cuckoo.hpp
     src/dbg_tools.cpp
     src/dbg_tools.hpp
+    src/endgame.cpp
+    src/endgame.hpp
     src/eval_constants.hpp
     src/eval_types.hpp
     src/evaluation.cpp

@@ -1,6 +1,7 @@
 #include "evaluation.hpp"
 #include "bitboard.hpp"
 #include "common.hpp"
+#include "endgame.hpp"
 #include "eval_constants.hpp"
 #include "eval_types.hpp"
 #include "position.hpp"
@@ -475,6 +476,12 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
 }
 
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
+
+    // Endgame eval check
+    if (auto eg = probe_eg_eval(pos)) {
+        return *eg;
+    }
+
     const Color us    = pos.active_color();
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
                 + pos.piece_count(Color::Black, PieceType::Knight)
@@ -521,7 +528,10 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     // Winnable
     eval = apply_winnable(pos, eval, phase);
 
-    return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
+    // Apply endgame scaling
+    Score final_score = static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
+    probe_eg_scale(pos, final_score);
+    return final_score;
 };
 
 Score evaluate_stm_pov(const Position& pos, const PsqtState& psqt_state) {
