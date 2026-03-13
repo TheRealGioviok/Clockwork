@@ -10,10 +10,7 @@
 
 namespace Clockwork {
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EgCount — per-piece-type count constraint
-// ─────────────────────────────────────────────────────────────────────────────
-
+// EgCount contains the boilerplate for material matching
 struct EgCount {
     u8 min = 0;
     u8 max = 0xFF;  // 0xFF = unbounded
@@ -42,7 +39,7 @@ struct EgCount {
     }
 };
 
-// Shorthand aliases — keeps table entries terse
+// Shorthand aliases
 namespace eg {
 inline constexpr auto    Any      = EgCount::any();
 inline constexpr auto    None     = EgCount::none();
@@ -64,13 +61,7 @@ inline constexpr EgCount Between(u8 lo, u8 hi) {
 }
 }  // namespace eg
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EgMaterial — material signature for the strong side
-//
-// All fields default to eg::Any, so you only specify what matters.
-// The router normalises orientation so you always write entries as if the
-// stronger side (the one with more material) is Color::White.
-// ─────────────────────────────────────────────────────────────────────────────
+// Material signature for the strong side. Default fields are any for ease of declaration of scaling fns
 
 struct EgMaterial {
     // Strong side
@@ -87,8 +78,10 @@ struct EgMaterial {
     EgCount opp_knights = eg::Any;
     EgCount opp_pawns   = eg::Any;
 
-    // Higher priority entries are checked first. Assign higher values to more
-    // specific patterns so they shadow broader wildcard entries.
+    // Higher priority entries are checked first. This is useful if for example we define large wildcards (eg KRP+ v KRP+ ) but we also have specific heuristics for subsets.
+    // This MIGHT be doable in an automated way, but i can't figure out how.
+    // TODO: look into this
+
     u8 priority = 0;
 
     [[nodiscard]] constexpr bool matches(const Position& pos, Color strong) const {
@@ -109,29 +102,17 @@ struct EgMaterial {
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Function signatures
-//
-//  EgEvalFn  — completely replaces the main eval. Must return a Score from
-//               white's POV. Receives `strong` so you can negate if needed.
-//
-//  EgScaleFn — scales the endgame component of the tapered score.
-//               128 = identity, 0 = forced draw, 64 = half strength, etc.
-//               Applied as: eg_score = eg_score * scale / 128
-// ─────────────────────────────────────────────────────────────────────────────
-
+// Eg fn signatures
 using EgEvalFn  = Score (*)(const Position& pos, Color strong);
 using EgScaleFn = i32 (*)(const Position& pos, Color strong);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EndgameEntry — one row in the registry
-// ─────────────────────────────────────────────────────────────────────────────
 
 enum class EgKind : u8 {
     Eval,
     Scale
 };
 
+// EndgameEntry has the relevant routing information for the endgame eval / scaling function (union)
 struct EndgameEntry {
     EgMaterial material{};
     EgKind     kind{};
@@ -146,13 +127,7 @@ struct EndgameEntry {
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Registration helpers — the only thing you touch in endgame_entries.cpp
-//
-// Using constexpr functions instead of macros avoids the classic preprocessor
-// bug where commas inside a braced initializer list are misread as argument
-// separators, causing cryptic "too many arguments" errors.
-// ─────────────────────────────────────────────────────────────────────────────
+// Registration helpers
 
 [[nodiscard]] constexpr EndgameEntry EG_EVAL(EgMaterial mat, EgEvalFn fn) {
     EndgameEntry e;
@@ -170,46 +145,12 @@ struct EndgameEntry {
     return e;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Registry helpers
-//
-// kEndgameTable is defined in endgame_entries.cpp.
-// make_sorted_endgame_table() returns a copy sorted by priority descending so
-// the router can simply iterate and take the first match.
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-// Defined in endgame_entries.cpp.
 // Entries are partitioned at startup: eval entries first, scale entries second.
-// Each probe function receives only the relevant slice — no kind-check in the loop.
 extern const std::span<const EndgameEntry> kEgEvalTable;
 extern const std::span<const EndgameEntry> kEgScaleTable;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// probe_eg_eval — call BEFORE the main eval
-//
-// Checks only EgKind::Eval entries. If one matches, returns the Score
-// immediately and the caller must skip the normal eval entirely.
-//
-//   if (auto eg = probe_eg_eval(pos))
-//       return *eg;
-//   // ... run normal eval ...
-//
-// ─────────────────────────────────────────────────────────────────────────────
 
 [[nodiscard]] std::optional<Score> probe_eg_eval(const Position& pos);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// probe_eg_scale — call AFTER the main eval, before returning
-//
-// Checks only EgKind::Scale entries. If one matches, modifies inout_score
-// in-place and returns true. The caller always returns inout_score afterwards.
-//
-//   Score final = static_cast<Score>(eval.phase<24>(phase));
-//   probe_eg_scale(pos, final);
-//   return final;
-//
-// ─────────────────────────────────────────────────────────────────────────────
 
 bool probe_eg_scale(const Position& pos, Score& inout_score);
 

@@ -486,7 +486,7 @@ Value Worker::search(
         tt_adjusted_eval = tt_data->score;
     }
 
-    if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth && !excluded
+    if (!PV_NODE && !is_in_check && tt_adjusted_eval < VALUE_WON_EG && depth <= tuned::rfp_depth && !excluded
         && tt_adjusted_eval >= beta + tuned::rfp_margin * depth) {
         return tt_adjusted_eval;
     }
@@ -514,7 +514,7 @@ Value Worker::search(
                 null_score = beta;
             }
 
-            if (depth <= tuned::nmp_verif_min_depth) {
+            if (depth <= tuned::nmp_verif_min_depth && abs(beta) < VALUE_WON_EG) {
                 return null_score;
             }
 
@@ -548,7 +548,7 @@ Value Worker::search(
     // returning the cutoff score immediately. This saves time by not searching
     // moves in positions that are likely to be cutoffs anyway.
     if (!PV_NODE && !is_in_check && depth >= tuned::probcut_min_depth && !excluded
-        && !is_mate_score(beta)) {
+        && abs(beta) < VALUE_WON_EG) {
         const Value probcut_beta  = beta + tuned::probcut_margin;
         const Depth probcut_depth = std::clamp<Depth>(depth - 4, 1, depth - 1);
 
@@ -618,7 +618,7 @@ Value Worker::search(
             // Forward Futility Pruning (FFP)
             Value futility = ss->static_eval + tuned::ffp_margin_base
                            + tuned::ffp_margin_mult * depth + move_history / tuned::ffp_hist_div;
-            if (quiet && !is_in_check && depth <= tuned::ffp_depth && futility <= alpha) {
+            if (quiet && !is_in_check && depth <= tuned::ffp_depth && futility <= alpha && futility > -VALUE_WON_EG) {
                 moves.skip_quiets();
                 continue;
             }
