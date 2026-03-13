@@ -939,6 +939,11 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         }
     }
 
+    // Insufficient material check
+    if (pos.is_insufficient_material()) {
+        return get_draw_score();
+    }
+
     // Return eval if we exceed the max ply.
     if (ply >= MAX_PLY) {
         return evaluate(pos);

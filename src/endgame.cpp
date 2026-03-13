@@ -170,16 +170,21 @@ Score keep_close(Square sq1, Square sq2) {
 
     bool safe_pieces = (pos.board().get_color_bitboard(strong) & safe).popcount() == 3; // KBN all safe
 
-    Square strong_bishop = pos.bitboard_for(strong, PieceType::Bishop).lsb();
-    Square strong_knight = pos.bitboard_for(strong, PieceType::Knight).lsb();
-    Color correct_color = strong_bishop.color();
+    Square sb = pos.bitboard_for(strong, PieceType::Bishop).lsb();
+    Square sn = pos.bitboard_for(strong, PieceType::Knight).lsb();
+    Color correct_color = sb.color();
 
     Score result = static_cast<Score>(
       std::max(0,
                base * safe_pieces         // Always known win if the enemy king can't capture
+                 + centralize<5>(sk)
+                 + centralize<5>(sn)
+                 + centralize<5>(sb)
+                 + keep_close<5>(sk, sn)
                  + keep_close<15>(sk, wk)
-                 + push_to_edge<200>(wk)
-                 + push_to_color_corner<400>(wk, correct_color)
+                 + push_to_edge<50>(wk)
+                 + keep_on_edge<300>(wk)
+                 + push_to_color_corner<120>(wk, correct_color)
                ));
 
     return strong == Color::White ? result : static_cast<Score>(-result);
