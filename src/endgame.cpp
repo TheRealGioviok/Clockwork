@@ -177,13 +177,9 @@ Score keep_close(Square sq1, Square sq2) {
     Score result = static_cast<Score>(
       std::max(0,
                base * safe_pieces         // Always known win if the enemy king can't capture
-                 + centralize<5>(sk)
-                 + centralize<5>(strong_bishop)
-                 + centralize<5>(strong_knight)
                  + keep_close<15>(sk, wk)
                  + push_to_edge<200>(wk)
-                 + keep_on_edge<300>(wk)
-                 + push_to_color_corner<230>(wk, correct_color)
+                 + push_to_color_corner<400>(wk, correct_color)
                ));
 
     return strong == Color::White ? result : static_cast<Score>(-result);
