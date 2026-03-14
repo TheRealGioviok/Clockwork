@@ -12,9 +12,6 @@
 
 namespace Clockwork {
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 namespace {
 
@@ -60,7 +57,7 @@ Score push_to_color_corner(Square sq, Color c) {
 
 template<Score weight>
 Score centralize(Square sq) {
-    return static_cast<Score>(-weight * -corner_distance(sq));
+    return static_cast<Score>(weight * corner_distance(sq));
 }
 
 template<Score weight>
@@ -165,27 +162,15 @@ Score keep_close(Square sq1, Square sq2) {
     Square sk = pos.king_sq(strong);
     Square wk = pos.king_sq(weak);
 
-    Bitboard safe = pos.attack_table(strong).get_attacked_bitboard()
-                  | ~pos.attack_table(weak).get_attacked_bitboard();
-
-    bool safe_pieces = (pos.board().get_color_bitboard(strong) & safe).popcount() == 3; // KBN all safe
-
     Square sb = pos.bitboard_for(strong, PieceType::Bishop).lsb();
-    Square sn = pos.bitboard_for(strong, PieceType::Knight).lsb();
     Color correct_color = sb.color();
 
-    Score result = static_cast<Score>(
-      std::max(0,
-               base * safe_pieces         // Always known win if the enemy king can't capture
-                 + centralize<5>(sk)
-                 + centralize<5>(sn)
-                 + centralize<5>(sb)
-                 + keep_close<5>(sk, sn)
-                 + keep_close<15>(sk, wk)
-                 + push_to_edge<50>(wk)
-                 + keep_on_edge<300>(wk)
-                 + push_to_color_corner<120>(wk, correct_color)
-               ));
+    Score result = base;
+    result += keep_close<10>(wk, sk);
+    if (correct_color == Color::Black){
+        wk.flip_vertical();
+    }
+    result += abs(wk.file() - wk.rank()) * 100;
 
     return strong == Color::White ? result : static_cast<Score>(-result);
 }
