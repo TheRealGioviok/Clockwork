@@ -471,9 +471,8 @@ Value Worker::search(
         if (!tt_data) {
             m_searcher.tt.store(pos, ply, raw_eval, Move::none(), -VALUE_INF, 0, ttpv, Bound::None);
         }
-    }
-    else {
-        ss->static_eval = (ss-2)->static_eval;
+    } else {
+        ss->static_eval = (ss - 2)->static_eval;
     }
 
     bool improving = ss->static_eval > (ss - 2)->static_eval;
