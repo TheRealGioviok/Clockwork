@@ -85,11 +85,18 @@ Move MovePicker::next() {
         [[fallthrough]];
 
     case Stage::ScoreQuiet:
-        score_moves(m_quiet);
+        if (!m_skip_quiets) {
+            score_moves(m_quiet);
+            m_stage         = Stage::EmitQuiet;
+            m_current_index = 0;
 
-        m_stage         = Stage::EmitQuiet;
-        m_current_index = 0;
-
+        }
+        else {
+            m_current_index = 0;
+            m_stage         = Stage::EmitBadNoisy;
+            goto emit_bad_noisy;
+        }
+        
         [[fallthrough]];
     case Stage::EmitQuiet:
         while (m_current_index < m_quiet.size()) {
