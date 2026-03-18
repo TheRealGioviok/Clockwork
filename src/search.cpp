@@ -722,7 +722,7 @@ Value Worker::search(
         // Get search value
         Depth new_depth = depth - 1 + extension;
         Value value;
-        if (depth >= 3 && moves_played >= 2 + 2 * PV_NODE) {
+        if (depth >= 3 && moves_played >= 2 + 2 * PV_NODE && (!ttpv || moves.stage() >= MovePicker::Stage::EmitKiller)) {
             i32 reduction;
 
             if (quiet) {
