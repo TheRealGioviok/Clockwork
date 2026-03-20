@@ -36,9 +36,10 @@ int main() {
     std::vector<Position> positions;
     std::vector<f64>      results;
 
-    const std::vector<std::string> fenFiles = {"data/neov4/neodfrcv2_16knpm.txt",
-                                               "data/neov4/neov4.1_16knpm.txt",
-                                               "data/neov4/neov4_16knpm.txt"};
+    const std::vector<std::string> fenFiles = {
+      "data/v4_5knpm.txt",   "data/v4_8knpm.txt",   "data/v4_16knpm.txt",
+      "data/v4.1_5knpm.txt", "data/v4.1_8knpm.txt", "data/dfrcv2.txt",
+    };
 
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
 
@@ -314,6 +315,9 @@ int main() {
         print_table("PASSED_PAWN", PASSED_PAWN);
         print_table("DEFENDED_PASSED_PUSH", DEFENDED_PASSED_PUSH);
         print_table("BLOCKED_PASSED_PAWN", BLOCKED_PASSED_PAWN);
+        std::cout << std::endl;
+
+        std::cout << "inline const PParam PASSED_TARRASH_RULE = " << PASSED_TARRASH_RULE << ";" << std::endl;
         std::cout << std::endl;
 
         print_table("FRIENDLY_KING_PASSED_PAWN_DISTANCE", FRIENDLY_KING_PASSED_PAWN_DISTANCE);

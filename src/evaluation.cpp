@@ -184,6 +184,14 @@ PScore evaluate_pawns(const Position& pos) {
 
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+
+            Bitboard behind = Bitboard::forward_ranks(them, sq) & Bitboard::file_mask(sq.file());
+            if ((behind & (pos.bitboard_for(them, PieceType::Rook) | pos.bitboard_for(them, PieceType::Queen))).any()) {
+                eval -= PASSED_TARRASH_RULE;
+            }
+            else if ((behind & (pos.bitboard_for(color, PieceType::Rook) | pos.bitboard_for(color, PieceType::Queen))).any()) {
+                eval += PASSED_TARRASH_RULE;
+            }
         }
     }
 
