@@ -532,7 +532,7 @@ Value Worker::search(
 
     // Razoring
     if (!PV_NODE && !excluded && !is_in_check && depth <= tuned::razor_depth
-        && ss->static_eval + tuned::razor_margin * depth < alpha) {
+        && tt_adjusted_eval + tuned::razor_margin * depth < alpha) {
         const Value razor_score = quiesce<IS_MAIN, PV_NODE>(pos, ss, alpha, beta, ply);
         if (razor_score <= alpha) {
             return razor_score;
