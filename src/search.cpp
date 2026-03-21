@@ -474,17 +474,21 @@ Value Worker::search(
         }
     }
 
-    // Internal Iterative Reductions
-    if ((PV_NODE || cutnode) && depth >= 8 && !excluded
-        && (!tt_data || tt_data->move == Move::none())) {
-        depth--;
-    }
-
     // Reuse TT score as a better positional evaluation
     auto tt_adjusted_eval = ss->static_eval;
     if (tt_data && tt_data->bound() != Bound::None && !is_mate_score(tt_data->score)
         && tt_data->bound() != (tt_data->score > ss->static_eval ? Bound::Upper : Bound::Lower)) {
         tt_adjusted_eval = tt_data->score;
+    }
+
+
+    // Razoring
+    if (!PV_NODE && !excluded && !is_in_check && depth <= tuned::razor_depth
+        && ss->static_eval + tuned::razor_margin * depth < alpha) {
+        const Value razor_score = quiesce<IS_MAIN, PV_NODE>(pos, ss, alpha, beta, ply);
+        if (razor_score <= alpha) {
+            return razor_score;
+        }
     }
 
     if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth && !excluded
@@ -530,13 +534,11 @@ Value Worker::search(
         }
     }
 
-    // Razoring
-    if (!PV_NODE && !excluded && !is_in_check && depth <= tuned::razor_depth
-        && ss->static_eval + tuned::razor_margin * depth < alpha) {
-        const Value razor_score = quiesce<IS_MAIN, PV_NODE>(pos, ss, alpha, beta, ply);
-        if (razor_score <= alpha) {
-            return razor_score;
-        }
+
+    // Internal Iterative Reductions
+    if ((PV_NODE || cutnode) && depth >= 8 && !excluded
+        && (!tt_data || tt_data->move == Move::none())) {
+        depth--;
     }
 
     // ProbCut (~6 elo)
