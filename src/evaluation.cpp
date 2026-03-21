@@ -239,14 +239,36 @@ PScore evaluate_pieces(const Position& pos) {
                                          ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
                                          : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
     Bitboard           own_early_pawns = own_pawns & early_ranks;
-    Bitboard bb  = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn);
-    Bitboard bb2 = bb;
+
+    Bitboard bb = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn);
+
+    // King mobility
+    usize kmob = pos.mobility_of(color, PieceId::king(), ~bb);
+    eval += KING_MOBILITY[kmob];
+
+    // Exclude low mobility king from mobility area
+    if (kmob <= 2) {
+        bb |= Bitboard::from_square(pos.king_sq(color));
+    }
+
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        Square sq  = pos.piece_list_sq(color)[id];
+        usize mob = pos.mobility_of(color, id, ~bb);
+        // Exclude low mobility knights from mobility area
+        if (mob <= 1) {
+            bb |= Bitboard::from_square(sq);
+        }
+        eval += KNIGHT_MOBILITY[mob];
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
-        eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
         Square sq = pos.piece_list_sq(color)[id];
+        usize mob = pos.mobility_of(color, id, ~bb);
+        // Exclude low mobility bishops from mobility area
+        if (mob <= 1) {
+            bb |= Bitboard::from_square(sq);
+        }
+        eval += BISHOP_MOBILITY[mob];
+
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
                   (own_pawns & Bitboard::squares_of_color(sq.color()))
@@ -255,10 +277,22 @@ PScore evaluate_pieces(const Position& pos) {
               * (!pos.is_square_attacked_by(sq, color, PieceType::Pawn)
                  + (blocked_pawns & Bitboard::central_files()).ipopcount());
     }
+
+    // Additional bb keeping track of lesser pieces attacks
+    Bitboard bb2 = bb;
     bb2 |= pos.attacked_by(opp, PieceType::Knight) | pos.attacked_by(opp, PieceType::Bishop);
+
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
+        Square sq = pos.piece_list_sq(color)[id];
+        // partial mobility calculation with only pawns and low mobility pieces as blockers
         eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        // stricter mob mask
+        usize mob = pos.mobility_of(color, id, ~bb2);
+        if (mob <= 2) {
+            bb |= Bitboard::from_square(sq);
+            bb2 |= Bitboard::from_square(sq);
+        } 
+
         // Rook lineups
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
@@ -269,13 +303,16 @@ PScore evaluate_pieces(const Position& pos) {
     }
     bb2 |= pos.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
+        Square sq = pos.piece_list_sq(color)[id];
+        // partial mobility
         eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        // stricter mob mask
         eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        // No updates since no more pieces, might need to do it if we want to use bb and bb2 later
     }
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;
     }
-    eval += KING_MOBILITY[pos.mobility_of(color, PieceId::king(), ~bb)];
 
 
     return eval;
