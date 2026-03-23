@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <barrier>
+#include <cmath>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -37,8 +38,7 @@ int main() {
     std::vector<f64>      results;
 
     const std::vector<std::string> fenFiles = {
-      "data/v4_8knpm.txt",   "data/v4_16knpm.txt",
-      "data/v4.1_8knpm.txt", "data/dfrcv2.txt",
+      "data/torescore/v4.1_16knpm_rescored.txt",
     };
 
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
@@ -74,6 +74,8 @@ int main() {
     positions.reserve(total_positions_estimate);
     results.reserve(total_positions_estimate);
 
+    const f64 K = 1.0 / 400;
+
     // Huge pages optimization for dynamic arrays
     advise_huge_pages(positions.data(), positions.capacity() * sizeof(Position));
     advise_huge_pages(results.data(), results.capacity() * sizeof(f64));
@@ -87,15 +89,33 @@ int main() {
 
         std::string line;
         while (std::getline(fenFile, line)) {
-            size_t pos = line.find(';');
-            if (pos == std::string::npos) {
+            // Expected format: fen;[w/d/b];score;nodes;pv
+            // Parse by splitting on ';'
+            std::istringstream ss(line);
+            std::string        fen, result_str, score_str;
+
+            if (!std::getline(ss, fen, ';') ||
+                !std::getline(ss, result_str, ';') ||
+                !std::getline(ss, score_str, ';')) {
                 std::cerr << "Bad line in " << filename << ": " << line << "\n";
                 continue;
             }
 
-            std::string fen    = line.substr(0, pos);
-            auto        parsed = Position::parse(fen);
+            // Skip mate-annotated scores (contain 'M')
+            if (score_str.find('M') != std::string::npos ||
+                score_str.find('m') != std::string::npos) {
+                continue;
+            }
 
+            f64 score_cp;
+            try {
+                score_cp = std::stod(score_str);
+            } catch (...) {
+                std::cerr << "Invalid score in " << filename << ": " << line << "\n";
+                continue;
+            }
+
+            auto parsed = Position::parse(fen);
             if (!parsed) {
                 std::cerr << "Failed to parse FEN in " << filename << ": " << fen << "\n";
                 continue;
@@ -103,18 +123,23 @@ int main() {
 
             positions.push_back(*parsed);
 
-            std::string result = line.substr(pos + 1);
-            result.erase(std::remove_if(result.begin(), result.end(), ::isspace), result.end());
+            // Score is STM-relative; convert to white-POV.
+            // FEN side-to-move field is the 2nd space-separated token.
+            const bool black_to_move = [&]() {
+                size_t sp = fen.find(' ');
+                if (sp == std::string::npos) return false;
+                size_t next = fen.find_first_not_of(' ', sp);
+                if (next == std::string::npos) return false;
+                return fen[next] == 'b';
+            }();
 
-            if (result == "w") {
-                results.push_back(1.0);
-            } else if (result == "d") {
-                results.push_back(0.5);
-            } else if (result == "b") {
-                results.push_back(0.0);
-            } else {
-                std::cerr << "Invalid result in " << filename << ": " << line << "\n";
-            }
+            // Unnormalize: multiply by 4 for correct scale, then flip if BTM.
+            const f64 score_white_pov = (black_to_move ? -score_cp : score_cp) * 4.0;
+
+            // Convert centipawn score to WDL-like target via sigmoid.
+            // Uses the same K factor as the training loop (1/400).
+            const f64 target = 1.0 / (1.0 + std::exp(-score_white_pov * K));
+            results.push_back(target);
         }
     }
 
@@ -130,7 +155,7 @@ int main() {
     Parameters current_parameter_values = Graph::get().get_all_parameter_values();
 
     // Uncomment for zero tune: Overwrite them all with zeros.
-    current_parameter_values = Parameters::rand_init(parameter_count);
+    // current_parameter_values = Parameters::rand_init(parameter_count);
 
     // The optimizer will now start with all-zero parameters
     AdamW optim(parameter_count, 10, 0.9, 0.999, 1e-8, 0.0);
@@ -139,7 +164,6 @@ int main() {
 #else
     const i32 epochs = 1000;
 #endif
-    const f64 K = 1.0 / 400;
 
     std::mt19937        rng(std::random_device{}());
     std::vector<size_t> indices(positions.size());
