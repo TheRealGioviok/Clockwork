@@ -94,16 +94,15 @@ int main() {
             std::istringstream ss(line);
             std::string        fen, result_str, score_str;
 
-            if (!std::getline(ss, fen, ';') ||
-                !std::getline(ss, result_str, ';') ||
-                !std::getline(ss, score_str, ';')) {
+            if (!std::getline(ss, fen, ';') || !std::getline(ss, result_str, ';')
+                || !std::getline(ss, score_str, ';')) {
                 std::cerr << "Bad line in " << filename << ": " << line << "\n";
                 continue;
             }
 
             // Skip mate-annotated scores (contain 'M')
-            if (score_str.find('M') != std::string::npos ||
-                score_str.find('m') != std::string::npos) {
+            if (score_str.find('M') != std::string::npos
+                || score_str.find('m') != std::string::npos) {
                 continue;
             }
 
@@ -127,9 +126,13 @@ int main() {
             // FEN side-to-move field is the 2nd space-separated token.
             const bool black_to_move = [&]() {
                 size_t sp = fen.find(' ');
-                if (sp == std::string::npos) return false;
+                if (sp == std::string::npos) {
+                    return false;
+                }
                 size_t next = fen.find_first_not_of(' ', sp);
-                if (next == std::string::npos) return false;
+                if (next == std::string::npos) {
+                    return false;
+                }
                 return fen[next] == 'b';
             }();
 
