@@ -3,6 +3,7 @@
 #include "board.hpp"
 #include "common.hpp"
 #include "geometry.hpp"
+#include "history.hpp"
 #include "psqt_state.hpp"
 #include "util/mem.hpp"
 #include "util/parse.hpp"
@@ -367,7 +368,7 @@ void Position::add_attacks(bool color, PieceId id, Square sq, PieceType ptype, m
 }
 
 template<bool UPDATE_PSQT>
-Position Position::move(Move m, PsqtState* psqtState, const TT* tt) const {
+Position Position::move(Move m, PsqtState* psqtState, const TT* tt, const History* hist) const {
     Position    new_pos = *this;
     PsqtUpdates updates{};
 
@@ -515,14 +516,17 @@ Position Position::move(Move m, PsqtState* psqtState, const TT* tt) const {
       new_pos.m_rook_info[0].as_index() | (new_pos.m_rook_info[1].as_index() << 2);
     new_pos.m_hash_key ^= Zobrist::castling_zobrist[new_castle_index];
 
-    // Prefetch hash key tt entry
-    if (tt != nullptr) {
-        prefetch(tt->addr_key(new_pos.m_hash_key));
-    }
-
     new_pos.m_active_color = invert(m_active_color);
     new_pos.m_ply++;
 
+
+    // Prefetch hash key tt entry and corrhists
+    if (tt != nullptr) {
+        prefetch(tt->addr_key(new_pos.m_hash_key));
+    }
+    if (hist != nullptr) {
+        hist->prefetch_corrhists(new_pos);
+    }
     if constexpr (UPDATE_PSQT) {
         psqtState->apply_updates(new_pos, updates);
     }
@@ -530,8 +534,14 @@ Position Position::move(Move m, PsqtState* psqtState, const TT* tt) const {
     return new_pos;
 }
 
-template Position Position::move<true>(Move m, PsqtState* psqtState, const TT* tt = nullptr) const;
-template Position Position::move<false>(Move m, PsqtState* psqtState, const TT* tt = nullptr) const;
+template Position Position::move<true>(Move           m,
+                                       PsqtState*     psqtState,
+                                       const TT*      tt   = nullptr,
+                                       const History* hist = nullptr) const;
+template Position Position::move<false>(Move           m,
+                                        PsqtState*     psqtState,
+                                        const TT*      tt   = nullptr,
+                                        const History* hist = nullptr) const;
 
 Position Position::null_move() const {
     Position new_pos = *this;

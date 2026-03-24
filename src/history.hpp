@@ -47,6 +47,8 @@ public:
 
     void clear();
 
+    void prefetch_corrhists(const Position& pos) const;
+
 private:
     static void update_hist_entry(i32& entry, i32 bonus) {
         entry += bonus - entry * std::abs(bonus) / HISTORY_MAX;

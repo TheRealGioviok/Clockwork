@@ -560,7 +560,8 @@ Value Worker::search(
             for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
 
                 ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
-                Position pos_after  = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
+                Position pos_after =
+                  pos.move(m, m_td.push_psqt_state(), &m_searcher.tt, &m_td.history);
                 repetition_info.push(pos_after.get_hash_key(), pos_after.is_reversible(m));
 
                 Value probcut_value = -quiesce<IS_MAIN, false>(pos_after, ss + 1, -probcut_beta,
@@ -713,7 +714,7 @@ Value Worker::search(
         // Do move
         ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
 
-        Position pos_after = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
+        Position pos_after = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt, &m_td.history);
         moves_played++;
 
         // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
@@ -1003,7 +1004,7 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
 
         // Do move
         ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
-        Position pos_after  = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
+        Position pos_after  = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt, &m_td.history);
         moves_searched++;
 
         // If we've found a legal move, then we can begin skipping quiet moves.
