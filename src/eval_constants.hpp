@@ -19,6 +19,7 @@ inline const PParam MINOR_BEHIND_PAWN = S(10, 41);
 
 inline const PParam DOUBLED_PAWN_VAL = S(-7, -73);
 inline const PParam ISOLATED_PAWN_VAL = S(-19, -16);
+inline const PParam PRESSURED_CHAIN_BASE = S(-20, -50);
 
 inline const PParam POTENTIAL_CHECKER_VAL = S(-49, -24);
 inline const PParam OUTPOST_KNIGHT_VAL    = S(36, 65);

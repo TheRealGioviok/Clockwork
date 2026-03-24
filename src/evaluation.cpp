@@ -198,6 +198,12 @@ PScore evaluate_pawns(const Position& pos) {
         eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
     }
 
+    // Pressured chain bases
+    Bitboard our_pawn_attacks = static_pawn_attacks<color>(pawns);
+    Bitboard our_chain_bases = static_pawn_attacks<them>(pawns) & ~our_pawn_attacks;
+    
+    eval += PRESSURED_CHAIN_BASE * (our_chain_bases & pos.attack_table(them).get_attacked_bitboard() & ~pos.attack_table(color).get_attacked_bitboard()).ipopcount();
+
     return eval;
 }
 
