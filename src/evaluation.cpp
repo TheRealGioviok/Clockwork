@@ -200,7 +200,7 @@ PScore evaluate_pawns(const Position& pos) {
 
     // Pressured chain bases
     Bitboard our_pawn_attacks = static_pawn_attacks<color>(pawns);
-    Bitboard our_chain_bases = static_pawn_attacks<them>(pawns) & ~our_pawn_attacks;
+    Bitboard our_chain_bases = pawns & static_pawn_attacks<them>(pawns) & ~our_pawn_attacks;
     
     eval += PRESSURED_CHAIN_BASE * (our_chain_bases & pos.attack_table(them).get_attacked_bitboard() & ~pos.attack_table(color).get_attacked_bitboard()).ipopcount();
 
