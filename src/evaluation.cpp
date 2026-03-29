@@ -465,12 +465,12 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     phase = std::min<usize>(phase, 24);
 
-    PScore eval = psqt_state.score();  // Used for linear components
+    PScore eval = psqt_state.score();
 
-    // pawn eval
+    // Pawn eval
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
 
-    // pieces & space
+    // Pieces & space
     eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
     eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
@@ -488,16 +488,36 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     PScore white_king_attack_total = evaluate_king_safety<Color::Black>(pos);
     PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos);
 
-    // Nonlinear adjustment
-    eval += king_safety_activation<Color::White>(white_king_attack_total)
-          - king_safety_activation<Color::Black>(black_king_attack_total);
+    PScore white_activated = king_safety_activation<Color::White>(white_king_attack_total);
+    PScore black_activated = king_safety_activation<Color::Black>(black_king_attack_total);
+
+    // Add king safety into eval as PScore so winnable sees it correctly
+    eval += white_activated - black_activated;
 
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
 
-    // Winnable
+    // Winnable operates on full PScore
     eval = apply_winnable(pos, eval, phase);
 
-    return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
+    // Per-color attack phase for king safety
+    auto attack_phase = [&](Color attacker) {
+        usize p = pos.piece_count(attacker, PieceType::Queen) * 4
+                + pos.piece_count(attacker, PieceType::Rook) * 2
+                + pos.piece_count(attacker, PieceType::Bishop)
+                + pos.piece_count(attacker, PieceType::Knight);
+        return static_cast<i32>(std::min<usize>(p, 12));
+    };
+
+    i32 white_danger_phase = attack_phase(Color::Black);
+    i32 black_danger_phase = attack_phase(Color::White);
+
+    // Resolve to scalar, correcting king safety phasing
+    Score base = static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
+    Score ks_global =
+      static_cast<Score>((white_activated - black_activated).phase<24>(static_cast<i32>(phase)));
+    Score ks_percolor = static_cast<Score>(white_activated.phase<12>(white_danger_phase) - black_activated.phase<12>(black_danger_phase));
+
+    return static_cast<Score>(base - ks_global + ks_percolor);
 };
 
 Score evaluate_stm_pov(const Position& pos, const PsqtState& psqt_state) {
