@@ -307,6 +307,12 @@ PScore evaluate_outposts(const Position& pos) {
           * (pos.bitboard_for(color, PieceType::Knight) & viable_outposts).ipopcount();
     eval += OUTPOST_BISHOP_VAL
           * (pos.bitboard_for(color, PieceType::Bishop) & viable_outposts).ipopcount();
+    // Remove outposts occupied by out pieces
+    viable_outposts &= ~pos.board().get_color_bitboard(color);
+    eval += REACHABLE_OUTPOST_KNIGHT_VAL
+          * (pos.attacked_by(color, PieceType::Knight) & viable_outposts).ipopcount();
+    eval += REACHABLE_OUTPOST_BISHOP_VAL
+          * (pos.attacked_by(color, PieceType::Bishop) & viable_outposts).ipopcount();
     return eval;
 }
 
