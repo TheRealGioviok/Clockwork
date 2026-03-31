@@ -646,14 +646,14 @@ Value Worker::search(
 
             Value bound_scale =
               tt_data->bound() == Bound::Exact ? tuned::singext_exact_multiplier : 64;
-            
+
             // Singular margin
-            Value singular_margin  = tt_data->score - depth * tuned::sing_beta_margin / 64;
-            singular_margin        = singular_margin * bound_scale / 64;
+            Value singular_margin = tt_data->score - depth * tuned::sing_beta_margin / 64;
+            singular_margin       = singular_margin * bound_scale / 64;
 
             Value singular_beta = tt_data->score - singular_margin;
 
-            Depth   singular_depth = depth / 2;
+            Depth singular_depth = depth / 2;
 
             ss->excluded_move    = m;
             Value singular_value = search<IS_MAIN, false>(pos, ss, singular_beta - 1, singular_beta,
@@ -666,7 +666,6 @@ Value Worker::search(
                 // Double Extension
                 Value double_margin =
                   tuned::dext_margin - (move_history / tuned::dext_hist_div * quiet);
-                double_margin = double_margin * bound_scale / 64;
 
                 if (!PV_NODE && singular_value <= singular_beta - double_margin) {
                     extension = 2;
@@ -675,8 +674,6 @@ Value Worker::search(
                 // Triple Extension
                 Value triple_margin =
                   tuned::triext_margin - (move_history / tuned::triext_hist_div * quiet);
-                triple_margin = double_margin * bound_scale / 64;
-
                 if (!PV_NODE && quiet && singular_value <= singular_beta - triple_margin) {
                     extension = 3;
                 }
