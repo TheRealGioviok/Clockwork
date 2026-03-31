@@ -77,6 +77,7 @@ namespace Clockwork::tuned {
     NO_TUNE(sing_min_depth, 6, 1, 20, 0.5, 0.002)                 \
     NO_TUNE(sing_depth_margin, 3, 1, 20, 0.5, 0.002)              \
     TUNE(sing_beta_margin, 252, 160, 640, 19, 0.002)              \
+    TUNE(singext_exact_multiplier, 48, 16, 96, 4, 0.002)          \
     TUNE(dext_margin, 38, 20, 80, 3, 0.002)                       \
     TUNE(dext_hist_div, 498, 256, 1024, 39, 0.002)                \
     TUNE(triext_margin, 120, 60, 240, 9, 0.002)                   \
