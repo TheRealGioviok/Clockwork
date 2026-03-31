@@ -55,6 +55,7 @@ function(target_add_flags target)
     # We don't support MSVC
     target_compile_options(${target} PUBLIC -Wall -Wextra -Wconversion)
 
+    # Debug sanitizers
     target_compile_options(${target} PUBLIC
         $<$<CONFIG:Debug>:
         -fsanitize=address,undefined -g3
@@ -66,9 +67,11 @@ function(target_add_flags target)
         -fsanitize=address,undefined
         >)
 
+    # Stack size
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        target_link_options(${target} PUBLIC
-            -Wl,-z,stack-size=2097152)
+        target_link_options(${target} PUBLIC -Wl,-z,stack-size=8388608) # 8 MB
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        target_link_options(${target} PUBLIC "-Wl,--stack,8388608") # 8 MB for MinGW/Clang
     endif()
 
     # Include directories
@@ -79,13 +82,9 @@ function(target_add_flags target)
 
     # LTO
     message(STATUS "LTO is set to: ${lto}")
-    # LTO
-    if (lto)
+    if(lto)
         set_target_properties(${target} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
-
-    
-
 endfunction()
 
 # Sorted list of source files
