@@ -785,7 +785,7 @@ Value Worker::search(
             Depth reduced_depth = std::clamp<Depth>(new_depth - reduction, 1, new_depth);
             value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha, reduced_depth,
                                             ply + 1, true);
-            if (value > alpha) {
+            if (value > alpha && !ROOT_NODE) {
                 const bool do_deeper = reduced_depth < new_depth && value > best_value + 94;
                 const bool do_shallower =
                   !do_deeper && new_depth > 1 && value < best_value + new_depth;
