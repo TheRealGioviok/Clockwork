@@ -13,8 +13,23 @@ bool quiet_move(Move move);
 
 class MovePicker {
 public:
-    explicit MovePicker(
-      const Position& pos, const History& history, Move tt_move, i32 ply, Search::Stack* ss) :
+    struct MainSearchTag { };
+    struct QSearchTag { };
+    struct QSearchEvasionsTag { };
+    struct ProbCutTag { };
+
+    static constexpr MainSearchTag      MainSearch{};
+    static constexpr QSearchTag         QSearch{};
+    static constexpr QSearchEvasionsTag QSearchEvasions{};
+    static constexpr ProbCutTag         ProbCut{};
+
+    explicit MovePicker(MainSearchTag,
+                        const Position& pos,
+                        const History&  history,
+                        Move            tt_move,
+                        i32             ply,
+                        Search::Stack*  ss) :
+        m_stage(Stage::EmitTTMove),
         m_pos(pos),
         m_history(history),
         m_movegen(pos),
@@ -24,11 +39,41 @@ public:
         m_stack(ss) {
     }
 
-    // for ProbCut
-    explicit MovePicker(const Position& pos,
+    explicit MovePicker(QSearchTag,
+                        const Position& pos,
                         const History&  history,
                         Move            tt_move,
-                        Value           threshold) :
+                        i32             ply,
+                        Search::Stack*  ss) :
+        m_stage(Stage::QSearchEmitTTMove),
+        m_pos(pos),
+        m_history(history),
+        m_movegen(pos),
+        m_tt_move(tt_move),
+        m_killer(Move::none()),
+        m_ply(ply),
+        m_stack(ss) {
+    }
+
+    explicit MovePicker(QSearchEvasionsTag,
+                        const Position& pos,
+                        const History&  history,
+                        Move            tt_move,
+                        i32             ply,
+                        Search::Stack*  ss) :
+        m_stage(Stage::EvasionsEmitTTMove),
+        m_pos(pos),
+        m_history(history),
+        m_movegen(pos),
+        m_tt_move(tt_move),
+        m_killer(Move::none()),
+        m_ply(ply),
+        m_stack(ss) {
+    }
+
+    explicit MovePicker(
+      ProbCutTag, const Position& pos, const History& history, Move tt_move, Value threshold) :
+        m_stage(Stage::ProbCutEmitTTMove),
         m_pos(pos),
         m_history(history),
         m_movegen(pos),
@@ -48,6 +93,24 @@ public:
         ScoreQuiet,
         EmitQuiet,
         EmitBadNoisy,
+
+        QSearchEmitTTMove,
+        QSearchGenerateMoves,
+        QSearchScoreNoisy,
+        QSearchEmitNoisy,
+
+        EvasionsEmitTTMove,
+        EvasionsGenerateMoves,
+        EvasionsScoreNoisy,
+        EvasionsEmitNoisy,
+        EvasionsScoreQuiet,
+        EvasionsEmitQuiet,
+
+        ProbCutEmitTTMove,
+        ProbCutGenerateMoves,
+        ProbCutScoreNoisy,
+        ProbCutEmitNoisy,
+
         End,
     };
 
@@ -64,7 +127,6 @@ public:
     }
 
 private:
-    void                 generate_moves();
     std::pair<Move, i32> pick_next(MoveList& moves);
 
     template<bool quiets>
@@ -77,8 +139,7 @@ private:
         }
     }
 
-
-    Stage m_stage = Stage::EmitTTMove;
+    Stage m_stage;
 
     const Position&      m_pos;
     const History&       m_history;

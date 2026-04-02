@@ -14,23 +14,22 @@ bool quiet_move(Move move) {
 
 void MovePicker::skip_quiets() {
     m_skip_quiets = true;
-    if (m_stage == Stage::EmitQuiet) {
-        m_current_index = 0;
-        m_stage         = Stage::EmitBadNoisy;
-    }
 }
+
 Move MovePicker::next() {
     switch (m_stage) {
+
+    // For normal search we go across all the stages
+
     case Stage::EmitTTMove:
         m_stage = Stage::GenerateMoves;
-        if (m_tt_move != Move::none() && m_movegen.is_legal(m_tt_move)
-            && (!m_threshold || m_tt_move.is_capture())) {
+        if (m_tt_move != Move::none() && m_movegen.is_legal(m_tt_move)) {
             return m_tt_move;
         }
 
         [[fallthrough]];
     case Stage::GenerateMoves:
-        generate_moves();
+        m_movegen.generate_moves(m_noisy, m_quiet);
 
         m_stage = Stage::ScoreNoisy;
 
@@ -50,15 +49,6 @@ Move MovePicker::next() {
                 continue;
             }
 
-            // ProbCut: Check SEE against fixed threshold
-            if (m_threshold) {
-                if (SEE::see(m_pos, curr, *m_threshold)) {
-                    return curr;
-                }
-                continue;  // In ProbCut, we discard bad noisy moves immediately
-            }
-
-            // Normal: Check SEE for pruning
             if (SEE::see(m_pos, curr, -score / tuned::movepicker_see_capthist_divisor)) {
                 return curr;
             } else {
@@ -85,17 +75,27 @@ Move MovePicker::next() {
         [[fallthrough]];
 
     case Stage::ScoreQuiet:
+
+        if (m_skip_quiets) {
+            m_current_index = 0;
+            m_stage         = Stage::EmitBadNoisy;
+            goto emit_bad_noisy;
+        }
+
         score_moves<true>(m_quiet);
 
         m_stage         = Stage::EmitQuiet;
         m_current_index = 0;
 
         [[fallthrough]];
+
     case Stage::EmitQuiet:
-        while (m_current_index < m_quiet.size()) {
-            auto [curr, score] = pick_next(m_quiet);
-            if (curr != m_tt_move && curr != m_killer) {
-                return curr;
+        if (!m_skip_quiets){
+            while (m_current_index < m_quiet.size()) {
+                auto [curr, score] = pick_next(m_quiet);
+                if (curr != m_tt_move && curr != m_killer) {
+                    return curr;
+                }
             }
         }
 
@@ -113,20 +113,139 @@ emit_bad_noisy:
             }
         }
         m_stage = Stage::End;
+        return Move::none();
 
+        // Normal quiescence search: we don't go through any quiet move (except for the tt move at most)
+
+    case Stage::QSearchEmitTTMove:
+        m_stage = Stage::QSearchGenerateMoves;
+        if (m_tt_move != Move::none() && m_movegen.is_legal(m_tt_move)) {
+            return m_tt_move;
+        }
         [[fallthrough]];
+
+    case Stage::QSearchGenerateMoves:
+        m_movegen.generate_noisy_moves(m_noisy);
+        m_stage = Stage::QSearchScoreNoisy;
+        [[fallthrough]];
+
+    case Stage::QSearchScoreNoisy:
+        score_moves<false>(m_noisy);
+        m_current_index = 0;
+        m_stage         = Stage::QSearchEmitNoisy;
+        [[fallthrough]];
+
+    case Stage::QSearchEmitNoisy:
+        while (m_current_index < m_noisy.size()) {
+            auto [curr, score] = pick_next(m_noisy);
+            if (curr != m_tt_move) {
+                return curr;
+            }
+        }
+        m_stage = Stage::End;
+        return Move::none();
+
+        // Quiescence search + evasions: we go through the qsearch stages, but also add quiets at the end (for evasion purposes).
+
+    case Stage::EvasionsEmitTTMove:
+        m_stage = Stage::EvasionsGenerateMoves;
+        if (m_tt_move != Move::none() && m_movegen.is_legal(m_tt_move)) {
+            return m_tt_move;
+        }
+        [[fallthrough]];
+
+    case Stage::EvasionsGenerateMoves:
+        m_movegen.generate_moves(m_noisy, m_quiet);
+        m_stage = Stage::EvasionsScoreNoisy;
+        [[fallthrough]];
+
+    case Stage::EvasionsScoreNoisy:
+        score_moves<false>(m_noisy);
+        m_current_index = 0;
+        m_stage         = Stage::EvasionsEmitNoisy;
+        [[fallthrough]];
+
+    case Stage::EvasionsEmitNoisy:
+        while (m_current_index < m_noisy.size()) {
+            auto [curr, score] = pick_next(m_noisy);
+            if (curr != m_tt_move) {
+                return curr;
+            }
+        }
+
+        if (m_skip_quiets) {
+            m_stage = Stage::End;
+            return Move::none();
+        }
+
+        m_stage = Stage::EvasionsScoreQuiet;
+        [[fallthrough]];
+
+    case Stage::EvasionsScoreQuiet:
+
+        if (m_skip_quiets) {
+            m_current_index = 0;
+            m_stage         = Stage::EmitBadNoisy;
+            goto emit_bad_noisy;
+        }
+
+        score_moves<true>(m_quiet);
+        m_current_index = 0;
+        m_stage         = Stage::EvasionsEmitQuiet;
+        [[fallthrough]];
+
+    case Stage::EvasionsEmitQuiet:
+        if (!m_skip_quiets){
+            while (m_current_index < m_quiet.size()) {
+                auto [curr, score] = pick_next(m_quiet);
+                if (curr != m_tt_move) {
+                    return curr;
+                }
+            }
+        }
+        m_stage = Stage::End;
+        return Move::none();
+
+        // ProbCut: Only go through good captures and tt move capture.
+
+    case Stage::ProbCutEmitTTMove:
+        m_stage = Stage::ProbCutGenerateMoves;
+        if (m_tt_move != Move::none() && m_movegen.is_legal(m_tt_move) && m_tt_move.is_capture()) {
+            return m_tt_move;
+        }
+        [[fallthrough]];
+
+    case Stage::ProbCutGenerateMoves:
+        m_movegen.generate_noisy_moves(m_noisy);
+        m_stage = Stage::ProbCutScoreNoisy;
+        [[fallthrough]];
+
+    case Stage::ProbCutScoreNoisy:
+        score_moves<false>(m_noisy);
+        m_current_index = 0;
+        m_stage         = Stage::ProbCutEmitNoisy;
+        [[fallthrough]];
+
+    case Stage::ProbCutEmitNoisy:
+        while (m_current_index < m_noisy.size()) {
+            auto [curr, score] = pick_next(m_noisy);
+
+            if (curr == m_tt_move) {
+                continue;
+            }
+
+            if (SEE::see(m_pos, curr, *m_threshold)) {
+                return curr;
+            }
+        }
+        m_stage = Stage::End;
+        [[fallthrough]];
+
     case Stage::End:
         return Move::none();
     }
-    unreachable();
-}
 
-void MovePicker::generate_moves() {
-    if (m_threshold) {
-        m_movegen.generate_noisy_moves(m_noisy);
-    } else {
-        m_movegen.generate_moves(m_noisy, m_quiet);
-    }
+    unreachable();
 }
 
 std::pair<Move, i32> MovePicker::pick_next(MoveList& moves) {
