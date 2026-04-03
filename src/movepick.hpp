@@ -13,10 +13,10 @@ bool quiet_move(Move move);
 
 class MovePicker {
 public:
-    struct MainSearchTag { };
-    struct QSearchTag { };
-    struct QSearchEvasionsTag { };
-    struct ProbCutTag { };
+    struct MainSearchTag {};
+    struct QSearchTag {};
+    struct QSearchEvasionsTag {};
+    struct ProbCutTag {};
 
     static constexpr MainSearchTag      MainSearch{};
     static constexpr QSearchTag         QSearch{};
@@ -97,14 +97,16 @@ public:
         QSearchEmitTTMove,
         QSearchGenerateMoves,
         QSearchScoreNoisy,
-        QSearchEmitNoisy,
+        QSearchEmitGoodNoisy,
+        QSearchEmitBadNoisy,
 
         EvasionsEmitTTMove,
         EvasionsGenerateMoves,
         EvasionsScoreNoisy,
-        EvasionsEmitNoisy,
+        EvasionsEmitGoodNoisy,
         EvasionsScoreQuiet,
         EvasionsEmitQuiet,
+        EvasionsEmitBadNoisy,
 
         ProbCutEmitTTMove,
         ProbCutGenerateMoves,

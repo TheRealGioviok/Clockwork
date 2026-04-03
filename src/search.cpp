@@ -554,8 +554,8 @@ Value Worker::search(
         const Depth probcut_depth = std::clamp<Depth>(depth - 4, 1, depth - 1);
 
         if (!tt_data || tt_data->depth + 3 < depth || tt_data->score >= probcut_beta) {
-            MovePicker moves{MovePicker::ProbCut, pos, m_td.history, tt_data ? tt_data->move : Move::none(),
-                             tuned::probcut_see};
+            MovePicker moves{MovePicker::ProbCut, pos, m_td.history,
+                             tt_data ? tt_data->move : Move::none(), tuned::probcut_see};
 
             for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
 
@@ -585,14 +585,15 @@ Value Worker::search(
         }
     }
 
-    MovePicker moves{MovePicker::MainSearch, pos, m_td.history, tt_data ? tt_data->move : Move::none(), ply, ss};
-    Move       best_move    = Move::none();
-    Value      best_value   = -VALUE_INF;
-    i32        moves_played = 0;
-    MoveList   quiets_played;
-    MoveList   noisies_played;
-    i32        alpha_raises      = 0;
-    Value      non_pawn_material = -1;
+    MovePicker moves{
+      MovePicker::MainSearch, pos, m_td.history, tt_data ? tt_data->move : Move::none(), ply, ss};
+    Move     best_move    = Move::none();
+    Value    best_value   = -VALUE_INF;
+    i32      moves_played = 0;
+    MoveList quiets_played;
+    MoveList noisies_played;
+    i32      alpha_raises      = 0;
+    Value    non_pawn_material = -1;
 
     // Clear child's killer move.
     (ss + 1)->killer = Move::none();
@@ -982,7 +983,9 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
     }
     alpha = std::max(alpha, static_eval);
 
-    const bool search_evasions = pos.is_in_check(); // || (tt_data && !PV_NODE && tt_move != Move::none() && tt_data->bound() != Bound::Upper && quiet_move(tt_move));
+    const bool search_evasions =
+      pos
+        .is_in_check();  // || (tt_data && !PV_NODE && tt_move != Move::none() && tt_data->bound() != Bound::Upper && quiet_move(tt_move));
 
     MovePicker moves = [&]() {
         if (search_evasions) {
@@ -1013,19 +1016,15 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
         Position pos_after  = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
         moves_searched++;
-
-        // If we've found a legal move, then we can begin skipping quiet moves.
-        moves.skip_quiets();
-
+        
         // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
         repetition_info.push(pos_after.get_hash_key(), pos_after.is_reversible(m));
 
         // Get search value
         Value value = -quiesce<IS_MAIN, PV_NODE>(pos_after, ss + 1, -beta, -alpha, ply + 1);
 
-
         // If we've found a legal move that is not completely losing, only look at the noisy
-        if (value > -VALUE_WIN){
+        if (value > -VALUE_WIN) {
             moves.skip_quiets();
         }
 
@@ -1058,8 +1057,8 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
     }
 
     // Store to the TT
-    Bound bound   = best_value >= beta ? Bound::Lower : Bound::Upper;
-    tt_move = best_move != Move::none() ? best_move : tt_move;
+    Bound bound = best_value >= beta ? Bound::Lower : Bound::Upper;
+    tt_move     = best_move != Move::none() ? best_move : tt_move;
     m_searcher.tt.store(pos, ply, raw_eval, tt_move, best_value, 0, ttpv, bound);
 
     return best_value;

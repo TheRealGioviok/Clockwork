@@ -19,7 +19,7 @@ void MovePicker::skip_quiets() {
 Move MovePicker::next() {
     switch (m_stage) {
 
-    // For normal search we go across all the stages
+        // For normal search we go across all the stages
 
     case Stage::EmitTTMove:
         m_stage = Stage::GenerateMoves;
@@ -59,7 +59,7 @@ Move MovePicker::next() {
         if (m_skip_quiets || m_threshold) {
             m_current_index = 0;
             m_stage         = Stage::EmitBadNoisy;
-            goto emit_bad_noisy;
+            goto search_emit_bad_noisy;
         }
 
         m_stage = Stage::EmitKiller;
@@ -79,7 +79,7 @@ Move MovePicker::next() {
         if (m_skip_quiets) {
             m_current_index = 0;
             m_stage         = Stage::EmitBadNoisy;
-            goto emit_bad_noisy;
+            goto search_emit_bad_noisy;
         }
 
         score_moves<true>(m_quiet);
@@ -90,7 +90,7 @@ Move MovePicker::next() {
         [[fallthrough]];
 
     case Stage::EmitQuiet:
-        if (!m_skip_quiets){
+        if (!m_skip_quiets) {
             while (m_current_index < m_quiet.size()) {
                 auto [curr, score] = pick_next(m_quiet);
                 if (curr != m_tt_move && curr != m_killer) {
@@ -103,7 +103,7 @@ Move MovePicker::next() {
         m_current_index = 0;
         m_stage         = Stage::EmitBadNoisy;
 
-emit_bad_noisy:
+search_emit_bad_noisy:
         [[fallthrough]];
     case Stage::EmitBadNoisy:
         while (m_current_index < m_bad_noisy.size()) {
@@ -132,12 +132,27 @@ emit_bad_noisy:
     case Stage::QSearchScoreNoisy:
         score_moves<false>(m_noisy);
         m_current_index = 0;
-        m_stage         = Stage::QSearchEmitNoisy;
+        m_stage         = Stage::QSearchEmitGoodNoisy;
         [[fallthrough]];
 
-    case Stage::QSearchEmitNoisy:
+    case Stage::QSearchEmitGoodNoisy:
         while (m_current_index < m_noisy.size()) {
             auto [curr, score] = pick_next(m_noisy);
+            if (curr != m_tt_move) {
+                if (SEE::see(m_pos, curr, -score / tuned::movepicker_see_capthist_divisor)) {
+                    return curr;
+                } else {
+                    m_bad_noisy.push_back(curr);
+                }
+            }
+        }
+        m_current_index = 0;
+        m_stage         = Stage::QSearchEmitBadNoisy;
+        [[fallthrough]];
+
+    case Stage::QSearchEmitBadNoisy:
+        while (m_current_index < m_bad_noisy.size()) {
+            Move curr = m_bad_noisy[m_current_index++];
             if (curr != m_tt_move) {
                 return curr;
             }
@@ -162,45 +177,55 @@ emit_bad_noisy:
     case Stage::EvasionsScoreNoisy:
         score_moves<false>(m_noisy);
         m_current_index = 0;
-        m_stage         = Stage::EvasionsEmitNoisy;
+        m_stage         = Stage::EvasionsEmitGoodNoisy;
         [[fallthrough]];
 
-    case Stage::EvasionsEmitNoisy:
+    case Stage::EvasionsEmitGoodNoisy:
         while (m_current_index < m_noisy.size()) {
             auto [curr, score] = pick_next(m_noisy);
             if (curr != m_tt_move) {
-                return curr;
+                if (SEE::see(m_pos, curr, -score / tuned::movepicker_see_capthist_divisor)) {
+                    return curr;
+                } else {
+                    m_bad_noisy.push_back(curr);
+                }
             }
         }
 
         if (m_skip_quiets) {
-            m_stage = Stage::End;
-            return Move::none();
+            m_current_index = 0;
+            m_stage         = Stage::EvasionsEmitBadNoisy;
+            goto evasions_emit_bad_noisy;
         }
 
         m_stage = Stage::EvasionsScoreQuiet;
         [[fallthrough]];
 
     case Stage::EvasionsScoreQuiet:
-
-        if (m_skip_quiets) {
-            m_current_index = 0;
-            m_stage         = Stage::EmitBadNoisy;
-            goto emit_bad_noisy;
-        }
-
         score_moves<true>(m_quiet);
         m_current_index = 0;
         m_stage         = Stage::EvasionsEmitQuiet;
         [[fallthrough]];
 
     case Stage::EvasionsEmitQuiet:
-        if (!m_skip_quiets){
+        if (!m_skip_quiets) {
             while (m_current_index < m_quiet.size()) {
                 auto [curr, score] = pick_next(m_quiet);
                 if (curr != m_tt_move) {
                     return curr;
                 }
+            }
+        }
+        m_current_index = 0;
+        m_stage         = Stage::EvasionsEmitBadNoisy;
+
+evasions_emit_bad_noisy:
+        [[fallthrough]];
+    case Stage::EvasionsEmitBadNoisy:
+        while (m_current_index < m_bad_noisy.size()) {
+            Move curr = m_bad_noisy[m_current_index++];
+            if (curr != m_tt_move) {
+                return curr;
             }
         }
         m_stage = Stage::End;
