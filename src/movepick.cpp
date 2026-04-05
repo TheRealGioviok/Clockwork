@@ -14,10 +14,6 @@ bool quiet_move(Move move) {
 
 void MovePicker::skip_quiets() {
     m_skip_quiets = true;
-    if (m_stage == Stage::EmitQuiet) {
-        m_current_index = 0;
-        m_stage         = Stage::EmitBadNoisy;
-    }
 }
 Move MovePicker::next() {
     switch (m_stage) {
@@ -92,10 +88,12 @@ Move MovePicker::next() {
 
         [[fallthrough]];
     case Stage::EmitQuiet:
-        while (m_current_index < m_quiet.size()) {
-            auto [curr, score] = pick_next(m_quiet);
-            if (curr != m_tt_move && curr != m_killer) {
-                return curr;
+        if (!m_skip_quiets){
+            while (m_current_index < m_quiet.size()) {
+                auto [curr, score] = pick_next(m_quiet);
+                if (curr != m_tt_move && curr != m_killer) {
+                    return curr;
+                }
             }
         }
 
