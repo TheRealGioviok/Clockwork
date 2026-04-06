@@ -239,9 +239,9 @@ PScore evaluate_pieces(const Position& pos) {
                                          ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
                                          : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
     Bitboard           own_early_pawns = own_pawns & early_ranks;
-    Bitboard bb  = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn)
-                 | pos.bitboard_for(color, PieceType::King)
-                 | pos.bitboard_for(color, PieceType::Queen);
+    Bitboard bb = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn)
+                | pos.bitboard_for(color, PieceType::King)
+                | pos.bitboard_for(color, PieceType::Queen);
     Bitboard bb2 = bb;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
