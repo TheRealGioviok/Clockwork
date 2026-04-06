@@ -299,6 +299,15 @@ int main() {
         std::cout << "inline const PParam PAWN_PUSH_THREAT_QUEEN  = " << PAWN_PUSH_THREAT_QUEEN
                   << ";" << std::endl;
         std::cout << std::endl;
+        std::cout << "inline const PParam SAFE_PAWN_PUSH_THREAT_KNIGHT = "
+                  << SAFE_PAWN_PUSH_THREAT_KNIGHT << ";" << std::endl;
+        std::cout << "inline const PParam SAFE_PAWN_PUSH_THREAT_BISHOP = "
+                  << SAFE_PAWN_PUSH_THREAT_BISHOP << ";" << std::endl;
+        std::cout << "inline const PParam SAFE_PAWN_PUSH_THREAT_ROOK   = "
+                  << SAFE_PAWN_PUSH_THREAT_ROOK << ";" << std::endl;
+        std::cout << "inline const PParam SAFE_PAWN_PUSH_THREAT_QUEEN  = "
+                  << SAFE_PAWN_PUSH_THREAT_QUEEN << ";" << std::endl;
+        std::cout << std::endl;
 
         auto print_table = [](const std::string& name, const auto& table) {
             std::cout << "inline const std::array<PParam, " << table.size() << "> " << name
@@ -342,6 +351,15 @@ int main() {
                   << std::endl;
         std::cout << "inline const PParam PAWN_THREAT_QUEEN  = " << PAWN_THREAT_QUEEN << ";"
                   << std::endl;
+        std::cout << std::endl;
+        std::cout << "inline const PParam SAFE_PAWN_THREAT_KNIGHT = " << SAFE_PAWN_THREAT_KNIGHT
+                  << ";" << std::endl;
+        std::cout << "inline const PParam SAFE_PAWN_THREAT_BISHOP = " << SAFE_PAWN_THREAT_BISHOP
+                  << ";" << std::endl;
+        std::cout << "inline const PParam SAFE_PAWN_THREAT_ROOK   = " << SAFE_PAWN_THREAT_ROOK
+                  << ";" << std::endl;
+        std::cout << "inline const PParam SAFE_PAWN_THREAT_QUEEN  = " << SAFE_PAWN_THREAT_QUEEN
+                  << ";" << std::endl;
         std::cout << std::endl;
 
         std::cout << "inline const PParam KNIGHT_THREAT_BISHOP = " << KNIGHT_THREAT_BISHOP << ";"

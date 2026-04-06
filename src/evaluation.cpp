@@ -202,7 +202,7 @@ PScore evaluate_pawns(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_pawn_push_threats(const Position& pos) {
+PScore evaluate_pawn_push_threats(const Position& pos, Bitboard safe) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
@@ -212,18 +212,29 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     Bitboard pushable = our_pawns & ~all_pieces.shift_relative(color, Direction::South);
 
     Bitboard push_attacks =
-      pushable.shift_relative(color, Direction::North).shift_relative(color, Direction::NorthEast)
-      | pushable.shift_relative(color, Direction::North)
-          .shift_relative(color, Direction::NorthWest);
+      static_pawn_attacks<color>(pushable.shift_relative(color, Direction::North));
+    Bitboard safe_push_attacks =
+      static_pawn_attacks<color>(pushable.shift_relative(color, Direction::North) & safe);
+
 
     eval += PAWN_PUSH_THREAT_KNIGHT
           * (push_attacks & pos.bitboard_for(opp, PieceType::Knight)).ipopcount();
     eval += PAWN_PUSH_THREAT_BISHOP
           * (push_attacks & pos.bitboard_for(opp, PieceType::Bishop)).ipopcount();
-    eval +=
-      PAWN_PUSH_THREAT_ROOK * (push_attacks & pos.bitboard_for(opp, PieceType::Rook)).ipopcount();
-    eval +=
-      PAWN_PUSH_THREAT_QUEEN * (push_attacks & pos.bitboard_for(opp, PieceType::Queen)).ipopcount();
+    eval += PAWN_PUSH_THREAT_ROOK 
+          * (push_attacks & pos.bitboard_for(opp, PieceType::Rook)).ipopcount();
+    eval += PAWN_PUSH_THREAT_QUEEN 
+          * (push_attacks & pos.bitboard_for(opp, PieceType::Queen)).ipopcount();
+
+    eval += SAFE_PAWN_PUSH_THREAT_KNIGHT
+          * (safe_push_attacks & pos.bitboard_for(opp, PieceType::Knight)).ipopcount();
+    eval += SAFE_PAWN_PUSH_THREAT_BISHOP
+          * (safe_push_attacks & pos.bitboard_for(opp, PieceType::Bishop)).ipopcount();
+    eval += SAFE_PAWN_PUSH_THREAT_ROOK
+          * (safe_push_attacks & pos.bitboard_for(opp, PieceType::Rook)).ipopcount();
+    eval += SAFE_PAWN_PUSH_THREAT_QUEEN
+          * (safe_push_attacks & pos.bitboard_for(opp, PieceType::Queen)).ipopcount();
+
 
     return eval;
 }
@@ -365,14 +376,27 @@ PScore evaluate_threats(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
-    Bitboard pawn_attacks = pos.attacked_by(color, PieceType::Pawn);
-    eval +=
-      PAWN_THREAT_KNIGHT * (pos.bitboard_for(opp, PieceType::Knight) & pawn_attacks).ipopcount();
-    eval +=
-      PAWN_THREAT_BISHOP * (pos.bitboard_for(opp, PieceType::Bishop) & pawn_attacks).ipopcount();
+    Bitboard safe = pos.attack_table(color).get_attacked_bitboard() | ~pos.attack_table(opp).get_attacked_bitboard();
+
+    Bitboard pawn_attacks = static_pawn_attacks<color>(pos.bitboard_for(color, PieceType::Pawn));
+    Bitboard safe_pawn_attacks = static_pawn_attacks<color>(pos.bitboard_for(color, PieceType::Pawn) & safe);
+
+    // Pawn threats
+    eval += PAWN_THREAT_KNIGHT * (pos.bitboard_for(opp, PieceType::Knight) & pawn_attacks).ipopcount();
+    eval += PAWN_THREAT_BISHOP * (pos.bitboard_for(opp, PieceType::Bishop) & pawn_attacks).ipopcount();
     eval += PAWN_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & pawn_attacks).ipopcount();
-    eval +=
-      PAWN_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & pawn_attacks).ipopcount();
+    eval += PAWN_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & pawn_attacks).ipopcount();
+
+    eval += SAFE_PAWN_THREAT_KNIGHT
+          * (pos.bitboard_for(opp, PieceType::Knight) & safe_pawn_attacks).ipopcount();
+    eval += SAFE_PAWN_THREAT_BISHOP
+          * (pos.bitboard_for(opp, PieceType::Bishop) & safe_pawn_attacks).ipopcount();
+    eval += SAFE_PAWN_THREAT_ROOK
+          * (pos.bitboard_for(opp, PieceType::Rook) & safe_pawn_attacks).ipopcount();
+    eval += SAFE_PAWN_THREAT_QUEEN
+          * (pos.bitboard_for(opp, PieceType::Queen) & safe_pawn_attacks).ipopcount();
+
+    eval += evaluate_pawn_push_threats<color>(pos, safe);
 
     Bitboard knight_attacks = pos.attacked_by(color, PieceType::Knight);
     eval += KNIGHT_THREAT_BISHOP
@@ -404,6 +428,7 @@ PScore evaluate_space(const Position& pos) {
     Bitboard        ourminors =
       pos.bitboard_for(color, PieceType::Knight) | pos.bitboard_for(color, PieceType::Bishop);
 
+    // Rook on open / semiopen files
     eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
     eval +=
       ROOK_SEMIOPEN_VAL * (half_open_files & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
@@ -477,9 +502,6 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     // Threats
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
-    eval +=
-      evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
-
     // King safety
     eval += evaluate_potential_checkers<Color::White>(pos)
           - evaluate_potential_checkers<Color::Black>(pos);

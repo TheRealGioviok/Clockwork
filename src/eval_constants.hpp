@@ -29,6 +29,11 @@ inline const PParam PAWN_PUSH_THREAT_BISHOP = S(52, -21);
 inline const PParam PAWN_PUSH_THREAT_ROOK   = S(26, 55);
 inline const PParam PAWN_PUSH_THREAT_QUEEN  = S(70, -46);
 
+inline const PParam SAFE_PAWN_PUSH_THREAT_KNIGHT = S(42, 6);
+inline const PParam SAFE_PAWN_PUSH_THREAT_BISHOP = S(52, -21);
+inline const PParam SAFE_PAWN_PUSH_THREAT_ROOK   = S(26, 55);
+inline const PParam SAFE_PAWN_PUSH_THREAT_QUEEN  = S(70, -46);
+
 inline const std::array<PParam, 6> PAWN_PHALANX = {
     S(16, 2), S(39, 24), S(60, 48), S(136, 146), S(382, 213), S(609, 596),
 };
@@ -76,10 +81,16 @@ inline const std::array<PParam, 5> PT_OUTER_RING_ATTACKS = {
 };
 
 inline const PParam KS_NO_QUEEN = S(-70, -732);
+
 inline const PParam PAWN_THREAT_KNIGHT = S(213, 92);
 inline const PParam PAWN_THREAT_BISHOP = S(193, 136);
 inline const PParam PAWN_THREAT_ROOK   = S(189, 129);
 inline const PParam PAWN_THREAT_QUEEN  = S(171, -23);
+
+inline const PParam SAFE_PAWN_THREAT_KNIGHT = S(213, 92);
+inline const PParam SAFE_PAWN_THREAT_BISHOP = S(193, 136);
+inline const PParam SAFE_PAWN_THREAT_ROOK   = S(189, 129);
+inline const PParam SAFE_PAWN_THREAT_QUEEN  = S(171, -23);
 
 inline const PParam KNIGHT_THREAT_BISHOP = S(107, 102);
 inline const PParam KNIGHT_THREAT_ROOK   = S(227, 69);
