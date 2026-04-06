@@ -743,6 +743,8 @@ Value Worker::search(
 
             reduction -= tuned::lmr_in_check_red * pos_after.is_in_check();
 
+            reduction -= 768 * is_in_check;
+
             if (cutnode) {
                 reduction += tuned::lmr_cutnode_red;
                 // If there is no available tt move, increase reduction
