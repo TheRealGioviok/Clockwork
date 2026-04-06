@@ -613,7 +613,8 @@ Value Worker::search(
         if (!ROOT_NODE && !is_being_mated_score(best_value)) {
             // Late Move Pruning (LMP)
             if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - improving)) {
-                break;
+                moves.skip_quiets();
+                continue;
             }
 
             // Forward Futility Pruning (FFP)
