@@ -475,7 +475,7 @@ Value Worker::search(
     }
 
     // Necessary (not sufficient) conditions for singularity
-    bool might_be_singular = depth >= tuned::sing_min_depth && tt_data->depth >= depth - tuned::sing_depth_margin && tt_data->bound() != Bound::Upper;
+    bool might_be_singular = depth >= tuned::sing_min_depth && tt_data && tt_data->depth >= depth - tuned::sing_depth_margin && tt_data->bound() != Bound::Upper;
 
     // Internal Iterative Reductions
     if ((PV_NODE || cutnode) && depth >= 8 && !excluded
@@ -644,7 +644,7 @@ Value Worker::search(
 
         // Singular extensions
         int extension = 0;
-        if (!excluded && tt_data && m == tt_data->move && might_be_singular) {
+        if (!excluded && might_be_singular && m == tt_data->move) {
             Value singular_beta  = tt_data->score - depth * tuned::sing_beta_margin / 64;
             int   singular_depth = depth / 2;
 
