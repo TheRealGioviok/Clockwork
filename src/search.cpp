@@ -648,8 +648,7 @@ Value Worker::search(
               tt_data->bound() == Bound::Exact ? tuned::singext_exact_multiplier : 64;
 
             // Singular margin
-            Value singular_margin =
-              tt_data->score - depth * tuned::sing_beta_margin * bound_scale / (64 * 64);
+            Value singular_margin = depth * tuned::sing_beta_margin * bound_scale / (64 * 64);
 
             Value singular_beta = tt_data->score - singular_margin;
 
