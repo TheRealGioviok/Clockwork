@@ -474,6 +474,9 @@ Value Worker::search(
         }
     }
 
+    // Necessary (not sufficient) conditions for singularity
+    bool might_be_singular = depth >= tuned::sing_min_depth && tt_data->depth >= depth - tuned::sing_depth_margin && tt_data->bound() != Bound::Upper;
+
     // Internal Iterative Reductions
     if ((PV_NODE || cutnode) && depth >= 8 && !excluded
         && (!tt_data || tt_data->move == Move::none())) {
@@ -492,7 +495,8 @@ Value Worker::search(
         return tt_adjusted_eval;
     }
 
-    if (!PV_NODE && !is_in_check && !pos.is_kp_endgame() && depth >= tuned::nmp_depth && !excluded
+    if (!PV_NODE && !is_in_check && !might_be_singular && !pos.is_kp_endgame()
+        && depth >= tuned::nmp_depth && !excluded
         && tt_adjusted_eval >= beta + tuned::nmp_beta_margin && !is_being_mated_score(beta)
         && !m_in_nmp_verification) {
 
@@ -640,9 +644,7 @@ Value Worker::search(
 
         // Singular extensions
         int extension = 0;
-        if (!excluded && tt_data && m == tt_data->move && depth >= tuned::sing_min_depth
-            && tt_data->depth >= depth - tuned::sing_depth_margin
-            && tt_data->bound() != Bound::Upper) {
+        if (!excluded && tt_data && m == tt_data->move && might_be_singular) {
             Value singular_beta  = tt_data->score - depth * tuned::sing_beta_margin / 64;
             int   singular_depth = depth / 2;
 
