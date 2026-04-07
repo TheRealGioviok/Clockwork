@@ -837,7 +837,7 @@ Value Worker::search(
                 alpha_raises++;
 
                 if (value >= beta) {
-                    ss->fail_high_count++;
+                    ss->fail_high_count += (extension < 2) || PV_NODE;
                     break;
                 }
             }
