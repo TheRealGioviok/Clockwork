@@ -70,31 +70,6 @@ std::array<Bitboard, 64> king_ring_table = []() {
     return king_ring_table;
 }();
 
-std::array<std::array<Bitboard, 8>, 2> king_flank = []() {
-    std::array<std::array<Bitboard, 8>, 2> king_flank{};
-
-    Bitboard flank = Bitboard::file_mask(0)
-                   & (Bitboard::rank_mask(0) | Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
-                      | Bitboard::rank_mask(3) | Bitboard::rank_mask(4));
-
-    king_flank[0][0] = king_flank[0][1] = king_flank[0][2] = flank;
-
-    flank            = flank.shift(Direction::East).shift(Direction::East);
-    king_flank[0][3] = king_flank[0][4] = flank;
-
-    flank            = flank.shift(Direction::East).shift(Direction::East);
-    king_flank[0][5] = king_flank[0][6] = king_flank[0][7] = flank;
-
-    Bitboard mirror_mask = Bitboard::rank_mask(7) | Bitboard::rank_mask(6) | Bitboard::rank_mask(5);
-
-    for (i32 file_idx = 0; file_idx < 8; file_idx++) {
-        king_flank[1][file_idx] = king_flank[0][file_idx] ^ mirror_mask;
-    }
-
-    return king_flank;
-}();
-
-
 std::array<Bitboard, 64> extended_ring_table = []() {
     std::array<Bitboard, 64> extended_ring_table{};
     for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
@@ -367,7 +342,8 @@ PScore evaluate_king_safety(const Position& pos) {
     Bitboard king_ring     = king_ring_table[pos.king_sq(color).raw];
     Bitboard extended_ring = extended_ring_table[pos.king_sq(color).raw];
 
-    Bitboard flank = king_flank[static_cast<usize>(color)][static_cast<usize>(pos.king_sq(color).file())];
+    Bitboard flank =
+      king_flank[static_cast<usize>(color)][static_cast<usize>(pos.king_sq(color).file())];
 
     // Piece attacks in inner/outer ring
     for (PieceType pt : {PieceType::Pawn, PieceType::Knight, PieceType::Bishop, PieceType::Rook,
@@ -382,7 +358,7 @@ PScore evaluate_king_safety(const Position& pos) {
     }
 
     // Flank attack / defense status
-    Bitboard defended_by_us = pos.attack_table(color).get_attacked_bitboard();
+    Bitboard defended_by_us        = pos.attack_table(color).get_attacked_bitboard();
     Bitboard double_defended_by_us = pos.attacked_by_two_or_more(color);
 
     Bitboard attacked_by_them        = pos.attack_table(opp).get_attacked_bitboard();
