@@ -74,6 +74,7 @@ inline const std::array<PParam, 5> PT_INNER_RING_ATTACKS = {
 inline const std::array<PParam, 5> PT_OUTER_RING_ATTACKS = {
     S(3, -23), S(5, -35), S(5, -21), S(5, -5), S(5, 20),
 };
+inline const PParam KS_NO_QUEEN = S(211, 92);
 
 inline const PParam KS_FLANK_ATTACK = S(211, 92);
 inline const PParam KS_FLANK_DEFENSE = S(189, 141);

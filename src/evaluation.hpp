@@ -22,8 +22,8 @@ static constexpr std::array<std::array<Bitboard, 8>, 2> king_flank = []() {
     std::array<std::array<Bitboard, 8>, 2> result{};
 
     // Queenside files (0-2), Center files (3-4), Kingside files (5-7)
-    constexpr std::array<i8, 8> flank_start = {0, 0, 0, 2, 2, 4, 4, 4};
-    constexpr std::array<i8, 8> flank_width = {4, 4, 4, 4, 4, 4, 4, 4};
+    constexpr std::array<i32, 8> flank_start = {0, 0, 0, 2, 2, 4, 4, 4};
+    constexpr std::array<i32, 8> flank_width = {4, 4, 4, 4, 4, 4, 4, 4};
     constexpr Bitboard          white_ranks = Bitboard::rank_mask(0) | Bitboard::rank_mask(1)
                                    | Bitboard::rank_mask(2) | Bitboard::rank_mask(3)
                                    | Bitboard::rank_mask(4);
@@ -31,9 +31,10 @@ static constexpr std::array<std::array<Bitboard, 8>, 2> king_flank = []() {
                                    | Bitboard::rank_mask(5) | Bitboard::rank_mask(6)
                                    | Bitboard::rank_mask(7);
 
-    for (i8 file_idx = 0; file_idx < 8; file_idx++) {
+    for (usize file_idx = 0; file_idx < 8; file_idx++) {
         Bitboard flank{};
-        for (i8 f = flank_start[file_idx]; f < flank_start[file_idx] + flank_width[file_idx]; f++) {
+        for (i32 f = flank_start[file_idx]; f < flank_start[file_idx] + flank_width[file_idx];
+             f++) {
             flank |= Bitboard::file_mask(f);
         }
 
