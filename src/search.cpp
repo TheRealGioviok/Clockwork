@@ -777,7 +777,12 @@ Value Worker::search(
             }
 
             if (!quiet) {
-                reduction = std::min(reduction, tuned::lmr_max_red);
+                if (!ttpv) {
+                    reduction = std::min(reduction, tuned::lmr_max_red);
+                }
+                else {
+                    reduction = std::min(reduction, 1024);
+                }
             }
 
             reduction /= 1024;
