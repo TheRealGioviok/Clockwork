@@ -202,6 +202,15 @@ public:
         return attack_table(color).get_piece_mask_bitboard(piece_list(color).mask_eq(ptype));
     }
 
+    [[nodiscard]] Bitboard attacked_by_two_or_more(Color color) const {
+        const auto& wb = attack_table(color).raw;
+
+        u16x64 minus_one    = wb - u16x64::splat(1u);
+        u16x64 at_least_two = wb & minus_one;
+
+        return Bitboard{at_least_two.nonzeros().to_bits()};
+    }
+
     [[nodiscard]] usize mobility_of(Color color, PieceId id) const {
         return attack_table(color).count_matching_mask(id.to_piece_mask());
     }

@@ -40,6 +40,7 @@ private:
     void handle_speedtest(std::istringstream&);
 
     void handle_genfens(std::istringstream&);
+    void handle_debug(std::istringstream&);
 };
 
 }  // namespace Clockwork::UCI
