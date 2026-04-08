@@ -344,6 +344,9 @@ int main() {
         std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE
                   << ";" << std::endl;
         std::cout << std::endl;
+        
+        std::cout << "inline const PParam KS_WEAK_FLANK = " << KS_WEAK_FLANK << ";" << std::endl;
+        std::cout << std::endl;
 
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
                   << std::endl;

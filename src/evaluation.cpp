@@ -369,6 +369,11 @@ PScore evaluate_king_safety(const Position& pos) {
     eval += KS_FLANK_DOUBLE_DEFENSE * (double_defended_by_us & flank).ipopcount();
     eval += KS_FLANK_DOUBLE_ATTACK * (double_attacked_by_them & flank).ipopcount();
 
+    // Weaknesses in flank
+    Bitboard weak_squares = attacked_by_them & ~double_defended_by_us & (pos.attacked_by(color, PieceType::Queen) | pos.attacked_by(color, PieceType::King));
+
+    eval += KS_WEAK_FLANK * (weak_squares & flank).ipopcount();
+
     // King shelter evaluation
     eval += king_shelter<color>(pos);
 
