@@ -38,6 +38,13 @@ Bitboard static_pawn_attacks(const Bitboard pawns) {
 }
 
 template<Color color>
+Bitboard static_pawn_double_attacks(const Bitboard pawns) {
+    Bitboard attacks = pawns.shift_relative(color, Direction::NorthEast)
+                     & pawns.shift_relative(color, Direction::NorthWest);
+    return attacks;
+}
+
+template<Color color>
 Bitboard pawn_spans(const Bitboard pawns, Bitboard blockers) {
     Bitboard res = pawns;
     // rank 1 -> 2
@@ -339,8 +346,13 @@ PScore evaluate_king_safety(const Position& pos) {
     // Iterate over the opponent's attack bbs
     PScore eval = PSCORE_ZERO;
 
-    Bitboard king_ring     = king_ring_table[pos.king_sq(color).raw];
-    Bitboard extended_ring = extended_ring_table[pos.king_sq(color).raw];
+    // Remove squares we defend twice with pawn from the risk squares, as we can easily defend on them
+    Bitboard our_double_pawn_defended =
+      static_pawn_double_attacks<color>(pos.bitboard_for(color, PieceType::Pawn));
+
+    Bitboard king_ring = king_ring_table[pos.king_sq(color).raw] & ~our_double_pawn_defended;
+    Bitboard extended_ring =
+      extended_ring_table[pos.king_sq(color).raw] & ~our_double_pawn_defended;
 
     Bitboard flank =
       king_flank[static_cast<usize>(color)][static_cast<usize>(pos.king_sq(color).file())];
