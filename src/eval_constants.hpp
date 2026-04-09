@@ -80,6 +80,14 @@ inline const PParam KS_FLANK_ATTACK = S(2, -2);
 inline const PParam KS_FLANK_DEFENSE = S(-3, 0);
 inline const PParam KS_FLANK_DOUBLE_ATTACK   = S(4, -0);
 inline const PParam KS_FLANK_DOUBLE_DEFENSE  = S(-3, 3);
+
+inline const std::array<std::array<PParam, 2>, 4> KS_SAFE_CHECKS = {{
+  {{ S(28, -9), S(4, 15) }},
+  {{ S(11, 7), S(-12, 10)}},
+  {{ S(10, 9), S(0, 2) }},
+  {{ S(16, 18), S(1, 20) }},
+}};
+
 inline const PParam PAWN_THREAT_KNIGHT = S(216, 86);
 inline const PParam PAWN_THREAT_BISHOP = S(200, 128);
 inline const PParam PAWN_THREAT_ROOK   = S(200, 121);

@@ -313,12 +313,10 @@ PScore evaluate_outposts(const Position& pos) {
 
 template<Color color>
 PScore evaluate_potential_checkers(const Position& pos) {
-    constexpr Color opp = ~color;
-
-    const PieceMask orth   = pos.get_piece_mask<PieceType::Rook, PieceType::Queen>(opp);
-    const PieceMask diag   = pos.get_piece_mask<PieceType::Bishop, PieceType::Queen>(opp);
-    const PieceMask knight = pos.get_piece_mask<PieceType::Knight>(opp);
-
+    constexpr Color          opp    = ~color;
+    const PieceMask          orth   = pos.get_piece_mask<PieceType::Rook, PieceType::Queen>(opp);
+    const PieceMask          diag   = pos.get_piece_mask<PieceType::Bishop, PieceType::Queen>(opp);
+    const PieceMask          knight = pos.get_piece_mask<PieceType::Knight>(opp);
     CreateSuperpieceMaskInfo cmi;
     cmi.knight     = knight.value();
     cmi.orth       = orth.value();
@@ -326,10 +324,34 @@ PScore evaluate_potential_checkers(const Position& pos) {
     cmi.wpawn_near = diag.value();
     cmi.bpawn_near = diag.value();
     cmi.diag       = diag.value();
-
     Wordboard mask = pos.create_attack_table_superpiece_mask(pos.king_sq(color), cmi);
     mask           = mask & pos.attack_table(opp);
-    return POTENTIAL_CHECKER_VAL * mask.popcount();
+    PScore eval    = PSCORE_ZERO;
+
+    // Unsafe checks: consider every potential checker as a threat
+    eval += POTENTIAL_CHECKER_VAL * mask.popcount();
+
+    // Safe checks
+    const Bitboard undefended = ~pos.attack_table(color).get_attacked_bitboard();
+
+    // Get pieceid of the pawns to exclude them
+    PieceMask pawn_mask = pos.get_piece_mask<PieceType::Pawn>(opp);
+
+    for (PieceId id : pos.get_piece_mask<PieceType::Knight, PieceType::Bishop, PieceType::Rook, PieceType::Queen>(opp)) {
+        PieceType pt = pos.piece_list(opp)[id];
+        usize ptidx = static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn);
+        // Only consider nbrq checkers for safe checks, since pawn checks need separate logic to determine if the move is diagonal or forward, and king checks aren't legal
+        Bitboard safe_checks =
+            (pos.attack_table(opp) & Wordboard::from_pieceid(id)).get_attacked_bitboard()
+            & undefended;
+        if (safe_checks.any()) {
+            eval += KS_SAFE_CHECKS[static_cast<usize>(pt) - 1]
+                                    [std::min(safe_checks.popcount() - 1, usize{1})];
+        }
+        
+    }
+
+    return eval;
 }
 
 template<Color color>
@@ -368,6 +390,9 @@ PScore evaluate_king_safety(const Position& pos) {
     eval += KS_FLANK_ATTACK * (attacked_by_them & flank).ipopcount();
     eval += KS_FLANK_DOUBLE_DEFENSE * (double_defended_by_us & flank).ipopcount();
     eval += KS_FLANK_DOUBLE_ATTACK * (double_attacked_by_them & flank).ipopcount();
+
+    // Checks
+    eval += evaluate_potential_checkers<color>(pos);
 
     // King shelter evaluation
     eval += king_shelter<color>(pos);
@@ -497,11 +522,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval +=
       evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
 
-    // King safety
-    eval += evaluate_potential_checkers<Color::White>(pos)
-          - evaluate_potential_checkers<Color::Black>(pos);
-
-    // Nonlinear king safety components
+    // King safety - nonlinear king safety components
     PScore white_king_attack_total = evaluate_king_safety<Color::Black>(pos);
     PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos);
 

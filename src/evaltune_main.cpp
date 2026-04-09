@@ -255,6 +255,21 @@ int main() {
 
         Graph::get().cleanup();
         Graph::get().zero_grad();
+
+
+        auto print_2d_array = [](const std::string& name, const auto& arr) {
+            std::cout << "inline const std::array<std::array<PParam, " << arr[0].size() << ">, "
+                      << arr.size() << "> " << name << " = {{" << std::endl;
+            for (const auto& subarr : arr) {
+                std::cout << "  {{";
+                for (const auto& val : subarr) {
+                    std::cout << " " << val << ",";
+                }
+                std::cout << " }}," << std::endl;
+            }
+            std::cout << "}};" << std::endl;
+        };
+
 #ifndef PROFILE_RUN
         std::cout << "inline const PParam PAWN_MAT   = " << PAWN_MAT << ";" << std::endl;
         std::cout << "inline const PParam KNIGHT_MAT = " << KNIGHT_MAT << ";" << std::endl;
@@ -345,6 +360,9 @@ int main() {
                   << ";" << std::endl;
         std::cout << std::endl;
 
+        print_2d_array("KS_SAFE_CHECKS", KS_SAFE_CHECKS);
+        std::cout << std::endl;
+
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
                   << std::endl;
         std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
@@ -400,19 +418,7 @@ int main() {
         printPsqtArray("KING_PSQT", KING_PSQT);
         std::cout << std::endl;
 
-        auto print_2d_array = [](const std::string& name, const auto& arr) {
-            std::cout << "inline const std::array<std::array<PParam, " << arr[0].size() << ">, "
-                      << arr.size() << "> " << name << " = {{" << std::endl;
-            for (const auto& subarr : arr) {
-                std::cout << "  {{";
-                for (const auto& val : subarr) {
-                    std::cout << " " << val << ",";
-                }
-                std::cout << " }}," << std::endl;
-            }
-            std::cout << "}};" << std::endl;
-        };
-
+        
         print_2d_array("KING_SHELTER", KING_SHELTER);
         print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
         print_2d_array("SHELTER_STORM", SHELTER_STORM);

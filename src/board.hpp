@@ -238,6 +238,11 @@ static_assert(sizeof(Byteboard) == 64);
 struct Wordboard {
     u16x64 raw = u16x64::zero();
 
+    static Wordboard from_pieceid(PieceId id) {
+        u16 raw = id.raw;
+        return Wordboard{u16x64::splat(raw)};
+    }
+
     [[nodiscard]] std::array<PieceMask, 64> to_mailbox() const {
         return std::bit_cast<std::array<PieceMask, 64>>(raw);
     }
