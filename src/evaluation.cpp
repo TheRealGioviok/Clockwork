@@ -334,21 +334,16 @@ PScore evaluate_potential_checkers(const Position& pos) {
     // Safe checks
     const Bitboard undefended = ~pos.attack_table(color).get_attacked_bitboard();
 
-    // Get pieceid of the pawns to exclude them
-    PieceMask pawn_mask = pos.get_piece_mask<PieceType::Pawn>(opp);
-
     for (PieceId id : pos.get_piece_mask<PieceType::Knight, PieceType::Bishop, PieceType::Rook, PieceType::Queen>(opp)) {
         PieceType pt = pos.piece_list(opp)[id];
-        usize ptidx = static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn);
         // Only consider nbrq checkers for safe checks, since pawn checks need separate logic to determine if the move is diagonal or forward, and king checks aren't legal
         Bitboard safe_checks =
-            (pos.attack_table(opp) & Wordboard::from_pieceid(id)).get_attacked_bitboard()
+            (pos.attack_table(opp) & Wordboard::from_pieceid(id) & mask).get_attacked_bitboard()
             & undefended;
         if (safe_checks.any()) {
-            eval += KS_SAFE_CHECKS[static_cast<usize>(pt) - 1]
-                                    [std::min(safe_checks.popcount() - 1, usize{1})];
+            usize ptidx = static_cast<usize>(pt) - static_cast<usize>(PieceType::Knight);
+            eval += KS_SAFE_CHECKS[ptidx][std::min(safe_checks.popcount() - 1, usize{1})]; // only 1 or 2 checks considered at most
         }
-        
     }
 
     return eval;
