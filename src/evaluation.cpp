@@ -407,6 +407,21 @@ PScore evaluate_threats(const Position& pos) {
     eval +=
       BISHOP_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & bishop_attacks).ipopcount();
 
+    // Weak enemies
+    Bitboard defended = pos.attack_table(opp).get_attacked_bitboard();
+    Bitboard attacked       = pos.attack_table(color).get_attacked_bitboard();
+    Bitboard attacked_twice = pos.attacked_by_two_or_more(color);
+
+    Bitboard weak = attacked & ~pos.attacked_by(opp, PieceType::Pawn);
+
+    // Hanging
+    Bitboard enemy_pawns = pos.bitboard_for(opp, PieceType::Pawn);
+    Bitboard enemy_non_pawns = pos.board().get_color_bitboard(opp) & ~enemy_pawns;
+
+    // Weak enemies not defended by opponent or non-pawn weak enemies attacked twice
+    eval += HANGING_PAWN_VAL * (weak & enemy_pawns & ~defended).ipopcount();
+    eval += HANGING_NONPAWN_VAL * (weak & enemy_non_pawns & attacked_twice).ipopcount();
+
     return eval;
 }
 

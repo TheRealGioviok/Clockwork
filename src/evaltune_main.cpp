@@ -371,6 +371,12 @@ int main() {
                   << std::endl;
         std::cout << std::endl;
 
+        std::cout << "inline const PParam HANGING_PAWN_VAL = " << HANGING_PAWN_VAL << ";"
+                  << std::endl;
+        std::cout << "inline const PParam HANGING_NONPAWN_VAL = " << HANGING_NONPAWN_VAL << ";"
+                  << std::endl;
+        std::cout << std::endl;
+
         print_table("BISHOP_PAWNS", BISHOP_PAWNS);
         std::cout << std::endl;
         std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;
