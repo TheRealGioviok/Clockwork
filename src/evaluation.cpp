@@ -480,7 +480,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
                     * (pos.piece_count(Color::White, PieceType::Queen)
                        + pos.piece_count(Color::Black, PieceType::Queen));
 
-    phase = std::min<usize>(phase, 24);
+    phase = std::min<usize>(phase, 22);
 
     PScore eval = psqt_state.score();  // Used for linear components
 
@@ -514,7 +514,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     // Winnable
     eval = apply_winnable(pos, eval, phase);
 
-    return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
+    return static_cast<Score>(eval.phase<22>(static_cast<i32>(phase)));
 };
 
 Score evaluate_stm_pov(const Position& pos, const PsqtState& psqt_state) {
