@@ -1072,6 +1072,11 @@ Value Worker::adj_shuffle(const Position& pos, Value value) {
     if (m_searcher.settings.datagen) {
         return value;
     }
+    
+    // Don't decay known-win endgame scores: long forced mates like KBN vs K need many moves and must not be penalized for it.
+    if (std::abs(value) >= VALUE_WON_EG) {
+        return value;
+    }
 
     // Scale down the value when the fifty-move counter is high.
     i32 clock = pos.get_50mr_counter();

@@ -157,20 +157,20 @@ Score keep_close(Square sq1, Square sq2) {
 [[nodiscard]] static Score eg_KBNK(const Position& pos, Color strong) {
 
     Color           weak = invert(strong);
-    constexpr Score base = KNOWN_WIN + 900;
+    constexpr Score base = KNOWN_WIN + 1500;
 
     Square sk = pos.king_sq(strong);
     Square wk = pos.king_sq(weak);
 
     Square sb = pos.bitboard_for(strong, PieceType::Bishop).lsb();
+    Square sn = pos.bitboard_for(strong, PieceType::Knight).lsb();
     Color correct_color = sb.color();
 
     Score result = base;
     result += keep_close<10>(wk, sk);
-    if (correct_color == Color::Black){
-        wk.flip_vertical();
-    }
-    result += abs(wk.file() - wk.rank()) * 100;
+    result += push_to_edge<20>(wk);
+    result += push_to_color_corner<130>(wk, correct_color);
+    result += keep_close<10>(sk, sn);
 
     return strong == Color::White ? result : static_cast<Score>(-result);
 }
