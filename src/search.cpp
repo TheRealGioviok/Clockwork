@@ -480,6 +480,12 @@ Value Worker::search(
         depth--;
     }
 
+    if (!PV_NODE && !is_in_check && !excluded) {
+        if (depth < MAX_PLY && (ss-1)->reduction >= 3 && (ss-1)->static_eval != -VALUE_INF && ss->static_eval + (ss-1)->static_eval <= 0) {
+            ++depth;
+        }
+    }
+
     // Reuse TT score as a better positional evaluation
     auto tt_adjusted_eval = ss->static_eval;
     if (tt_data && tt_data->bound() != Bound::None && !is_mate_score(tt_data->score)
@@ -783,8 +789,10 @@ Value Worker::search(
             reduction /= 1024;
 
             Depth reduced_depth = std::clamp<Depth>(new_depth - reduction, 1, new_depth);
+            ss->reduction = new_depth - reduced_depth;
             value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha, reduced_depth,
                                             ply + 1, true);
+            ss->reduction = 0;
             if (value > alpha) {
                 const bool do_deeper = reduced_depth < new_depth && value > best_value + 94;
                 const bool do_shallower =

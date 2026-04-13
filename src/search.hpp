@@ -62,7 +62,8 @@ private:
 };
 
 struct Stack {
-    Value          static_eval = 0;
+    Value          static_eval = -VALUE_INF;
+    Value reduction = 0;
     Move           killer      = Move::none();
     Move           excluded_move;
     ContHistEntry* cont_hist_entry = nullptr;
