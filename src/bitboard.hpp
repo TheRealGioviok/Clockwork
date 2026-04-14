@@ -82,6 +82,10 @@ public:
         return static_cast<bool>(m_raw);
     }
 
+    [[nodiscard]] bool contains(Square sq) const {
+        return (m_raw >> sq.raw) & 1;
+    }
+
     // Rank closest to player
     [[nodiscard]] u8 front_rank(Color color) const {
         i32 color_shift = color == Color::White ? 0 : 56;

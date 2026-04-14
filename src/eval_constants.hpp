@@ -80,18 +80,27 @@ inline const PParam KS_FLANK_ATTACK = S(2, -2);
 inline const PParam KS_FLANK_DEFENSE = S(-3, 0);
 inline const PParam KS_FLANK_DOUBLE_ATTACK   = S(4, -0);
 inline const PParam KS_FLANK_DOUBLE_DEFENSE  = S(-3, 3);
-inline const PParam PAWN_THREAT_KNIGHT = S(216, 86);
-inline const PParam PAWN_THREAT_BISHOP = S(200, 128);
-inline const PParam PAWN_THREAT_ROOK   = S(200, 121);
-inline const PParam PAWN_THREAT_QUEEN  = S(169, 5);
 
-inline const PParam KNIGHT_THREAT_BISHOP = S(108, 101);
-inline const PParam KNIGHT_THREAT_ROOK   = S(230, 67);
-inline const PParam KNIGHT_THREAT_QUEEN  = S(159, -28);
-
-inline const PParam BISHOP_THREAT_KNIGHT = S(106, 55);
-inline const PParam BISHOP_THREAT_ROOK   = S(214, 124);
-inline const PParam BISHOP_THREAT_QUEEN  = S(178, 90);
+inline const std::array<std::array<PParam, 5>, 2> PAWN_THREAT = {{
+    {S(0, 0), S(17, 17), S(30, 30), S(40, 40), S(50, 50)},
+    {S(0, 0), S(11, 11), S(20, 20), S(28, 28), S(35, 35)},
+}};
+inline const std::array<std::array<PParam, 5>, 2> KNIGHT_THREAT = {{
+    {S(0, 0), S(17, 17), S(30, 30), S(40, 40), S(50, 50)},
+    {S(0, 0), S(11, 11), S(20, 20), S(28, 28), S(35, 35)},
+}};
+inline const std::array<std::array<PParam, 5>, 2> BISHOP_THREAT = {{
+    {S(0, 0), S(17, 17), S(30, 30), S(40, 40), S(50, 50)},
+    {S(0, 0), S(11, 11), S(20, 20), S(28, 28), S(35, 35)},
+}};
+inline const std::array<std::array<PParam, 5>, 2> ROOK_THREAT = {{
+    {S(0, 0), S(17, 17), S(30, 30), S(40, 40), S(50, 50)},
+    {S(0, 0), S(11, 11), S(20, 20), S(28, 28), S(35, 35)},
+}};
+inline const std::array<std::array<PParam, 5>, 2> QUEEN_THREAT = {{
+    {S(0, 0), S(17, 17), S(30, 30), S(40, 40), S(50, 50)},
+    {S(0, 0), S(11, 11), S(20, 20), S(28, 28), S(35, 35)},
+}};
 
 inline const std::array<PParam, 9> BISHOP_PAWNS = {
     S(9, -31), S(-4, -3), S(-5, -11), S(-8, -20), S(-12, -28), S(-15, -34), S(-17, -45), S(-23, -45), S(-38, -41),

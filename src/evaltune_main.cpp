@@ -345,32 +345,27 @@ int main() {
                   << ";" << std::endl;
         std::cout << std::endl;
 
-        std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_ROOK   = " << PAWN_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_QUEEN  = " << PAWN_THREAT_QUEEN << ";"
-                  << std::endl;
-        std::cout << std::endl;
+        auto print_2d_array = [](const std::string& name, const auto& arr) {
+            std::cout << "inline const std::array<std::array<PParam, " << arr[0].size() << ">, "
+                      << arr.size() << "> " << name << " = {{" << std::endl;
+            for (const auto& subarr : arr) {
+                std::cout << "  {{";
+                for (const auto& val : subarr) {
+                    std::cout << " " << val << ",";
+                }
+                std::cout << " }}," << std::endl;
+            }
+            std::cout << "}};" << std::endl;
+        };
 
-        std::cout << "inline const PParam KNIGHT_THREAT_BISHOP = " << KNIGHT_THREAT_BISHOP << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KNIGHT_THREAT_ROOK   = " << KNIGHT_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KNIGHT_THREAT_QUEEN  = " << KNIGHT_THREAT_QUEEN << ";"
-                  << std::endl;
-        std::cout << std::endl;
 
-        std::cout << "inline const PParam BISHOP_THREAT_KNIGHT = " << BISHOP_THREAT_KNIGHT << ";"
-                  << std::endl;
-        std::cout << "inline const PParam BISHOP_THREAT_ROOK   = " << BISHOP_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam BISHOP_THREAT_QUEEN  = " << BISHOP_THREAT_QUEEN << ";"
-                  << std::endl;
+        print_2d_array("PAWN_THREAT", PAWN_THREAT);
+        print_2d_array("KNIGHT_THREAT", KNIGHT_THREAT);
+        print_2d_array("BISHOP_THREAT", BISHOP_THREAT);
+        print_2d_array("ROOK_THREAT", ROOK_THREAT);
+        print_2d_array("QUEEN_THREAT", QUEEN_THREAT);
         std::cout << std::endl;
-
+        
         print_table("BISHOP_PAWNS", BISHOP_PAWNS);
         std::cout << std::endl;
         std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;
@@ -400,19 +395,7 @@ int main() {
         printPsqtArray("KING_PSQT", KING_PSQT);
         std::cout << std::endl;
 
-        auto print_2d_array = [](const std::string& name, const auto& arr) {
-            std::cout << "inline const std::array<std::array<PParam, " << arr[0].size() << ">, "
-                      << arr.size() << "> " << name << " = {{" << std::endl;
-            for (const auto& subarr : arr) {
-                std::cout << "  {{";
-                for (const auto& val : subarr) {
-                    std::cout << " " << val << ",";
-                }
-                std::cout << " }}," << std::endl;
-            }
-            std::cout << "}};" << std::endl;
-        };
-
+        
         print_2d_array("KING_SHELTER", KING_SHELTER);
         print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
         print_2d_array("SHELTER_STORM", SHELTER_STORM);

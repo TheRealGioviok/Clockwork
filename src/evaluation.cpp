@@ -382,30 +382,24 @@ PScore evaluate_threats(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
-    Bitboard pawn_attacks = pos.attacked_by(color, PieceType::Pawn);
-    eval +=
-      PAWN_THREAT_KNIGHT * (pos.bitboard_for(opp, PieceType::Knight) & pawn_attacks).ipopcount();
-    eval +=
-      PAWN_THREAT_BISHOP * (pos.bitboard_for(opp, PieceType::Bishop) & pawn_attacks).ipopcount();
-    eval += PAWN_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & pawn_attacks).ipopcount();
-    eval +=
-      PAWN_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & pawn_attacks).ipopcount();
+    Bitboard weak_pieces = (pos.board().get_color_bitboard(opp) ^ pos.bitboard_for(opp, PieceType::King)) & ~pos.attacked_by(opp, PieceType::Pawn) & 
+    ((pos.attack_table(color).get_attacked_bitboard() & ~pos.attack_table(opp).get_attacked_bitboard()) |
+    pos.attacked_by_two_or_more(color) & ~pos.attacked_by_two_or_more(opp));
 
-    Bitboard knight_attacks = pos.attacked_by(color, PieceType::Knight);
-    eval += KNIGHT_THREAT_BISHOP
-          * (pos.bitboard_for(opp, PieceType::Bishop) & knight_attacks).ipopcount();
-    eval +=
-      KNIGHT_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & knight_attacks).ipopcount();
-    eval +=
-      KNIGHT_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & knight_attacks).ipopcount();
+    auto process_eval_threats = [&](Bitboard threats, const auto &threat_table){
+        while (threats.any()){
+            const Square sq = threats.lsb();
+            PieceType pt = pos.piece_at(sq);
+            eval += threat_table[weak_pieces.contains(sq)][static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
+            threats.clear(sq);
+        }
+    };
 
-    Bitboard bishop_attacks = pos.attacked_by(color, PieceType::Bishop);
-    eval += BISHOP_THREAT_KNIGHT
-          * (pos.bitboard_for(opp, PieceType::Knight) & bishop_attacks).ipopcount();
-    eval +=
-      BISHOP_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & bishop_attacks).ipopcount();
-    eval +=
-      BISHOP_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & bishop_attacks).ipopcount();
+    process_eval_threats(pos.attacked_by(color, PieceType::Pawn), PAWN_THREAT);
+    process_eval_threats(pos.attacked_by(color, PieceType::Knight), KNIGHT_THREAT);
+    process_eval_threats(pos.attacked_by(color, PieceType::Bishop), BISHOP_THREAT);
+    process_eval_threats(pos.attacked_by(color, PieceType::Rook), ROOK_THREAT);
+    process_eval_threats(pos.attacked_by(color, PieceType::Queen), QUEEN_THREAT);
 
     return eval;
 }
