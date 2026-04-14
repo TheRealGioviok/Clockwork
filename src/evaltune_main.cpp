@@ -272,6 +272,7 @@ int main() {
                   << std::endl;
         std::cout << "inline const PParam MINOR_BEHIND_PAWN = " << MINOR_BEHIND_PAWN << ";"
                   << std::endl;
+        std::cout << "inline const PParam RESTRICTED_SQUARES = " << RESTRICTED_SQUARES << ";" << std::endl;
 
         std::cout << std::endl;
         std::cout << "inline const PParam DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";"

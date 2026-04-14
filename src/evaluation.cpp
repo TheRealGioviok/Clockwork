@@ -429,7 +429,11 @@ PScore evaluate_space(const Position& pos) {
           * (ourminors.shift_relative(color, Direction::North)
              & (pos.bitboard_for(them, PieceType::Pawn) | pos.bitboard_for(color, PieceType::Pawn)))
               .ipopcount();
-
+              
+    Bitboard strongly_defended = pos.attacked_by(color, PieceType::Pawn) | (pos.attacked_by_two_or_more(color) & ~pos.attacked_by_two_or_more(them));
+    
+    eval += RESTRICTED_SQUARES * (pos.attack_table(color).get_attacked_bitboard() & ~strongly_defended & pos.attack_table(them).get_attacked_bitboard()).ipopcount();
+    
     return eval;
 }
 
