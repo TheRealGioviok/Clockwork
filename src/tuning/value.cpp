@@ -140,7 +140,8 @@ ValueHandle operator-(ValueHandle a, ValueHandle b) {
 }
 
 ValueHandle operator*(ValueHandle a, ValueHandle b) {
-    if (a.index == Graph::get().get_zero_value().index || b.index == Graph::get().get_zero_value().index) {
+    if (a.index == Graph::get().get_zero_value().index
+        || b.index == Graph::get().get_zero_value().index) {
         return Graph::get().get_zero_value();
     }
     return Graph::get().record_op(OpType::Mul, a, b);

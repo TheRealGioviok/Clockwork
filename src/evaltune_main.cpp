@@ -244,13 +244,14 @@ int main() {
     // Epoch loop
     for (int epoch = 0; epoch < epochs; ++epoch) {
 
-        if (epoch == 24){
+        if (epoch == 24) {
             // Unfreeze all parameters after 10 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
-            Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count - (28+7+28+5+5+1+1+1+1+1+2));
+            Globals::get().unfreeze_pair_range(
+              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
             optim.set_lr(.1);
         }
-        if (epoch == 96){
+        if (epoch == 96) {
             // Unfreeze king safety parameters after 100 epochs
             Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count);
         }
@@ -258,11 +259,9 @@ int main() {
 
         if (epoch < 24) {
             optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
-        }
-        else if (epoch < 72) {
+        } else if (epoch < 72) {
             optim.set_lr(2 * std::pow(0.667, double(epoch - 24) / 28.0));
-        }
-        else {
+        } else {
             optim.set_lr(0.95 * std::pow(0.1, double(epoch - 72) / 96.0));
         }
 
@@ -431,7 +430,7 @@ int main() {
 
         std::cout << "inline const PParam KS_NO_QUEEN = " << KS_NO_QUEEN << ";" << std::endl;
         std::cout << std::endl;
-        
+
         print_table("PT_INNER_RING_ATTACKS", PT_INNER_RING_ATTACKS);
         print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
         std::cout << std::endl;
@@ -475,7 +474,6 @@ int main() {
         const auto end = time::Clock::now();
         std::cout << "// Epoch duration: " << time::cast<time::FloatSeconds>(end - start).count()
                   << "s\n";
-
     }
 
     return 0;

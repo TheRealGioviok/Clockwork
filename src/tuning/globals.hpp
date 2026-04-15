@@ -58,7 +58,7 @@ public:
         lock();
         return {m_parameters.size(), m_pair_parameters.size()};
     }
-    
+
     void freeze_value_range(usize start, usize end);
     void unfreeze_value_range(usize start, usize end);
     void freeze_pair_range(usize start, usize end);

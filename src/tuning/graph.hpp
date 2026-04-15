@@ -39,8 +39,12 @@ public:
     }
 
     // Accessors for constant zeros
-    inline ValueHandle get_zero_value() const { return m_zero_value; }
-    inline PairHandle  get_zero_pair() const  { return m_zero_pair; }
+    inline ValueHandle get_zero_value() const {
+        return m_zero_value;
+    }
+    inline PairHandle get_zero_pair() const {
+        return m_zero_pair;
+    }
 
     // Creation
     ValueHandle create_value(f64 data);
