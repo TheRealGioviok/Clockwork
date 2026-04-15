@@ -232,8 +232,39 @@ int main() {
         }).detach();
     }
 
+    // Freeze all parameters before tuning, except for material parameters. Get the count through the get_parameter_counts() function.
+    ParameterCountInfo counts = Globals::get().get_parameter_counts();
+
+    // Freeze all value
+    Globals::get().freeze_value_range(0, counts.parameter_count);
+
+    // Freeze all pair, except first 5 (material parameters)
+    Globals::get().freeze_pair_range(5, counts.pair_parameter_count);
+
     // Epoch loop
     for (int epoch = 0; epoch < epochs; ++epoch) {
+
+        if (epoch == 24){
+            // Unfreeze all parameters after 10 epochs. Dont unfreeze king safety just yet
+            Globals::get().unfreeze_value_range(0, counts.parameter_count);
+            Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count - (28+7+28+5+5+1+1+1+1+1+2));
+            optim.set_lr(.1);
+        }
+        if (epoch == 96){
+            // Unfreeze king safety parameters after 100 epochs
+            Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count);
+        }
+
+
+        if (epoch < 24) {
+            optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
+        }
+        else if (epoch < 72) {
+            optim.set_lr(2 * std::pow(0.667, double(epoch - 24) / 28.0));
+        }
+        else {
+            optim.set_lr(0.95 * std::pow(0.1, double(epoch - 72) / 96.0));
+        }
 
         std::cout << "Epoch " << epoch + 1 << "/" << epochs << "\n";
 
@@ -330,23 +361,6 @@ int main() {
         print_table("KING_MOBILITY", KING_MOBILITY);
         std::cout << std::endl;
 
-        print_table("PT_INNER_RING_ATTACKS", PT_INNER_RING_ATTACKS);
-        print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
-        std::cout << std::endl;
-
-        std::cout << "inline const PParam KS_NO_QUEEN = " << KS_NO_QUEEN << ";" << std::endl;
-        std::cout << std::endl;
-
-        std::cout << "inline const PParam KS_FLANK_ATTACK = " << KS_FLANK_ATTACK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KS_FLANK_DEFENSE = " << KS_FLANK_DEFENSE << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KS_FLANK_DOUBLE_ATTACK   = " << KS_FLANK_DOUBLE_ATTACK
-                  << ";" << std::endl;
-        std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE
-                  << ";" << std::endl;
-        std::cout << std::endl;
-
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
                   << std::endl;
         std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
@@ -415,6 +429,24 @@ int main() {
             std::cout << "}};" << std::endl;
         };
 
+        std::cout << "inline const PParam KS_NO_QUEEN = " << KS_NO_QUEEN << ";" << std::endl;
+        std::cout << std::endl;
+        
+        print_table("PT_INNER_RING_ATTACKS", PT_INNER_RING_ATTACKS);
+        print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
+        std::cout << std::endl;
+
+
+        std::cout << "inline const PParam KS_FLANK_ATTACK = " << KS_FLANK_ATTACK << ";"
+                  << std::endl;
+        std::cout << "inline const PParam KS_FLANK_DEFENSE = " << KS_FLANK_DEFENSE << ";"
+                  << std::endl;
+        std::cout << "inline const PParam KS_FLANK_DOUBLE_ATTACK   = " << KS_FLANK_DOUBLE_ATTACK
+                  << ";" << std::endl;
+        std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE
+                  << ";" << std::endl;
+        std::cout << std::endl;
+
         print_2d_array("KING_SHELTER", KING_SHELTER);
         print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
         print_2d_array("SHELTER_STORM", SHELTER_STORM);
@@ -444,9 +476,6 @@ int main() {
         std::cout << "// Epoch duration: " << time::cast<time::FloatSeconds>(end - start).count()
                   << "s\n";
 
-        if (epoch > 5) {
-            optim.set_lr(optim.get_lr() * 0.99);
-        }
     }
 
     return 0;
