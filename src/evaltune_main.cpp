@@ -260,9 +260,9 @@ int main() {
         if (epoch < 24) {
             optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
         } else if (epoch < 72) {
-            optim.set_lr(2 * std::pow(0.667, double(epoch - 24) / 28.0));
+            optim.set_lr(2 * std::pow(0.0667, double(epoch - 24) / 28.0));
         } else {
-            optim.set_lr(0.95 * std::pow(0.1, double(epoch - 72) / 96.0));
+            optim.set_lr(std::pow(0.1, double(epoch - 72) / 128.0));
         }
 
         std::cout << "Epoch " << epoch + 1 << "/" << epochs << "\n";

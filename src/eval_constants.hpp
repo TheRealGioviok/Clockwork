@@ -161,6 +161,11 @@ inline const std::array<PParam, 64> KING_PSQT = {
     S(-59, -149),   S(7, -100),     S(-79, -60),    S(-77, -78),    S(0, 0),        S(0, 0),        S(0, 0),        S(0, 0),        //
 };
 
+inline const PParam KS_FLANK_ATTACK = S(2, -6);
+inline const PParam KS_FLANK_DEFENSE = S(-4, -2);
+inline const PParam KS_FLANK_DOUBLE_ATTACK   = S(4, -3);
+inline const PParam KS_FLANK_DOUBLE_DEFENSE  = S(-3, 2);
+
 inline const std::array<std::array<PParam, 7>, 4> KING_SHELTER = {{
   {{ S(16, -28), S(1, -21), S(-1, -30), S(8, -59), S(8, -64), S(-2, -27), S(2, -21), }},
   {{ S(2, 22), S(-22, 7), S(-16, -3), S(-4, -27), S(-4, -21), S(-15, -1), S(-21, 11), }},
