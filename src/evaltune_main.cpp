@@ -130,10 +130,10 @@ int main() {
     Parameters current_parameter_values = Graph::get().get_all_parameter_values();
 
     // Uncomment for zero tune: Overwrite them all with zeros.
-    current_parameter_values = Parameters::rand_init(parameter_count);
+    // current_parameter_values = Parameters::rand_init(parameter_count);
 
     // The optimizer will now start with all-zero parameters
-    AdamW optim(parameter_count, 10, 0.9, 0.999, 1e-8, 0.0);
+    AdamW optim(parameter_count, 1, 0.9, 0.999, 1e-8, 0.0);
 #ifdef PROFILE_RUN
     const i32 epochs = 8;
 #else
@@ -271,6 +271,8 @@ int main() {
         std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
                   << std::endl;
         std::cout << "inline const PParam MINOR_BEHIND_PAWN = " << MINOR_BEHIND_PAWN << ";"
+                  << std::endl;
+        std::cout << "inline const PParam RESTRICTED_SQUARES = " << RESTRICTED_SQUARES << ";"
                   << std::endl;
 
         std::cout << std::endl;
