@@ -37,6 +37,14 @@ Bitboard static_pawn_attacks(const Bitboard pawns) {
     return attacks;
 }
 
+
+template<Color color>
+Bitboard static_pawn_double_attacks(const Bitboard pawns) {
+    Bitboard attacks = pawns.shift_relative(color, Direction::NorthEast)
+                     & pawns.shift_relative(color, Direction::NorthWest);
+    return attacks;
+}
+
 template<Color color>
 Bitboard pawn_spans(const Bitboard pawns, Bitboard blockers) {
     Bitboard res = pawns;
@@ -339,8 +347,12 @@ PScore evaluate_king_safety(const Position& pos) {
     // Iterate over the opponent's attack bbs
     PScore eval = PSCORE_ZERO;
 
-    Bitboard king_ring     = king_ring_table[pos.king_sq(color).raw];
-    Bitboard extended_ring = extended_ring_table[pos.king_sq(color).raw];
+    Bitboard enemy_double_pawn_defends =
+      static_pawn_double_attacks<opp>(pos.bitboard_for(opp, PieceType::Pawn));
+
+    Bitboard king_ring = king_ring_table[pos.king_sq(color).raw] & ~enemy_double_pawn_defends;
+    Bitboard extended_ring =
+      extended_ring_table[pos.king_sq(color).raw] & ~enemy_double_pawn_defends;
 
     Bitboard flank =
       king_flank[static_cast<usize>(color)][static_cast<usize>(pos.king_sq(color).file())];
@@ -479,15 +491,15 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     const Color us    = pos.active_color();
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
-                + pos.piece_count(Color::Black, PieceType::Knight)
-                + pos.piece_count(Color::White, PieceType::Bishop)
-                + pos.piece_count(Color::Black, PieceType::Bishop)
-                + 2
-                    * (pos.piece_count(Color::White, PieceType::Rook)
-                       + pos.piece_count(Color::Black, PieceType::Rook))
-                + 4
-                    * (pos.piece_count(Color::White, PieceType::Queen)
-                       + pos.piece_count(Color::Black, PieceType::Queen));
+                      + pos.piece_count(Color::Black, PieceType::Knight)
+                      + pos.piece_count(Color::White, PieceType::Bishop)
+                      + pos.piece_count(Color::Black, PieceType::Bishop)
+                      + 2
+                          * (pos.piece_count(Color::White, PieceType::Rook)
+                             + pos.piece_count(Color::Black, PieceType::Rook))
+                      + 4
+                          * (pos.piece_count(Color::White, PieceType::Queen)
+                             + pos.piece_count(Color::Black, PieceType::Queen));
 
     phase = std::min<usize>(phase, 24);
 
