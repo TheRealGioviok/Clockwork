@@ -137,7 +137,7 @@ int main() {
 #ifdef PROFILE_RUN
     const i32 epochs = 8;
 #else
-    const i32 epochs = 1000;
+    const i32 epochs = 450;
 #endif
     const f64 K = 1.0 / 400;
 
@@ -232,7 +232,7 @@ int main() {
         }).detach();
     }
 
-    // Freeze all parameters before tuning, except for material parameters. Get the count through the get_parameter_counts() function.
+    // Freeze all parameters before tuning, except for material parameters.
     ParameterCountInfo counts = Globals::get().get_parameter_counts();
 
     // Freeze all value
@@ -245,14 +245,14 @@ int main() {
     for (int epoch = 0; epoch < epochs; ++epoch) {
 
         if (epoch == 24) {
-            // Unfreeze all parameters after 10 epochs. Dont unfreeze king safety just yet
+            // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
               0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
-            // Unfreeze king safety parameters after 100 epochs
+            // Unfreeze king safety parameters after 96 epochs
             Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count);
         }
 
