@@ -24,6 +24,10 @@ Graph::Graph() {
     for (auto* p : pair_params) {
         m_pairs.alloc(p->default_value(), f64x2::zero());
     }
+
+    // Initialize constant zeros
+    m_zero_value = ValueHandle(m_values.alloc(0.0, 0.0));
+    m_zero_pair  = PairHandle(m_pairs.alloc(f64x2::zero(), f64x2::zero()));
 }
 
 ValueHandle Graph::create_value(f64 data) {
@@ -266,6 +270,27 @@ ValueHandle Graph::record_phase(PairHandle lhs, f64 alpha) {
     m_values.alloc(val, 0.0);
 
     m_tape.push_back(Node::make_scalar(OpType::Phase, out.index, lhs.index, alpha));
+
+    return out;
+}
+
+ValueHandle Graph::record_sum(const std::vector<ValueHandle>& inputs) {
+    ValueHandle out = m_values.next_handle();
+    f64         res = 0.0;
+
+    // Store offset and count for the backward pass
+    u32 offset = static_cast<u32>(m_sum_buffer.size());
+    u32 count  = static_cast<u32>(inputs.size());
+
+    for (const auto& h : inputs) {
+        res += m_values.val(h.index);
+        m_sum_buffer.push_back(h.index);
+    }
+
+    m_values.alloc(res, 0.0);
+
+    // We reuse lhs_idx for offset, and rhs_idx for count
+    m_tape.push_back(Node::make_binary(OpType::Sum, out.index, offset, count));
 
     return out;
 }
@@ -535,7 +560,17 @@ void Graph::backward() {
             grads[node.rhs()] += grad_rhs;
             break;
         }
+        // Special reduction cases
+        case OpType::Sum: {
+            const f64 grad_out = grads[out_idx];
+            const u32 offset   = node.lhs();
+            const u32 count    = node.rhs();
 
+            for (u32 i = 0; i < count; ++i) {
+                grads[m_sum_buffer[offset + i]] += grad_out;
+            }
+            break;
+        }
 
         default:
             unreachable();
@@ -545,9 +580,11 @@ void Graph::backward() {
 }
 
 void Graph::cleanup() {
-    m_values.reset_to(m_global_param_count);
-    m_pairs.reset_to(m_global_pair_count);
+    // Keep global parameters + 1 for the permanent zero node
+    m_values.reset_to(m_global_param_count + 1);
+    m_pairs.reset_to(m_global_pair_count + 1);
     m_tape.clear();
+    m_sum_buffer.clear();
 }
 
 void Graph::zero_grad() {
@@ -556,6 +593,13 @@ void Graph::zero_grad() {
     }
     for (usize i = 0; i < m_global_pair_count; ++i) {
         m_pairs.grad(static_cast<u32>(i)) = f64x2::zero();
+    }
+
+    // Assert that constant zeros are still zero
+    if (m_values.val(m_zero_value.index) != 0.0 || m_pairs.val(m_zero_pair.index).first() != 0.0
+        || m_pairs.val(m_zero_pair.index).second() != 0.0) {
+        std::cerr << "Error: Constant zero values have been modified!" << std::endl;
+        std::terminate();
     }
 }
 
