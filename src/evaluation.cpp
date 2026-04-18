@@ -343,6 +343,10 @@ PScore evaluate_king_safety(const Position& pos) {
     Bitboard flank =
       king_flank[static_cast<usize>(color)][static_cast<usize>(pos.king_sq(color).file())];
 
+    Bitboard weak =
+      ~pos.attack_table(opp).get_attacked_bitboard()
+      | (~pos.attacked_by_two_or_more(opp) & (king_ring | pos.attacked_by(opp, PieceType::Queen)));
+
     // Piece attacks in inner/outer ring
     for (PieceType pt : {PieceType::Pawn, PieceType::Knight, PieceType::Bishop, PieceType::Rook,
                          PieceType::Queen}) {
@@ -354,6 +358,10 @@ PScore evaluate_king_safety(const Position& pos) {
         eval += PT_OUTER_RING_ATTACKS[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)]
               * outer.ipopcount();
     }
+
+    // Weak squares in inner/outer ring
+    eval += WEAK_SQUARE_INNER_RING * (weak & king_ring).ipopcount();
+    eval += WEAK_SQUARE_OUTER_RING * (weak & extended_ring).ipopcount();
 
     // Flank attack / defense status
     Bitboard defended_by_us        = pos.attack_table(color).get_attacked_bitboard();
@@ -404,6 +412,7 @@ PScore evaluate_threats(const Position& pos) {
       BISHOP_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & bishop_attacks).ipopcount();
     eval +=
       BISHOP_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & bishop_attacks).ipopcount();
+
 
     return eval;
 }

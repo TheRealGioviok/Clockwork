@@ -248,7 +248,7 @@ int main() {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
-              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
+              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2 + 2));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
@@ -259,10 +259,10 @@ int main() {
 
         if (epoch < 24) {
             optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
-        } else if (epoch < 72) {
+        } else if (epoch < 96) {
             optim.set_lr(2 * std::pow(0.0667, double(epoch - 24) / 28.0));
         } else {
-            optim.set_lr(std::pow(0.1, double(epoch - 72) / 128.0));
+            optim.set_lr(std::pow(0.1, double(epoch - 96) / 128.0));
         }
 
         std::cout << "Epoch " << epoch + 1 << "/" << epochs << "\n";
@@ -432,6 +432,12 @@ int main() {
 
         print_table("PT_INNER_RING_ATTACKS", PT_INNER_RING_ATTACKS);
         print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
+        std::cout << std::endl;
+
+        std::cout << "inline const PParam WEAK_SQUARE_INNER_RING = " << WEAK_SQUARE_INNER_RING
+                  << ";" << std::endl;
+        std::cout << "inline const PParam WEAK_SQUARE_OUTER_RING = " << WEAK_SQUARE_OUTER_RING
+                  << ";" << std::endl;
         std::cout << std::endl;
 
 
