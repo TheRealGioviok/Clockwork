@@ -298,6 +298,7 @@ public:
     [[nodiscard]] std::array<HashKey, 2> calc_non_pawn_key_slow() const;
     [[nodiscard]] HashKey                calc_major_key_slow() const;
     [[nodiscard]] HashKey                calc_minor_key_slow() const;
+    [[nodiscard]] HashKey                get_material_key() const;
 
     static std::optional<Position> parse(std::string_view str);
     static std::optional<Position> parse(std::string_view board,

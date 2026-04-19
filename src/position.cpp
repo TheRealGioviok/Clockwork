@@ -12,6 +12,7 @@
 #include <bit>
 #include <iostream>
 #include <sstream>
+#include "util/random.hpp"
 
 namespace Clockwork {
 
@@ -1011,6 +1012,21 @@ HashKey Position::calc_minor_key_slow() const {
                                             [static_cast<usize>(p.ptype())][sq_idx];
     }
     return key;
+}
+
+// Yoink chain Caissa -> Motor -> Sirius -> Clockwork
+HashKey Position::get_material_key() const {
+    u64 mk = 0;
+
+    for (Color c : {Color::White, Color::Black}) {
+        for (PieceType pt : {PieceType::Pawn, PieceType::Knight, PieceType::Bishop,
+                             PieceType::Rook, PieceType::Queen}) {
+            u64 shift = static_cast<u64>(c) * 30 + (static_cast<u64>(pt) - static_cast<u64>(PieceType::Pawn)) * 6;
+            mk |= (static_cast<u64>(piece_count(c, pt)) << shift);
+        }
+    }
+
+    return HashKey{Random::murmur_hash_3(mk)};
 }
 
 std::ostream& operator<<(std::ostream& os, const Position& position) {

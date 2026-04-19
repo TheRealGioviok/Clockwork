@@ -84,6 +84,15 @@ public:
         state = acc_mult * state + acc_plus;
     }
 
+    static constexpr u64 murmur_hash_3(u64 key) const {
+        key ^= key >> 33;
+        key *= 0xff51afd7ed558ccdULL;
+        key ^= key >> 33;
+        key *= 0xc4ceb9fe1a85ec53ULL;
+        key ^= key >> 33;
+        return key;
+    }
+
 private:
     static void from_state_incr(u128 st, u128 inc) {
         state     = st;
@@ -107,7 +116,9 @@ private:
 
         return (xsl >> rot) | (xsl << ((-rot) & 63));
     }
+
 };
+
 
 
 }  // namespace Clockwork
