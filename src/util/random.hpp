@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bitboard.hpp"
 #include "types.hpp"
 #include <cstdint>
 #include <cstring>
@@ -82,6 +83,19 @@ public:
         }
 
         state = acc_mult * state + acc_plus;
+    }
+
+    static u64 murmur_hash_3(u64 key) {
+        key ^= key >> 33;
+        key *= 0xff51afd7ed558ccdULL;
+        key ^= key >> 33;
+        key *= 0xc4ceb9fe1a85ec53ULL;
+        key ^= key >> 33;
+        return key;
+    }
+
+    static u64 murmur_hash_3(Bitboard b) {
+        return murmur_hash_3(b.value());
     }
 
 private:

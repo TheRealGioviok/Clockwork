@@ -64,6 +64,7 @@ private:
     std::array<CorrectionHistory, 2> m_non_pawn_corr_hist = {};
     CorrectionHistory                m_major_corr_hist    = {};
     CorrectionHistory                m_minor_corr_hist    = {};
+    CorrectionHistory                m_threat_corr_hist   = {};
 };
 
 }  // namespace Clockwork

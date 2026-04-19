@@ -4,6 +4,7 @@
 #include "move.hpp"
 #include "square.hpp"
 #include "tt.hpp"
+#include "util/random.hpp"
 #include "util/types.hpp"
 #include <array>
 #include <bit>
@@ -134,6 +135,10 @@ public:
     }
     [[nodiscard]] HashKey get_minor_key() const {
         return m_minor_key;
+    }
+    [[nodiscard]] HashKey get_threat_key() const {
+        return Random::murmur_hash_3(attack_table(invert(m_active_color)).get_attacked_bitboard()
+                                     & board().get_color_bitboard(m_active_color));
     }
 
     [[nodiscard]] Square king_sq(Color color) const {

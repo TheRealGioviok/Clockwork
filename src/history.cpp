@@ -101,8 +101,9 @@ void History::update_correction_history(const Position& pos, i32 depth, i32 diff
       static_cast<usize>(white_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
     usize black_non_pawn_index =
       static_cast<usize>(black_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize major_index = static_cast<usize>(major_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize minor_index = static_cast<usize>(minor_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize major_index  = static_cast<usize>(major_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize minor_index  = static_cast<usize>(minor_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize threat_index = static_cast<usize>(pos.get_threat_key() % CORRECTION_HISTORY_ENTRY_NB);
 
     i32 new_weight  = std::min(16, 1 + depth);
     i32 scaled_diff = diff * CORRECTION_HISTORY_GRAIN;
@@ -120,6 +121,7 @@ void History::update_correction_history(const Position& pos, i32 depth, i32 diff
     update_entry(m_non_pawn_corr_hist[1][side_index][black_non_pawn_index]);
     update_entry(m_major_corr_hist[side_index][major_index]);
     update_entry(m_minor_corr_hist[side_index][minor_index]);
+    update_entry(m_threat_corr_hist[side_index][threat_index]);
 }
 
 i32 History::get_correction(const Position& pos) const {
@@ -129,6 +131,7 @@ i32 History::get_correction(const Position& pos) const {
     u64   black_non_pawn_key = pos.get_non_pawn_key(Color::Black);
     u64   major_key          = pos.get_major_key();
     u64   minor_key          = pos.get_minor_key();
+    u64   threat_key         = pos.get_threat_key();
     usize pawn_index         = static_cast<usize>(pawn_key % CORRECTION_HISTORY_ENTRY_NB);
     usize white_non_pawn_index =
       static_cast<usize>(white_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
@@ -143,6 +146,8 @@ i32 History::get_correction(const Position& pos) const {
     correction += m_non_pawn_corr_hist[1][side_index][black_non_pawn_index];
     correction += m_major_corr_hist[side_index][major_index];
     correction += m_minor_corr_hist[side_index][minor_index];
+    correction +=
+      m_threat_corr_hist[side_index][static_cast<usize>(threat_key % CORRECTION_HISTORY_ENTRY_NB)];
 
     return correction / CORRECTION_HISTORY_GRAIN;
 }
@@ -156,6 +161,7 @@ void History::clear() {
     std::memset(&m_non_pawn_corr_hist[1], 0, sizeof(CorrectionHistory));
     std::memset(&m_major_corr_hist, 0, sizeof(CorrectionHistory));
     std::memset(&m_minor_corr_hist, 0, sizeof(CorrectionHistory));
+    std::memset(&m_threat_corr_hist, 0, sizeof(CorrectionHistory));
 }
 
 }  // namespace Clockwork
