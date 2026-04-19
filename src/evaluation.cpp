@@ -167,15 +167,16 @@ PScore evaluate_pawns(const Position& pos) {
     for (Square sq : pawns) {
         Square   push     = sq.push<color>();
         Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
-        Bitboard sqb = Bitboard::from_square(sq);
-        Bitboard support = pawns & static_pawn_attacks<them>(sqb);
-        Bitboard push_attacks = static_pawn_attacks<color>(sqb.shift_relative(color, Direction::North));
-        bool blocked = pos.piece_at(push) != PieceType::None; 
+        Bitboard sqb      = Bitboard::from_square(sq);
+        Bitboard support  = pawns & static_pawn_attacks<them>(sqb);
+        Bitboard push_attacks =
+          static_pawn_attacks<color>(sqb.shift_relative(color, Direction::North));
+        bool blocked  = pos.piece_at(push) != PieceType::None;
         bool backward = (blocked || push_attacks.any()) && support.empty();
-        if (backward){
+        if (backward) {
             eval += BACKWARD_PAWN_VAL;
         }
-          if (stoppers.empty()) {
+        if (stoppers.empty()) {
             eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
             if (pos.attack_table(color).read(push).popcount()
                 > pos.attack_table(them).read(push).popcount()) {
