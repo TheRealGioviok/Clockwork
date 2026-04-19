@@ -310,6 +310,8 @@ int main() {
                   << std::endl;
         std::cout << "inline const PParam ISOLATED_PAWN_VAL = " << ISOLATED_PAWN_VAL << ";"
                   << std::endl;
+        std::cout << "inline const PParam BACKWARD_PAWN_VAL = " << BACKWARD_PAWN_VAL << ";"
+                  << std::endl;
         std::cout << std::endl;
 
         std::cout << "inline const PParam POTENTIAL_CHECKER_VAL = " << POTENTIAL_CHECKER_VAL << ";"
