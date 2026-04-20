@@ -50,6 +50,21 @@ struct Parameters {
         return result;
     }
 
+    static void rand_init_pair_range(Parameters&        params,
+                                     ParameterCountInfo counts,
+                                     usize              pair_param_start,
+                                     usize              pair_param_end,
+                                     f64                mean     = 0.0,
+                                     f64                variance = 0.1) {
+        std::mt19937_64                     rng{474747};
+        std::uniform_real_distribution<f64> distr(mean, variance);
+
+
+        for (usize i = pair_param_start; i < pair_param_end; ++i) {
+            params.pair_parameters[i] = f64x2::make(distr(rng), distr(rng));
+        }
+    }
+
     void accumulate(const Parameters& b) {
         assert(b.parameters.size() == parameters.size());
         assert(b.pair_parameters.size() == pair_parameters.size());

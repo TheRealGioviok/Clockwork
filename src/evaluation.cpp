@@ -157,6 +157,8 @@ PScore evaluate_pawns(const Position& pos) {
     Bitboard pawns     = pos.board().bitboard_for(color, PieceType::Pawn);
     Bitboard opp_pawns = pos.board().bitboard_for(~color, PieceType::Pawn);
 
+    Bitboard their_pawns = pos.bitboard_for(them, PieceType::Pawn);
+
     Bitboard pawn_files = Bitboard::fill_verticals(pawns);
     Bitboard doubled    = pawns & pawns.shift(Direction::North);
     Bitboard isolated =
@@ -184,6 +186,16 @@ PScore evaluate_pawns(const Position& pos) {
 
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+        } else {
+            Bitboard push_threats =
+              static_pawn_attacks<color>(Bitboard::from_square(push)) & their_pawns;
+            Bitboard threats = static_pawn_attacks<color>(Bitboard::from_square(sq)) & their_pawns;
+            Bitboard phalanx = static_pawn_attacks<them>(Bitboard::from_square(push)) & pawns;
+
+            if (stoppers == (push_threats | threats)
+                && phalanx.popcount() >= push_threats.popcount()) {
+                eval += CANDIDATE_PASSER[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+            }
         }
     }
 

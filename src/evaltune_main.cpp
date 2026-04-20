@@ -41,7 +41,7 @@ int main() {
       "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",
     };
 
-    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
+    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
 
     std::cout << "Running on " << thread_count << " threads\n";
 
@@ -130,7 +130,7 @@ int main() {
     Parameters current_parameter_values = Graph::get().get_all_parameter_values();
 
     // Uncomment for zero tune: Overwrite them all with zeros.
-    current_parameter_values = Parameters::rand_init(parameter_count);
+    current_parameter_values = Parameters::zeros(parameter_count);
 
     // The optimizer will now start with all-zero parameters
     AdamW optim(parameter_count, 1, 0.9, 0.999, 1e-8, 0.0);
@@ -254,6 +254,11 @@ int main() {
         if (epoch == 96) {
             // Unfreeze king safety parameters after 96 epochs
             Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count);
+            // Random init king safety bc of product by zero having no grad otherwise
+            Parameters::rand_init_pair_range(current_parameter_values, counts,
+                                             counts.pair_parameter_count
+                                               - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2),
+                                             counts.pair_parameter_count);
         }
 
 
@@ -345,6 +350,7 @@ int main() {
         print_table("PAWN_PHALANX", PAWN_PHALANX);
         print_table("DEFENDED_PAWN", DEFENDED_PAWN);
         print_table("PASSED_PAWN", PASSED_PAWN);
+        print_table("CANDIDATE_PASSER", CANDIDATE_PASSER);
         print_table("DEFENDED_PASSED_PUSH", DEFENDED_PASSED_PUSH);
         print_table("BLOCKED_PASSED_PAWN", BLOCKED_PASSED_PAWN);
         std::cout << std::endl;
