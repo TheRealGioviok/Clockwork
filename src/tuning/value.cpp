@@ -109,6 +109,10 @@ void PairHandle::zero_grad() const {
 ValueHandle PairHandle::phase_impl(f64 scaled_alpha) const {
     return Graph::get().record_phase(*this, scaled_alpha);
 }
+
+PairHandle PairHandle::eg_scale_impl(ValueHandle scaled_alpha) const {
+    return Graph::get().record_eg_scale(*this, scaled_alpha);
+}
 // Sigmoid operation
 PairHandle PairHandle::sigmoid() const {
     return Graph::get().record_pair_unary(OpType::PairSigmoid, *this);
@@ -194,6 +198,9 @@ bool operator<(ValueHandle a, ValueHandle b) {
 }
 bool operator>(ValueHandle a, ValueHandle b) {
     return a.get_value() > b.get_value();
+}
+bool operator>(ValueHandle a, i32 b) {
+    return a.get_value() > static_cast<f64>(b);
 }
 
 // PairHandle Operators

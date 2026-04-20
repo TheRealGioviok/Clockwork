@@ -63,6 +63,7 @@ public:
     ValueHandle record_sum(const std::vector<ValueHandle>& inputs);
 
     ValueHandle record_phase(PairHandle input, f64 alpha);
+    PairHandle record_eg_scale(PairHandle input, ValueHandle alpha);
 
     void backward();
 

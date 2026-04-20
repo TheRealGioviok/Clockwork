@@ -235,8 +235,8 @@ int main() {
     // Freeze all parameters before tuning, except for material parameters.
     ParameterCountInfo counts = Globals::get().get_parameter_counts();
 
-    // Freeze all value
-    Globals::get().freeze_value_range(0, counts.parameter_count);
+    // Freeze all value, except for scale values (or else it would be all zeros)
+    Globals::get().freeze_value_range(0, counts.parameter_count - 2);
 
     // Freeze all pair, except first 5 (material parameters)
     Globals::get().freeze_pair_range(5, counts.pair_parameter_count);
@@ -467,6 +467,11 @@ int main() {
         std::cout << "inline VParam WINNABLE_ASYM = " << WINNABLE_ASYM << ";\n";
         std::cout << "inline VParam WINNABLE_PAWN_ENDGAME = " << WINNABLE_PAWN_ENDGAME << ";\n";
         std::cout << "inline VParam WINNABLE_BIAS = " << WINNABLE_BIAS << ";\n";
+        std::cout << std::endl;
+
+
+        std::cout << "inline VParam SF_GENERIC_BASE = " << SF_GENERIC_BASE << ";\n";
+        std::cout << "inline VParam SF_SSIDEPAWNS = " << SF_SSIDEPAWNS << ";\n";
         std::cout << std::endl;
 
 #endif

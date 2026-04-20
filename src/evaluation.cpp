@@ -474,6 +474,25 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
     return score.complexity_add(winnable);
 }
 
+PScore apply_scaling(const Position& pos, PScore& score){
+    Score scale_factor;
+
+    Color strong_side = score.eg() > 0 ? Color::White : Color::Black;
+
+    // Scale based on strong side pawn count
+    i32 strong_pawn_count = pos.ipiece_count(strong_side, PieceType::Pawn);
+
+    Score sf = SF_GENERIC_BASE + SF_SSIDEPAWNS * strong_pawn_count;
+
+    // Avoid using std::min and such on tunable nodes
+    if (sf > SF_MAX) {
+        return score;
+    }
+    else {
+        return score.eg_scale<SF_MAX>(sf);
+    }
+}
+
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     const Color us    = pos.active_color();
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
@@ -520,6 +539,9 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     // Winnable
     eval = apply_winnable(pos, eval, phase);
+
+    // Scale factor
+    eval = apply_scaling(pos, eval);
 
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
 };

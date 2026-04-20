@@ -230,8 +230,8 @@ public:
         return 16 - piece_count(color, PieceType::None);
     }
 
-    [[nodiscard]] isize ipiece_count(Color color, PieceType ptype) const {
-        return static_cast<isize>(piece_count(color, ptype));
+    [[nodiscard]] i32 ipiece_count(Color color, PieceType ptype) const {
+        return static_cast<i32>(piece_count(color, ptype));
     }
 
     [[nodiscard]] bool is_kp_endgame() const {

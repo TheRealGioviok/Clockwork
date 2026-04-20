@@ -95,10 +95,16 @@ public:
     }
 
     // Phasing between two scores
-    template<i32 max>
+    template <i32 max>
     Value phase(i32 alpha) const {
         assert(0 <= alpha && alpha <= max);
         return static_cast<Value>((mg() * alpha + eg() * (max - alpha)) / max);
+    }
+
+    // Eg scaling
+    template <i32 max>
+    PScore eg_scale(i32 alpha){
+        return PScore(mg(), static_cast<Score>(eg() * alpha / max));
     }
 
     // complexity_add

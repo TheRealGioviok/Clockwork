@@ -38,6 +38,24 @@ struct ValueHandle {
     void set_value(f64 v) const;
 };
 
+// Operation decls
+ValueHandle operator-(ValueHandle a);
+ValueHandle operator+(ValueHandle a, ValueHandle b);
+ValueHandle operator-(ValueHandle a, ValueHandle b);
+ValueHandle operator*(ValueHandle a, ValueHandle b);
+ValueHandle operator/(ValueHandle a, ValueHandle b);
+ValueHandle operator+(ValueHandle a, f64 b);
+ValueHandle operator-(ValueHandle a, f64 b);
+ValueHandle operator*(ValueHandle a, f64 b);
+ValueHandle operator/(ValueHandle a, f64 b);
+ValueHandle operator+(f64 a, ValueHandle b);
+ValueHandle operator-(f64 a, ValueHandle b);
+ValueHandle operator*(f64 a, ValueHandle b);
+ValueHandle operator/(f64 a, ValueHandle b);
+bool        operator<(ValueHandle a, ValueHandle b);
+bool        operator>(ValueHandle a, ValueHandle b);
+bool        operator>(ValueHandle a, i32 b);
+
 struct PairHandle {
     u32 index;
     PairHandle() :
@@ -77,24 +95,15 @@ struct PairHandle {
     PairHandle sigmoid() const;
 
     PairHandle complexity_add(ValueHandle value) const;
+
+    PairHandle eg_scale_impl(ValueHandle scaled_alpha) const;
+
+    template<i32 max>
+    PairHandle eg_scale(ValueHandle alpha) {
+        return eg_scale_impl(alpha / static_cast<f64>(max));
+    }
 };
 
-// Operation decls
-ValueHandle operator-(ValueHandle a);
-ValueHandle operator+(ValueHandle a, ValueHandle b);
-ValueHandle operator-(ValueHandle a, ValueHandle b);
-ValueHandle operator*(ValueHandle a, ValueHandle b);
-ValueHandle operator/(ValueHandle a, ValueHandle b);
-ValueHandle operator+(ValueHandle a, f64 b);
-ValueHandle operator-(ValueHandle a, f64 b);
-ValueHandle operator*(ValueHandle a, f64 b);
-ValueHandle operator/(ValueHandle a, f64 b);
-ValueHandle operator+(f64 a, ValueHandle b);
-ValueHandle operator-(f64 a, ValueHandle b);
-ValueHandle operator*(f64 a, ValueHandle b);
-ValueHandle operator/(f64 a, ValueHandle b);
-bool        operator<(ValueHandle a, ValueHandle b);
-bool        operator>(ValueHandle a, ValueHandle b);
 
 PairHandle    operator+(PairHandle a, PairHandle b);
 PairHandle    operator-(PairHandle a, PairHandle b);

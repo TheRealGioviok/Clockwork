@@ -274,6 +274,25 @@ ValueHandle Graph::record_phase(PairHandle lhs, f64 alpha) {
     return out;
 }
 
+PairHandle Graph::record_eg_scale(PairHandle lhs, ValueHandle rhs) {
+    PairHandle out = m_pairs.next_handle();
+
+    // Read input pair
+    f64x2 pair_val = m_pairs.val(lhs.index);
+
+    // Keep first component unchanged, scale only second
+    f64 first  = pair_val.first();
+    f64 second = rhs.get_value() * pair_val.second();
+
+    // Allocate output pair (zero adjoints initially)
+    m_pairs.alloc(f64x2::make(first, second), f64x2::zero());
+
+    // Record operation for backward pass
+    m_tape.push_back(Node::make_scalar(OpType::PairScaleSecond, out.index, lhs.index, rhs.index));
+
+    return out;
+}
+
 ValueHandle Graph::record_sum(const std::vector<ValueHandle>& inputs) {
     ValueHandle out = m_values.next_handle();
     f64         res = 0.0;
@@ -417,7 +436,17 @@ void Graph::backward() {
             pair_grads[node.lhs()] = f64x2::add(pair_grads[node.lhs()], update);
             break;
         }
+        case OpType::PairScaleSecond: {
+            const f64x2 grad_out = pair_grads[out_idx];
+            f64         rhs_val  = vals[node.rhs()];
+            f64x2       lhs_pair = pair_vals[node.lhs()];
 
+            f64x2 update           = f64x2::make(grad_out.first(), rhs_val * grad_out.second());
+            pair_grads[node.lhs()] = f64x2::add(pair_grads[node.lhs()], update);
+
+            grads[node.rhs()] += lhs_pair.second() * grad_out.second();
+            break;
+        }
         case OpType::PairSigmoid: {
             const f64x2 grad_out = pair_grads[out_idx];
 

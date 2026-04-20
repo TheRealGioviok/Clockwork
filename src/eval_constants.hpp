@@ -183,6 +183,10 @@ inline VParam WINNABLE_ASYM = V(125);
 inline VParam WINNABLE_PAWN_ENDGAME = V(223);
 inline VParam WINNABLE_BIAS = V(-653);
 
+#define SF_MAX 128
+inline VParam SF_GENERIC_BASE = V(72);
+inline VParam SF_SSIDEPAWNS = V(14);
+
 // Epoch duration: 7.03101s
 // clang-format on
 }  // namespace Clockwork
