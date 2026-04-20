@@ -385,6 +385,13 @@ int main() {
                   << std::endl;
         std::cout << std::endl;
 
+        std::cout << "inline const PParam KNIGHT_ON_QUEEN  = " << KNIGHT_ON_QUEEN << ";"
+                  << std::endl;
+        std::cout << "inline const PParam BISHOP_ON_QUEEN  = " << BISHOP_ON_QUEEN << ";"
+                  << std::endl;
+        std::cout << "inline const PParam ROOK_ON_QUEEN   = " << ROOK_ON_QUEEN << ";" << std::endl;
+        std::cout << std::endl;
+
         print_table("BISHOP_PAWNS", BISHOP_PAWNS);
         std::cout << std::endl;
         std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;

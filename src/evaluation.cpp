@@ -405,6 +405,45 @@ PScore evaluate_threats(const Position& pos) {
     eval +=
       BISHOP_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & bishop_attacks).ipopcount();
 
+
+    // Our attacks on enemy queen
+    Bitboard opp_queens = pos.bitboard_for(opp, PieceType::Queen);
+    if (opp_queens.popcount() == 1) {
+        Square sq = opp_queens.lsb();
+
+        const PieceMask orth   = pos.get_piece_mask<PieceType::Rook>(color);
+        const PieceMask diag   = pos.get_piece_mask<PieceType::Bishop>(color);
+        const PieceMask knight = pos.get_piece_mask<PieceType::Knight>(color);
+
+        CreateSuperpieceMaskInfo cmi;
+        cmi.knight     = knight.value();
+        cmi.orth       = orth.value();
+        cmi.orth_near  = orth.value();
+        cmi.wpawn_near = diag.value();
+        cmi.bpawn_near = diag.value();
+        cmi.diag       = diag.value();
+        Wordboard mask = pos.create_attack_table_superpiece_mask(sq, cmi);
+        mask           = mask & pos.attack_table(color);
+
+        Bitboard opp_defended =
+          pos.attacked_by_two_or_more(opp) | pos.attacked_by(opp, PieceType::Pawn)
+          | (pos.attack_table(opp).get_attacked_bitboard() & ~pos.attacked_by_two_or_more(color));
+        Bitboard targets = ~opp_defended & ~pos.bitboard_for(color, PieceType::Pawn);
+
+        Wordboard hits = mask & pos.attack_table(color);
+
+        PieceMask knights = pos.get_piece_mask<PieceType::Knight>(color);
+        PieceMask bishops = pos.get_piece_mask<PieceType::Bishop>(color);
+        PieceMask rooks   = pos.get_piece_mask<PieceType::Rook>(color);
+
+        // Knight hits
+        eval += KNIGHT_ON_QUEEN * (hits.get_piece_mask_bitboard(knights) & targets).ipopcount();
+        // Bishop hits
+        eval += BISHOP_ON_QUEEN * (hits.get_piece_mask_bitboard(bishops) & targets).ipopcount();
+        // Rook hits
+        eval += ROOK_ON_QUEEN * (hits.get_piece_mask_bitboard(rooks) & targets).ipopcount();
+    }
+
     return eval;
 }
 
