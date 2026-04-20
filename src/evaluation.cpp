@@ -88,6 +88,52 @@ std::array<Bitboard, 64> extended_ring_table = []() {
     return extended_ring_table;
 }();
 
+
+std::array<Bitboard, 64> orthogonal_squares_table = []() {
+    std::array<Bitboard, 64> orthogonal_squares_table{};
+    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Square sq = Square{sq_idx};
+        orthogonal_squares_table[sq_idx] =
+          Bitboard::file_mask(sq.file()) | Bitboard::rank_mask(sq.rank());
+    }
+    return orthogonal_squares_table;
+}();
+
+
+std::array<Bitboard, 64> diagonal_squares_table = []() {
+    std::array<Bitboard, 64> diagonal_squares_table{};
+    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Square   sq  = Square{sq_idx};
+
+        for (Direction dir : {Direction::NorthEast, Direction::NorthWest, Direction::SouthEast,
+                              Direction::SouthWest}) {
+            Bitboard sqb = Bitboard::from_square(sq);
+            sqb |= sqb.shift(dir);
+            sqb |= sqb.shift(dir).shift(dir);
+            sqb |= sqb.shift(dir).shift(dir).shift(dir).shift(dir);
+            diagonal_squares_table[sq_idx] |= sqb ^ Bitboard::from_square(sq);
+        }
+    }
+    return diagonal_squares_table;
+}();
+
+std::array<Bitboard, 64> knight_squares_table = []() {
+    std::array<Bitboard, 64> knight_squares_table{};
+    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Square   sq                  = Square{sq_idx};
+        Bitboard sqb                 = Bitboard::from_square(sq);
+        knight_squares_table[sq_idx] = sqb.shift(Direction::North).shift(Direction::NorthEast)
+                                     | sqb.shift(Direction::North).shift(Direction::NorthWest)
+                                     | sqb.shift(Direction::South).shift(Direction::SouthEast)
+                                     | sqb.shift(Direction::South).shift(Direction::SouthWest)
+                                     | sqb.shift(Direction::West).shift(Direction::NorthWest)
+                                     | sqb.shift(Direction::West).shift(Direction::SouthWest)
+                                     | sqb.shift(Direction::East).shift(Direction::NorthEast)
+                                     | sqb.shift(Direction::East).shift(Direction::SouthEast);
+    }
+    return knight_squares_table;
+}();
+
 std::array<std::array<Bitboard, 64>, 2> passed_pawn_spans = []() {
     std::array<std::array<Bitboard, 64>, 2> passed_pawn_masks{};
     for (Color color : {Color::White, Color::Black}) {
@@ -411,37 +457,23 @@ PScore evaluate_threats(const Position& pos) {
     if (opp_queens.popcount() == 1) {
         Square sq = opp_queens.lsb();
 
-        const PieceMask orth   = pos.get_piece_mask<PieceType::Rook>(color);
-        const PieceMask diag   = pos.get_piece_mask<PieceType::Bishop>(color);
-        const PieceMask knight = pos.get_piece_mask<PieceType::Knight>(color);
+        Bitboard attacks = pos.attacked_by(opp, PieceType::Queen);
 
-        CreateSuperpieceMaskInfo cmi;
-        cmi.knight     = knight.value();
-        cmi.orth       = orth.value();
-        cmi.orth_near  = orth.value();
-        cmi.wpawn_near = diag.value();
-        cmi.bpawn_near = diag.value();
-        cmi.diag       = diag.value();
-        Wordboard mask = pos.create_attack_table_superpiece_mask(sq, cmi);
-        mask           = mask & pos.attack_table(color);
+        Bitboard knight_hits =
+          knight_squares_table[sq.raw] & pos.attacked_by(color, PieceType::Knight);
+        Bitboard bishop_hits =
+          diagonal_squares_table[sq.raw] & attacks & pos.attacked_by(color, PieceType::Bishop);
+        Bitboard rook_hits =
+          orthogonal_squares_table[sq.raw] & attacks & pos.attacked_by(color, PieceType::Rook);
 
         Bitboard opp_defended =
           pos.attacked_by_two_or_more(opp) | pos.attacked_by(opp, PieceType::Pawn)
           | (pos.attack_table(opp).get_attacked_bitboard() & ~pos.attacked_by_two_or_more(color));
         Bitboard targets = ~opp_defended & ~pos.bitboard_for(color, PieceType::Pawn);
 
-        Wordboard hits = mask & pos.attack_table(color);
-
-        PieceMask knights = pos.get_piece_mask<PieceType::Knight>(color);
-        PieceMask bishops = pos.get_piece_mask<PieceType::Bishop>(color);
-        PieceMask rooks   = pos.get_piece_mask<PieceType::Rook>(color);
-
-        // Knight hits
-        eval += KNIGHT_ON_QUEEN * (hits.get_piece_mask_bitboard(knights) & targets).ipopcount();
-        // Bishop hits
-        eval += BISHOP_ON_QUEEN * (hits.get_piece_mask_bitboard(bishops) & targets).ipopcount();
-        // Rook hits
-        eval += ROOK_ON_QUEEN * (hits.get_piece_mask_bitboard(rooks) & targets).ipopcount();
+        eval += KNIGHT_ON_QUEEN * (knight_hits & targets).ipopcount();
+        eval += BISHOP_ON_QUEEN * (bishop_hits & targets).ipopcount();
+        eval += ROOK_ON_QUEEN * (rook_hits & targets).ipopcount();
     }
 
     return eval;
