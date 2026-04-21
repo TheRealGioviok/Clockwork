@@ -176,6 +176,9 @@ public:
     void set_lr(f64 lr) {
         m_lr = lr;
     }
+    void set_weight_decay(f64 weight_decay) {
+        m_weight_decay = weight_decay;
+    }
     f64 get_lr() const {
         return m_lr;
     }

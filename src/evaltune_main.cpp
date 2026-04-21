@@ -41,7 +41,7 @@ int main() {
       "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",
     };
 
-    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
+    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
 
     std::cout << "Running on " << thread_count << " threads\n";
 
@@ -137,7 +137,7 @@ int main() {
 #ifdef PROFILE_RUN
     const i32 epochs = 8;
 #else
-    const i32 epochs = 450;
+    const i32 epochs = 6000;
 #endif
     const f64 K = 1.0 / 400;
 
@@ -241,6 +241,8 @@ int main() {
     // Freeze all pair, except first 5 (material parameters)
     Globals::get().freeze_pair_range(5, counts.pair_parameter_count);
 
+    i32 timesover = -1;
+
     // Epoch loop
     for (int epoch = 0; epoch < epochs; ++epoch) {
 
@@ -259,11 +261,23 @@ int main() {
 
         if (epoch < 24) {
             optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
-        } else if (epoch < 72) {
+        } else if (epoch < 96) {
             optim.set_lr(2 * std::pow(0.0667, double(epoch - 24) / 28.0));
         } else {
-            optim.set_lr(std::pow(0.1, double(epoch - 72) / 128.0));
+            optim.set_lr(std::max(0.1, 1.0 - static_cast<f64>(timesover)/100) * std::pow(0.0333, double(epoch - 96*timesover) / 256.0));
         }
+
+        if (epoch % 96 == 0){
+            timesover++;
+            if (timesover & 1){
+                optim.set_weight_decay(0);
+            }
+            else {
+                optim.set_weight_decay(.002 / static_cast<f64>(timesover + 1));
+            }
+        }
+
+        
 
         std::cout << "Epoch " << epoch + 1 << "/" << epochs << "\n";
 
