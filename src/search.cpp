@@ -462,13 +462,14 @@ Value Worker::search(
     bool  improving   = false;
     Value correction  = 0;
     Value raw_eval    = -VALUE_INF;
+    Move tt_move = tt_data ? tt_data->move : Move::none();
     ss->static_eval   = -VALUE_INF;
     if (!is_in_check) {
         correction      = excluded ? 0 : m_td.history.get_correction(pos);
         raw_eval        = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         ss->static_eval = adj_shuffle(pos, raw_eval) + correction;
         improving = (ss - 2)->static_eval != -VALUE_INF && ss->static_eval > (ss - 2)->static_eval;
-
+        
         if (!tt_data) {
             m_searcher.tt.store(pos, ply, raw_eval, Move::none(), -VALUE_INF, 0, ttpv, Bound::None);
         }
@@ -476,7 +477,7 @@ Value Worker::search(
 
     // Internal Iterative Reductions
     if ((PV_NODE || cutnode) && depth >= 8 && !excluded
-        && (!tt_data || tt_data->move == Move::none())) {
+        && tt_move == Move::none()) {
         depth--;
     }
 
@@ -554,7 +555,7 @@ Value Worker::search(
         const Depth probcut_depth = std::clamp<Depth>(depth - 4, 1, depth - 1);
 
         if (!tt_data || tt_data->depth + 3 < depth || tt_data->score >= probcut_beta) {
-            MovePicker moves{pos, m_td.history, tt_data ? tt_data->move : Move::none(),
+            MovePicker moves{pos, m_td.history, tt_move,
                              tuned::probcut_see};
 
             for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
@@ -640,7 +641,7 @@ Value Worker::search(
 
         // Singular extensions
         int extension = 0;
-        if (!excluded && tt_data && m == tt_data->move && depth >= tuned::sing_min_depth
+        if (!excluded && tt_data && m == tt_move && depth >= tuned::sing_min_depth
             && tt_data->depth >= depth - tuned::sing_depth_margin
             && tt_data->bound() != Bound::Upper) {
             Value singular_beta  = tt_data->score - depth * tuned::sing_beta_margin / 64;
@@ -672,6 +673,10 @@ Value Worker::search(
             // Multicut
             else if (singular_value >= beta) {
                 return singular_value;
+            }
+
+            else if (singular_value > tt_data->score){
+                tt_move = Move::none();
             }
 
             // Negative Extensions
@@ -746,7 +751,7 @@ Value Worker::search(
             if (cutnode) {
                 reduction += tuned::lmr_cutnode_red;
                 // If there is no available tt move, increase reduction
-                if (!tt_data || tt_data->move == Move::none()) {
+                if (tt_move == Move::none()) {
                     reduction += tuned::lmr_no_tt_red;
                 }
             }
@@ -888,9 +893,7 @@ Value Worker::search(
         Bound bound   = best_value >= beta        ? Bound::Lower
                       : best_move != Move::none() ? Bound::Exact
                                                   : Bound::Upper;
-        Move  tt_move = best_move != Move::none() ? best_move
-                      : tt_data                   ? tt_data->move
-                                                  : Move::none();
+        tt_move = best_move != Move::none() ? best_move : tt_move;
         m_searcher.tt.store(pos, ply, raw_eval, tt_move, best_value, depth, ttpv, bound);
 
         // Update to correction history.
