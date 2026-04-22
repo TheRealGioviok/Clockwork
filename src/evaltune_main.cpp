@@ -137,7 +137,7 @@ int main() {
 #ifdef PROFILE_RUN
     const i32 epochs = 8;
 #else
-    const i32 epochs = 450;
+    const i32 epochs = 512;
 #endif
     const f64 K = 1.0 / 400;
 
@@ -248,7 +248,7 @@ int main() {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
-              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
+              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2 + 1));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
@@ -459,7 +459,17 @@ int main() {
                       << ");\n";
         };
         print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
+        std::cout << std::endl;
 
+        auto print_symmsigmoid = [](const std::string& name, const auto& sigmoid, const i32 templ) {
+            PairHandle a_h = static_cast<PairHandle>(sigmoid.a());
+            std::cout << "inline TunableSigmoid<" << templ << "> " << name << "(\n"
+                      << "\t" << std::lround(a_h.first()) << ", " << std::lround(a_h.second())
+                      << "\n"
+                      << ");\n";
+        };
+
+        print_symmsigmoid("KING_SAFETY_ACTIVATION2", KING_SAFETY_ACTIVATION2, 256);
         std::cout << std::endl;
 
         std::cout << "inline VParam WINNABLE_PAWNS = " << WINNABLE_PAWNS << ";\n";

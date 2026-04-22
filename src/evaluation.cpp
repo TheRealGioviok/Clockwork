@@ -513,8 +513,14 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos);
 
     // Nonlinear adjustment
-    eval += king_safety_activation<Color::White>(white_king_attack_total)
-          - king_safety_activation<Color::Black>(black_king_attack_total);
+    PScore activated_white_ks = king_safety_activation<Color::White>(white_king_attack_total);
+    PScore activated_black_ks = king_safety_activation<Color::Black>(black_king_attack_total);
+
+    // 2nd order nonlinear adjustment
+    PScore adj2 = KING_SAFETY_ACTIVATION2(activated_white_ks - activated_black_ks);
+
+    eval += activated_white_ks - activated_black_ks;
+    eval += adj2;
 
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
 
