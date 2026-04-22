@@ -41,7 +41,7 @@ int main() {
       "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",
     };
 
-    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency() / 2);
+    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
 
     std::cout << "Running on " << thread_count << " threads\n";
 
@@ -294,6 +294,8 @@ int main() {
         std::cout << "inline const PParam TEMPO_VAL  = " << TEMPO_VAL << ";" << std::endl;
         std::cout << std::endl;
 
+        std::cout << "inline const PParam BISHOP_XRAY_PAWNS   = " << BISHOP_XRAY_PAWNS << ";"
+                  << std::endl;
         std::cout << "inline const PParam BISHOP_PAIR_VAL   = " << BISHOP_PAIR_VAL << ";"
                   << std::endl;
         std::cout << "inline const PParam ROOK_OPEN_VAL     = " << ROOK_OPEN_VAL << ";"

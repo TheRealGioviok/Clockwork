@@ -12,6 +12,7 @@ inline const PParam ROOK_MAT   = S(1150, 1716);
 inline const PParam QUEEN_MAT  = S(2680, 2701);
 inline const PParam TEMPO_VAL  = S(61, 20);
 
+inline const PParam BISHOP_XRAY_PAWNS = S(0,0);
 inline const PParam BISHOP_PAIR_VAL   = S(52, 200);
 inline const PParam ROOK_OPEN_VAL     = S(118, -15);
 inline const PParam ROOK_SEMIOPEN_VAL = S(45, 27);
