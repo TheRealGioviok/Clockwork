@@ -361,6 +361,12 @@ int main() {
         print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
         std::cout << std::endl;
 
+        print_table("KNIGHT_REACHABILITY", KNIGHT_REACHABILITY);
+        print_table("BISHOP_REACHABILITY", BISHOP_REACHABILITY);
+        print_table("ROOK_REACHABILITY", ROOK_REACHABILITY);
+        print_table("QUEEN_REACHABILITY", QUEEN_REACHABILITY);
+        std::cout << std::endl;
+
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
                   << std::endl;
         std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
