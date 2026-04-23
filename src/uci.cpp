@@ -1,6 +1,7 @@
 #include "uci.hpp"
 #include "bench.hpp"
 #include "evaluation.hpp"
+#include "kogge_stone.hpp"
 #include "move.hpp"
 #include "movepick.hpp"
 #include "perft.hpp"
@@ -124,7 +125,13 @@ void UCIHandler::handle_bench(std::istringstream& is) {
 // Note: This function is left here so that one doesn't need to reimplement it every time we need to expose a function through uci.
 // The professional thing to do is to empty the body of the function / put a placeholder in here when finished (and before pr).
 void UCIHandler::handle_debug(std::istringstream& is) {
-    std::cout << "readyok" << std::endl;
+    Bitboard rooks = m_position.attacked_by(m_position.active_color(), PieceType::Rook);
+    Bitboard occupancy =
+      m_position.board().get_occupied_bitboard()
+      | m_position
+          .attack_table(m_position.active_color() == Color::White ? Color::Black : Color::White)
+          .get_attacked_bitboard();
+    std::cout << rookrook_attacks(rooks & ~occupancy, occupancy) << std::endl;
 }
 
 void UCIHandler::handle_go(std::istringstream& is) {
