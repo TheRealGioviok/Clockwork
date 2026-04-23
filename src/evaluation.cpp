@@ -88,6 +88,24 @@ std::array<Bitboard, 64> extended_ring_table = []() {
     return extended_ring_table;
 }();
 
+
+std::array<Bitboard, 64> diagonal_squares_table = []() {
+    std::array<Bitboard, 64> diagonal_squares_table{};
+    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Square sq = Square{sq_idx};
+
+        for (Direction dir : {Direction::NorthEast, Direction::NorthWest, Direction::SouthEast,
+                              Direction::SouthWest}) {
+            Bitboard sqb = Bitboard::from_square(sq);
+            sqb |= sqb.shift(dir);
+            sqb |= sqb.shift(dir).shift(dir);
+            sqb |= sqb.shift(dir).shift(dir).shift(dir).shift(dir);
+            diagonal_squares_table[sq_idx] |= sqb ^ Bitboard::from_square(sq);
+        }
+    }
+    return diagonal_squares_table;
+}();
+
 std::array<std::array<Bitboard, 64>, 2> passed_pawn_spans = []() {
     std::array<std::array<Bitboard, 64>, 2> passed_pawn_masks{};
     for (Color color : {Color::White, Color::Black}) {
@@ -254,6 +272,9 @@ PScore evaluate_pieces(const Position& pos) {
         ]
               * (!pos.is_square_attacked_by(sq, color, PieceType::Pawn)
                  + (blocked_pawns & Bitboard::central_files()).ipopcount());
+
+        Bitboard xray = diagonal_squares_table[sq.raw];
+        eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
     }
     bb2 |= pos.attacked_by(opp, PieceType::Knight) | pos.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
