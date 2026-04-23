@@ -3,10 +3,12 @@
 #include "common.hpp"
 #include "eval_constants.hpp"
 #include "eval_types.hpp"
+#include "kogge_stone.hpp"
 #include "position.hpp"
 #include "psqt_state.hpp"
 #include "square.hpp"
 #include <array>
+#include <bit>
 #include <ranges>
 
 namespace Clockwork {
@@ -353,10 +355,14 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+        eval += KNIGHT_MOBILITY[(moves & ~bb).popcount()];
+        Bitboard reach = knightknight_attacks(moves & ~bb3, ~bb3) & ~moves;
+        eval += KNIGHT_REACHABILITY[std::bit_width(reach.popcount())];
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
-        eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+        eval += BISHOP_MOBILITY[(moves & ~bb).popcount()];
         Square sq = pos.piece_list_sq(color)[id];
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
@@ -368,11 +374,14 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
+        Bitboard reach = bishopbishop_attacks(moves & ~bb3, ~bb3) & ~moves;
+        eval += BISHOP_REACHABILITY[std::bit_width(reach.popcount())];
     }
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+        eval += ROOK_MOBILITY[(moves & ~bb).popcount()];
+        eval += ROOK_MOBILITY[(moves & ~bb2).popcount()];
         // Rook lineups
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
@@ -380,11 +389,18 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
                  & (pos.bitboard_for(~color, PieceType::Queen)
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
+        Bitboard reach = rookrook_attacks(moves & ~bb3, ~bb3) & ~moves;
+        eval += ROOK_REACHABILITY[std::bit_width(reach.popcount())];
     }
     bb2 |= data.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+        eval += QUEEN_MOBILITY[(moves & ~bb).popcount()];
+        eval += QUEEN_MOBILITY[(moves & ~bb2).popcount()];
+        Bitboard reach =
+          (bishopbishop_attacks(moves & ~bb3, ~bb3) | rookrook_attacks(moves & ~bb3, ~bb3))
+          & ~moves;
+        eval += QUEEN_REACHABILITY[std::bit_width(reach.popcount())];
     }
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;

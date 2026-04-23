@@ -1,6 +1,7 @@
 #include "uci.hpp"
 #include "bench.hpp"
 #include "evaluation.hpp"
+#include "kogge_stone.hpp"
 #include "move.hpp"
 #include "movepick.hpp"
 #include "perft.hpp"
