@@ -106,20 +106,19 @@ static inline Bitboard bishopbishop_attacks(Bitboard bishops, Bitboard occ) {
 }
 
 static inline Bitboard knightknight_attacks(Bitboard knights, Bitboard occ) {
-    uint64_t k = knights.value();
 
     // Horizontal then Vertical split optimization
-    uint64_t l1 = (k >> 1) & NOT_H_FILE.value();
-    uint64_t l2 = (k >> 2) & NOT_GH_FILE.value();
-    uint64_t r1 = (k << 1) & NOT_A_FILE.value();
-    uint64_t r2 = (k << 2) & NOT_AB_FILE.value();
+    Bitboard l1 = (knights >> 1) & NOT_H_FILE;
+    Bitboard l2 = (knights >> 2) & NOT_GH_FILE;
+    Bitboard r1 = (knights << 1) & NOT_A_FILE;
+    Bitboard r2 = (knights << 2) & NOT_AB_FILE;
 
-    uint64_t h1 = l1 | r1;
-    uint64_t h2 = l2 | r2;
+    Bitboard h1 = l1 | r1;
+    Bitboard h2 = l2 | r2;
 
-    uint64_t attacks = (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
+    Bitboard attacks = (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 
-    return Bitboard(attacks & ~occ.value());
+    return attacks & ~occ;
 }
 
 };  // namespace Clockwork
