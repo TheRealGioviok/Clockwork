@@ -3,10 +3,10 @@
 
 namespace Clockwork {
 
-static const Bitboard NOT_A_FILE  = ~Bitboard::file_mask(0);
-static const Bitboard NOT_H_FILE  = ~Bitboard::file_mask(7);
-static const Bitboard NOT_AB_FILE = ~(Bitboard::file_mask(0) | Bitboard::file_mask(1));
-static const Bitboard NOT_GH_FILE = ~(Bitboard::file_mask(6) | Bitboard::file_mask(7));
+constexpr Bitboard NOT_A_FILE  = ~Bitboard::file_mask(0);
+constexpr Bitboard NOT_H_FILE  = ~Bitboard::file_mask(7);
+constexpr Bitboard NOT_AB_FILE = ~(Bitboard::file_mask(0) | Bitboard::file_mask(1));
+constexpr Bitboard NOT_GH_FILE = ~(Bitboard::file_mask(6) | Bitboard::file_mask(7));
 
 static inline Bitboard rookrook_attacks(Bitboard rooks, Bitboard occ) {
     Bitboard empty = ~occ;
