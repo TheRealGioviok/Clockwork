@@ -12,7 +12,7 @@ static inline Bitboard rookrook_attacks(Bitboard rooks, Bitboard occ) {
     Bitboard empty = ~occ;
     Bitboard attacks{0};
 
-    
+
     {
         Bitboard gen  = rooks;
         Bitboard prop = empty;
@@ -35,23 +35,23 @@ static inline Bitboard rookrook_attacks(Bitboard rooks, Bitboard occ) {
     }
     {
         Bitboard gen  = rooks;
-        Bitboard prop = empty & NOT_H_FILE;  
+        Bitboard prop = empty & NOT_H_FILE;
         gen |= prop & (gen << 1);
         prop &= (prop << 1);
         gen |= prop & (gen << 2);
         prop &= (prop << 2);
         gen |= prop & (gen << 4);
-        attacks |= (gen << 1) & NOT_A_FILE;  
+        attacks |= (gen << 1) & NOT_A_FILE;
     }
     {
         Bitboard gen  = rooks;
-        Bitboard prop = empty & NOT_A_FILE;  
+        Bitboard prop = empty & NOT_A_FILE;
         gen |= prop & (gen >> 1);
         prop &= (prop >> 1);
         gen |= prop & (gen >> 2);
         prop &= (prop >> 2);
         gen |= prop & (gen >> 4);
-        attacks |= (gen >> 1) & NOT_H_FILE;  
+        attacks |= (gen >> 1) & NOT_H_FILE;
     }
 
     return attacks & ~occ;
@@ -106,18 +106,20 @@ static inline Bitboard bishopbishop_attacks(Bitboard bishops, Bitboard occ) {
 }
 
 static inline Bitboard knightknight_attacks(Bitboard knights, Bitboard occ) {
-    Bitboard attacks{};
+    uint64_t k = knights.value();
 
-    attacks |= (knights << 17) & NOT_A_FILE;
-    attacks |= (knights << 15) & NOT_H_FILE;
-    attacks |= (knights << 10) & NOT_AB_FILE;
-    attacks |= (knights << 6) & NOT_GH_FILE;
+    // Horizontal then Vertical split optimization
+    uint64_t l1 = (k >> 1) & NOT_H_FILE.value();
+    uint64_t l2 = (k >> 2) & NOT_GH_FILE.value();
+    uint64_t r1 = (k << 1) & NOT_A_FILE.value();
+    uint64_t r2 = (k << 2) & NOT_AB_FILE.value();
 
-    attacks |= (knights >> 17) & NOT_H_FILE;
-    attacks |= (knights >> 15) & NOT_A_FILE;
-    attacks |= (knights >> 10) & NOT_GH_FILE;
-    attacks |= (knights >> 6) & NOT_AB_FILE;
+    uint64_t h1 = l1 | r1;
+    uint64_t h2 = l2 | r2;
 
-    return attacks & ~occ;
+    uint64_t attacks = (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
+
+    return Bitboard(attacks & ~occ.value());
 }
+
 };  // namespace Clockwork
