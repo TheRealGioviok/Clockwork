@@ -106,6 +106,7 @@ set(srcs
     src/geometry.hpp
     src/history.cpp
     src/history.hpp
+    src/kogge_stone.hpp
     src/move.cpp
     src/move.hpp
     src/movegen.cpp

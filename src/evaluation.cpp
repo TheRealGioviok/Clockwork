@@ -3,10 +3,12 @@
 #include "common.hpp"
 #include "eval_constants.hpp"
 #include "eval_types.hpp"
+#include "kogge_stone.hpp"
 #include "position.hpp"
 #include "psqt_state.hpp"
 #include "square.hpp"
 #include <array>
+#include <bit>
 #include <ranges>
 
 namespace Clockwork {
@@ -260,7 +262,10 @@ PScore evaluate_pieces(const Position& pos) {
     Bitboard bb  = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn);
     Bitboard bb2 = bb;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask()) & ~bb;
+        eval += KNIGHT_MOBILITY[moves.popcount()];
+        Bitboard reach = knightknight_attacks(moves, ~bb);
+        eval += KNIGHT_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
         eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];

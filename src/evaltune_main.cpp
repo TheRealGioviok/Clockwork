@@ -364,6 +364,8 @@ int main() {
         print_table("ROOK_MOBILITY", ROOK_MOBILITY);
         print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
         std::cout << std::endl;
+        print_table("KNIGHT_REACHABILITY", KNIGHT_REACHABILITY);
+        std::cout << std::endl;
 
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
                   << std::endl;
