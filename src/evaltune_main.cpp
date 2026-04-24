@@ -286,6 +286,18 @@ int main() {
         Graph::get().cleanup();
         Graph::get().zero_grad();
 #ifndef PROFILE_RUN
+
+        auto print_table = [](const std::string& name, const auto& table) {
+            std::cout << "inline const std::array<PParam, " << table.size() << "> " << name
+                      << " = {" << std::endl
+                      << "   ";
+            for (const auto& val : table) {
+                std::cout << " " << val << ",";
+            }
+            std::cout << std::endl << "};" << std::endl;
+        };
+
+
         std::cout << "inline const PParam PAWN_MAT   = " << PAWN_MAT << ";" << std::endl;
         std::cout << "inline const PParam KNIGHT_MAT = " << KNIGHT_MAT << ";" << std::endl;
         std::cout << "inline const PParam BISHOP_MAT = " << BISHOP_MAT << ";" << std::endl;
@@ -306,6 +318,7 @@ int main() {
                   << std::endl;
         std::cout << "inline const PParam RESTRICTED_SQUARES = " << RESTRICTED_SQUARES << ";"
                   << std::endl;
+        print_table("KNIGHT_CLOSED_BONUS", KNIGHT_CLOSED_BONUS);
 
         std::cout << std::endl;
         std::cout << "inline const PParam DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";"
@@ -334,15 +347,6 @@ int main() {
                   << ";" << std::endl;
         std::cout << std::endl;
 
-        auto print_table = [](const std::string& name, const auto& table) {
-            std::cout << "inline const std::array<PParam, " << table.size() << "> " << name
-                      << " = {" << std::endl
-                      << "   ";
-            for (const auto& val : table) {
-                std::cout << " " << val << ",";
-            }
-            std::cout << std::endl << "};" << std::endl;
-        };
 
         print_table("PAWN_PHALANX", PAWN_PHALANX);
         print_table("DEFENDED_PAWN", DEFENDED_PAWN);

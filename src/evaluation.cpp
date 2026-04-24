@@ -429,8 +429,21 @@ PScore evaluate_threats(const Position& pos) {
     return eval;
 }
 
+usize compute_closeness(const Position& pos) {
+    usize stopped_pawns =
+      ((pos.bitboard_for(Color::White, PieceType::Pawn)
+       & (pos.board().get_occupied_bitboard() | pos.attacked_by(Color::Black, PieceType::Pawn))
+           .shift(Direction::South))
+      | (pos.bitboard_for(Color::Black, PieceType::Pawn)
+         & (pos.board().get_occupied_bitboard() | pos.attacked_by(Color::White, PieceType::Pawn))
+             .shift(Direction::North)))
+          .popcount();
+
+    return std::min(4ul, stopped_pawns / 2);
+}
+
 template<Color color>
-PScore evaluate_space(const Position& pos) {
+PScore evaluate_space(const Position& pos, usize closedness) {
     PScore          eval       = PSCORE_ZERO;
     constexpr Color them       = color == Color::White ? Color::Black : Color::White;
     Bitboard        ourfiles   = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
@@ -457,6 +470,8 @@ PScore evaluate_space(const Position& pos) {
           * (pos.attack_table(color).get_attacked_bitboard() & ~strongly_defended
              & pos.attack_table(them).get_attacked_bitboard())
               .ipopcount();
+    
+    eval += KNIGHT_CLOSED_BONUS[closedness] * static_cast<i32>(pos.ipiece_count(color, PieceType::Knight));
 
     return eval;
 }
@@ -512,13 +527,16 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     PScore eval = psqt_state.score();  // Used for linear components
 
+    usize closedness = compute_closeness(pos);
+
     // pawn eval
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
 
     // pieces & space
     eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
-    eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
+    eval +=
+      evaluate_space<Color::White>(pos, closedness) - evaluate_space<Color::Black>(pos, closedness);
 
     // Threats
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
