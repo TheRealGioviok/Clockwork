@@ -21,6 +21,10 @@ constexpr bool is_being_mated_score(Value value) {
     return value <= -VALUE_WIN;
 }
 
+constexpr bool is_valid_score(Value value) {
+    return value != -VALUE_INF;
+}
+
 enum class Color {
     White,
     Black
