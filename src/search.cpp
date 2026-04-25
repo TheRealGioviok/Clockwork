@@ -593,7 +593,6 @@ Value Worker::search(
     MoveList   quiets_played;
     MoveList   noisies_played;
     i32        alpha_raises      = 0;
-    Value      non_pawn_material = -1;
 
     // Clear child's killer move.
     (ss + 1)->killer = Move::none();
@@ -679,36 +678,6 @@ Value Worker::search(
             // Negative Extensions
             else if (tt_data->score >= beta) {
                 extension = -1 - PV_NODE;
-            }
-        }
-
-        // Simplified captures extension
-        if (extension == 0 && m.is_capture() && !m.is_en_passant()) {
-            PieceType captured = pos.board()[m.to()].ptype();
-
-            if (SEE::value(captured) > SEE::value(PieceType::Pawn)) {
-                if (non_pawn_material < 0) {
-                    non_pawn_material =
-                      static_cast<i32>(pos.ipiece_count(Color::White, PieceType::Queen)
-                                       + pos.ipiece_count(Color::Black, PieceType::Queen))
-                      * SEE::value(PieceType::Queen);
-                    non_pawn_material +=
-                      static_cast<i32>(pos.ipiece_count(Color::White, PieceType::Rook)
-                                       + pos.ipiece_count(Color::Black, PieceType::Rook))
-                      * SEE::value(PieceType::Rook);
-                    non_pawn_material +=
-                      static_cast<i32>(pos.ipiece_count(Color::White, PieceType::Bishop)
-                                       + pos.ipiece_count(Color::Black, PieceType::Bishop))
-                      * SEE::value(PieceType::Bishop);
-                    non_pawn_material +=
-                      static_cast<i32>(pos.ipiece_count(Color::White, PieceType::Knight)
-                                       + pos.ipiece_count(Color::Black, PieceType::Knight))
-                      * SEE::value(PieceType::Knight);
-                }
-
-                if (non_pawn_material <= 2 * SEE::value(PieceType::Rook)) {
-                    extension = 1;
-                }
             }
         }
 
