@@ -194,6 +194,29 @@ public:
         return !(attack_table(color).read(sq) & piece_list(color).mask_eq(ptype)).empty();
     }
 
+    [[nodiscard]] bool is_square_attacked_by(Square sq, Color color, PieceMask mask) const {
+        return !(attack_table(color).read(sq) & mask).empty();
+    }
+
+    [[nodiscard]] PieceMask lesser_piece_mask(Color color, PieceType pt) const {
+        switch (pt) {
+        case PieceType::Pawn:
+        case PieceType::King:
+            return PieceMask{0};
+        case PieceType::Knight:
+        case PieceType::Bishop:
+            return get_piece_mask<PieceType::Pawn>(color);
+        case PieceType::Rook:
+            return get_piece_mask<PieceType::Pawn, PieceType::Knight, PieceType::Bishop>(color);
+        case PieceType::Queen:
+            return get_piece_mask<PieceType::Pawn, PieceType::Knight, PieceType::Bishop,
+                                  PieceType::Rook>(color);
+        default:
+            unreachable();
+        }
+        unreachable();
+    }
+
     [[nodiscard]] bool is_square_attacked_by(Square sq, Color color, PieceId id) const {
         return attack_table(color).read(sq).is_set(id);
     }

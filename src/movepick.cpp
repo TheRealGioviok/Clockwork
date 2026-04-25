@@ -183,7 +183,16 @@ Move RandomMovePicker::next() {
 template<bool quiets>
 i32 MovePicker::score_move(Move move) const {
     if constexpr (quiets) {
-        return m_history.get_quiet_stats(m_pos, move, m_ply, m_stack);
+        PieceType pt    = m_pos.board()[move.from()].ptype();
+        Color     enemy = invert(m_pos.active_color());
+
+        PieceMask lesser = m_pos.lesser_piece_mask(enemy, pt);
+
+        i32 lesser_threats = 32
+                           * (m_pos.is_square_attacked_by(move.from(), enemy, lesser)
+                              - m_pos.is_square_attacked_by(move.to(), enemy, lesser));
+
+        return m_history.get_quiet_stats(m_pos, move, m_ply, m_stack) + lesser_threats;
     } else {
         if (!move.is_promotion()) {
             constexpr int MVV[6] = {0, 800, 2400, 2400, 4800, 7200};
