@@ -59,7 +59,7 @@ namespace Clockwork::tuned {
     NO_TUNE(lmp_depth_mult, 3, 1, 20, 0.5, 0.002)                 \
                                                                   \
     /* Futility Pruning */                                        \
-    TUNE(ffp_margin_base, 429, 250, 1000, 38, 0.002)              \
+    TUNE(ffp_margin_base, 301, 250, 1000, 38, 0.002)              \
     TUNE(ffp_margin_mult, 95, 50, 200, 8, 0.002)                  \
     TUNE(ffp_hist_div, 21, 16, 64, 3, 0.002)                      \
     NO_TUNE(ffp_depth, 8, 1, 20, 0.5, 0.002)                      \
