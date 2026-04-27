@@ -176,10 +176,18 @@ PScore evaluate_pawns(const Position& pos) {
     Bitboard opp_pawns = pos.board().bitboard_for(~color, PieceType::Pawn);
 
     Bitboard pawn_files = Bitboard::fill_verticals(pawns);
+    Bitboard defended   = pawns & pos.attacked_by(color, PieceType::Pawn);
+
     Bitboard doubled    = pawns & pawns.shift(Direction::North);
+    Bitboard ddoubled   = pawns & pawns.shift(Direction::North).shift(Direction::North);
+
     Bitboard isolated =
       pawns & ~(pawn_files.shift(Direction::East) | pawn_files.shift(Direction::West));
+
     eval += DOUBLED_PAWN_VAL * doubled.ipopcount();
+    eval += DDOUBLED_PAWN_VAL * ddoubled.ipopcount();
+    eval += DOUBLED_PAWN_DEFENDED_VAL * ((doubled | ddoubled) & defended).ipopcount();
+
     eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
 
     for (Square sq : pawns) {
@@ -211,7 +219,6 @@ PScore evaluate_pawns(const Position& pos) {
         eval += PAWN_PHALANX[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
     }
 
-    Bitboard defended = pawns & pos.attacked_by(color, PieceType::Pawn);
     for (Square sq : defended) {
         eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
     }
@@ -371,7 +378,7 @@ PScore evaluate_king_safety(const Position& pos) {
         Bitboard inner    = attacked & king_ring;
         Bitboard outer    = attacked & extended_ring & ~king_ring;
         eval += PT_INNER_RING_ATTACKS[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)]
-              * inner.ipopcount();
+              * inner.ipopcount();  
         eval += PT_OUTER_RING_ATTACKS[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)]
               * outer.ipopcount();
     }

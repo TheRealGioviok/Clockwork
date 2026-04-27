@@ -310,6 +310,10 @@ int main() {
         std::cout << std::endl;
         std::cout << "inline const PParam DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";"
                   << std::endl;
+        std::cout << "inline const PParam DDOUBLED_PAWN_VAL = " << DDOUBLED_PAWN_VAL << ";"
+                  << std::endl;
+        std::cout << "inline const PParam DOUBLED_PAWN_DEFENDED_VAL = " << DOUBLED_PAWN_DEFENDED_VAL
+                  << ";" << std::endl;
         std::cout << "inline const PParam ISOLATED_PAWN_VAL = " << ISOLATED_PAWN_VAL << ";"
                   << std::endl;
         std::cout << std::endl;
