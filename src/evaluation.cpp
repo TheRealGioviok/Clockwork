@@ -352,7 +352,7 @@ PScore evaluate_potential_checkers(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_king_safety(const Position& pos) {
+PScore evaluate_king_safety(const Position& pos, Bitboard stopped_pawns) {
     constexpr Color opp = ~color;
 
     // Iterate over the opponent's attack bbs
@@ -387,6 +387,9 @@ PScore evaluate_king_safety(const Position& pos) {
     eval += KS_FLANK_ATTACK * (attacked_by_them & flank).ipopcount();
     eval += KS_FLANK_DOUBLE_DEFENSE * (double_defended_by_us & flank).ipopcount();
     eval += KS_FLANK_DOUBLE_ATTACK * (double_attacked_by_them & flank).ipopcount();
+
+    eval += KS_FLANK_OPENNESS * (stopped_pawns & flank).ipopcount();
+    eval += KS_BOARD_CLOSENESS * (stopped_pawns & ~flank).ipopcount();
 
     // King shelter evaluation
     eval += king_shelter<color>(pos);
@@ -429,21 +432,18 @@ PScore evaluate_threats(const Position& pos) {
     return eval;
 }
 
-usize compute_closeness(const Position& pos) {
-    usize stopped_pawns =
+Bitboard stopped_pawns(const Position& pos) {
+    return
       ((pos.bitboard_for(Color::White, PieceType::Pawn)
        & (pos.board().get_occupied_bitboard() | pos.attacked_by(Color::Black, PieceType::Pawn))
            .shift(Direction::South))
       | (pos.bitboard_for(Color::Black, PieceType::Pawn)
          & (pos.board().get_occupied_bitboard() | pos.attacked_by(Color::White, PieceType::Pawn))
-             .shift(Direction::North)))
-          .popcount();
-
-    return std::min(4ul, stopped_pawns / 2);
+             .shift(Direction::North)));
 }
 
 template<Color color>
-PScore evaluate_space(const Position& pos, usize closedness) {
+PScore evaluate_space(const Position& pos) {
     PScore          eval       = PSCORE_ZERO;
     constexpr Color them       = color == Color::White ? Color::Black : Color::White;
     Bitboard        ourfiles   = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
@@ -470,8 +470,6 @@ PScore evaluate_space(const Position& pos, usize closedness) {
           * (pos.attack_table(color).get_attacked_bitboard() & ~strongly_defended
              & pos.attack_table(them).get_attacked_bitboard())
               .ipopcount();
-    
-    eval += KNIGHT_CLOSED_BONUS[closedness] * static_cast<i32>(pos.ipiece_count(color, PieceType::Knight));
 
     return eval;
 }
@@ -527,7 +525,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     PScore eval = psqt_state.score();  // Used for linear components
 
-    usize closedness = compute_closeness(pos);
+    Bitboard stopped_p = stopped_pawns(pos);
 
     // pawn eval
     eval += evaluate_pawns<Color::White>(pos) - evaluate_pawns<Color::Black>(pos);
@@ -536,7 +534,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
     eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
     eval +=
-      evaluate_space<Color::White>(pos, closedness) - evaluate_space<Color::Black>(pos, closedness);
+      evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
 
     // Threats
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
@@ -548,8 +546,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
           - evaluate_potential_checkers<Color::Black>(pos);
 
     // Nonlinear king safety components
-    PScore white_king_attack_total = evaluate_king_safety<Color::Black>(pos);
-    PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos);
+    PScore white_king_attack_total = evaluate_king_safety<Color::Black>(pos, stopped_p);
+    PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos, stopped_p);
 
     // Nonlinear adjustment
     eval += king_safety_activation<Color::White>(white_king_attack_total)
