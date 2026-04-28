@@ -178,11 +178,10 @@ PScore evaluate_pawns(const Position& pos) {
     Bitboard pawn_files = Bitboard::fill_verticals(pawns);
     Bitboard defended   = pawns & pos.attacked_by(color, PieceType::Pawn);
 
-    Bitboard doubled    = pawns & pawns.shift(Direction::North);
-    Bitboard ddoubled   = pawns & pawns.shift(Direction::North).shift(Direction::North);
+    Bitboard doubled    = pawns & pawns.shift_relative(color, Direction::North);
+    Bitboard ddoubled   = pawns & pawns.shift_relative(color, Direction::North).shift_relative(color, Direction::North);
 
-    Bitboard isolated =
-      pawns & ~(pawn_files.shift(Direction::East) | pawn_files.shift(Direction::West));
+    Bitboard isolated = pawns & ~(pawn_files.shift(Direction::East) | pawn_files.shift(Direction::West));
 
     eval += DOUBLED_PAWN_VAL * doubled.ipopcount();
     eval += DDOUBLED_PAWN_VAL * ddoubled.ipopcount();
