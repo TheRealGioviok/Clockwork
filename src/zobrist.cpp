@@ -7,6 +7,7 @@ namespace Clockwork {
 std::array<std::array<std::array<HashKey, 64>, 7>, 2> Zobrist::piece_square_zobrist{};
 std::array<HashKey, 64>                               Zobrist::en_passant_zobrist{};
 std::array<HashKey, 16>                               Zobrist::castling_zobrist{};
+std::array<HashKey, 16>                               Zobrist::halfmove_zobrist{};
 HashKey                                               Zobrist::side_key = 0;
 
 
@@ -27,6 +28,10 @@ void Zobrist::init_zobrist_keys() {
     // Castling rights zobrist
     for (size_t castle_index = 0; castle_index < 16; ++castle_index) {
         castling_zobrist[castle_index] = Random::rand_64();
+    }
+    // Halfmove rights zobrist
+    for (size_t hm_index = 0; hm_index < 16; ++hm_index) {
+        halfmove_zobrist[hm_index] = Random::rand_64();
     }
     // Stm zobrist
     side_key = Random::rand_64();

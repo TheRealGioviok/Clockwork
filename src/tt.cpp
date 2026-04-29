@@ -64,9 +64,10 @@ TT::TT(size_t mb) :
 }
 
 std::optional<TTData> TT::probe(const Position& pos, i32 ply) const {
-    size_t     idx     = mulhi64(pos.get_hash_key(), m_size);
-    const auto cluster = this->m_clusters[idx].load();
-    const auto key     = shrink_key(pos.get_hash_key());
+    const HashKey hk      = pos.get_hash_key<true>();
+    const size_t  idx     = mulhi64(hk, m_size);
+    const auto    cluster = this->m_clusters[idx].load();
+    const auto    key     = shrink_key(hk);
 
     for (const auto entry : cluster.entries) {
         if (entry.key16 != key) {
@@ -98,9 +99,10 @@ void TT::store(const Position& pos,
                Depth           depth,
                bool            ttpv,
                Bound           bound) {
-    size_t     cluster_index = mulhi64(pos.get_hash_key(), m_size);
-    auto       cluster       = this->m_clusters[cluster_index].load();
-    const auto key           = shrink_key(pos.get_hash_key());
+    const HashKey hk            = pos.get_hash_key<true>();
+    const size_t  cluster_index = mulhi64(hk, m_size);
+    auto          cluster       = this->m_clusters[cluster_index].load();
+    const auto    key           = shrink_key(hk);
 
     auto   tte = cluster.entries[0];
     size_t idx = 0;

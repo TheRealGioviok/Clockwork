@@ -70,7 +70,7 @@ bool RepetitionInfo::has_game_cycle(const Position& pos, usize ply) {
     };
 
     Bitboard occ          = pos.board().get_occupied_bitboard();
-    HashKey  original_key = pos.get_hash_key();
+    HashKey  original_key = pos.get_hash_key<false>();
 
     HashKey other = ~(original_key ^ old_key(2));
 

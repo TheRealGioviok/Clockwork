@@ -186,7 +186,7 @@ void UCIHandler::handle_position(std::istringstream& is) {
         }
     }
 
-    m_repetition_info.push(m_position.get_hash_key(), false);
+    m_repetition_info.push(m_position.get_hash_key<false>(), false);
 
     if (is >> token) {
         if (token != "moves") {
@@ -200,7 +200,8 @@ void UCIHandler::handle_position(std::istringstream& is) {
                 return;
             }
             m_position = m_position.move(*move);
-            m_repetition_info.push(m_position.get_hash_key(), m_position.is_reversible(*move));
+            m_repetition_info.push(m_position.get_hash_key<false>(),
+                                   m_position.is_reversible(*move));
         }
     }
 
@@ -223,7 +224,8 @@ void UCIHandler::handle_d(std::istringstream&) {
     std::cout << std::endl;
     std::cout << "fen: " << m_position << std::endl;
     std::cout << "key: " << std::hex << std::setw(16) << std::setfill('0')
-              << m_position.get_hash_key() << std::endl;
+              << m_position.get_hash_key<false>() << " <-> " << m_position.get_hash_key<true>()
+              << std::endl;
 }
 
 void UCIHandler::handle_setoption(std::istringstream& is) {
@@ -420,7 +422,7 @@ reset:
 
         RepetitionInfo rep_info;
         rep_info.reset();
-        rep_info.push(pos.get_hash_key(), false);
+        rep_info.push(pos.get_hash_key<false>(), false);
 
         searcher.set_position(pos, rep_info);
         searcher.launch_search(settings);

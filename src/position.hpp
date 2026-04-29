@@ -5,6 +5,7 @@
 #include "square.hpp"
 #include "tt.hpp"
 #include "util/types.hpp"
+#include "zobrist.hpp"
 #include <array>
 #include <bit>
 #include <cassert>
@@ -120,7 +121,14 @@ public:
     [[nodiscard]] RookInfo rook_info(Color color) const {
         return m_rook_info[static_cast<usize>(color)];
     }
+
+    template<bool include_halfmove = false>
     [[nodiscard]] HashKey get_hash_key() const {
+        if constexpr (include_halfmove) {
+            return m_hash_key
+                 ^ Zobrist::halfmove_zobrist[static_cast<usize>(
+                   std::min((std::max(m_50mr - 8, 0) / 8), 15))];
+        }
         return m_hash_key;
     }
     [[nodiscard]] HashKey get_pawn_key() const {

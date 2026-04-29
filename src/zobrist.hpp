@@ -12,6 +12,7 @@ public:
     static std::array<std::array<std::array<HashKey, 64>, 7>, 2> piece_square_zobrist;
     static std::array<HashKey, 64>                               en_passant_zobrist;
     static std::array<HashKey, 16>                               castling_zobrist;
+    static std::array<HashKey, 16>                               halfmove_zobrist;
     static HashKey                                               side_key;
 
     static void init_zobrist_keys();

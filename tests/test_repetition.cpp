@@ -14,9 +14,9 @@ static RepetitionInfo g_repetition_info;
 void move(std::string_view movestr) {
     Move move  = Move::parse(movestr, g_position).value();
     g_position = g_position.move(move);
-    g_repetition_info.push(g_position.get_hash_key(), g_position.is_reversible(move));
+    g_repetition_info.push(g_position.get_hash_key<false>(), g_position.is_reversible(move));
     std::cout << "move: " << movestr << " " << std::hex << std::setw(16)
-              << g_position.get_hash_key() << std::endl;
+              << g_position.get_hash_key<false>() << std::endl;
 }
 
 void repeat_in_history() {
@@ -24,8 +24,8 @@ void repeat_in_history() {
     g_position =
       Position::parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").value();
     g_repetition_info.reset();
-    g_repetition_info.push(g_position.get_hash_key(), false);
-    std::cout << "startpos: " << std::hex << std::setw(16) << g_position.get_hash_key()
+    g_repetition_info.push(g_position.get_hash_key<false>(), false);
+    std::cout << "startpos: " << std::hex << std::setw(16) << g_position.get_hash_key<false>()
               << std::endl;
     REQUIRE(g_repetition_info.detect_repetition(0) == false);
     move("g1f3");
@@ -51,8 +51,8 @@ void repeat_in_search() {
     g_position =
       Position::parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").value();
     g_repetition_info.reset();
-    g_repetition_info.push(g_position.get_hash_key(), false);
-    std::cout << "startpos: " << std::hex << std::setw(16) << g_position.get_hash_key()
+    g_repetition_info.push(g_position.get_hash_key<false>(), false);
+    std::cout << "startpos: " << std::hex << std::setw(16) << g_position.get_hash_key<false>()
               << std::endl;
     REQUIRE(g_repetition_info.detect_repetition(0) == false);
     move("g1f3");
