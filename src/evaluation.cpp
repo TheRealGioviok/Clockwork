@@ -495,6 +495,16 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
     return score.complexity_add(winnable);
 }
 
+PScore apply_eg_scale(const Position& pos, PScore& eval) {
+    // Strong pawn scaling
+    const Color strong_side = eval.eg() > 0 ? Color::White : Color::Black;
+
+    const isize strong_pawn_count = pos.ipiece_count(strong_side, PieceType::Pawn);
+    const isize pcmul             = 8 - strong_pawn_count;
+
+    return eval.scale_eg<128>(static_cast<i32>(128 - pcmul * pcmul));  // 64 - 128
+}
+
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     const Color us    = pos.active_color();
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
@@ -541,6 +551,9 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     // Winnable
     eval = apply_winnable(pos, eval, phase);
+
+    // Eg scaling
+    eval = apply_eg_scale(pos, eval);
 
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
 };

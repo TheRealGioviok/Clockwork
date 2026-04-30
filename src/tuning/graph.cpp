@@ -165,6 +165,9 @@ PairHandle Graph::record_pair_scalar(OpType op, PairHandle lhs, f64 scalar) {
     case OpType::ScalarDivPair:
         res = f64x2::scalar_div(scalar, l);
         break;
+    case OpType::ScaleEg:
+        res = f64x2::make(l.first(), l.second() * scalar);
+        break;
     default:
         break;
     }
@@ -471,6 +474,12 @@ void Graph::backward() {
             f64x2       val        = pair_vals[node.lhs()];
             f64x2       grad       = f64x2::scalar_div(-node.scalar(), f64x2::mul(val, val));
             f64x2       update     = f64x2::mul(grad, grad_out);
+            pair_grads[node.lhs()] = f64x2::add(pair_grads[node.lhs()], update);
+            break;
+        }
+        case OpType::ScaleEg: {
+            const f64x2 grad_out = pair_grads[out_idx];
+            f64x2       update   = f64x2::make(grad_out.first(), grad_out.second() * node.scalar());
             pair_grads[node.lhs()] = f64x2::add(pair_grads[node.lhs()], update);
             break;
         }

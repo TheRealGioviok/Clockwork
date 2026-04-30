@@ -77,6 +77,14 @@ struct PairHandle {
     PairHandle sigmoid() const;
 
     PairHandle complexity_add(ValueHandle value) const;
+
+    template<i32 max>
+    PairHandle scale_eg(f64 alpha) const {
+        return scale_eg_impl(alpha / static_cast<f64>(max));
+    }
+
+private:
+    PairHandle scale_eg_impl(f64 ratio) const;
 };
 
 // Operation decls

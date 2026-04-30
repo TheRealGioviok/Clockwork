@@ -101,6 +101,13 @@ public:
         return static_cast<Value>((mg() * alpha + eg() * (max - alpha)) / max);
     }
 
+    // Eg scaling
+    template<i32 max>
+    PScore scale_eg(i32 alpha) const {
+        assert(0 <= alpha && alpha <= max);
+        return PScore{mg(), static_cast<i16>(eg() * alpha / max)};
+    }
+
     // complexity_add
     PScore complexity_add(Score val) {
         const Score e = eg();
