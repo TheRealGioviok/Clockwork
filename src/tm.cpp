@@ -79,7 +79,7 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
 
         // Adjustment based on how stable the bestmove is (how consistently it remains the best move during the ID loop)
         const auto compute_bm_stability_factor = [&]() -> f64 {
-            return 0.75 + 0.9 * std::pow(0.4, best_move_stability);
+            return 0.74 + 0.94 * std::pow(0.47, best_move_stability);
         };
 
         soft_limit =

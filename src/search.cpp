@@ -271,6 +271,8 @@ Move Worker::iterative_deepening(const Position& root_position) {
 
     m_node_counts.fill(0);
 
+    i32 best_move_stability = 0;
+
     for (Depth search_depth = 1; search_depth < MAX_PLY; search_depth++) {
         // Call search
         m_seldepth  = 0;
@@ -283,7 +285,6 @@ Move Worker::iterative_deepening(const Position& root_position) {
         Value score = -VALUE_INF;
 
         int fail_high_reduction = 0;
-        i32 best_move_stability = 0;
 
         while (true) {
             int asp_window_depth = search_depth - fail_high_reduction;
