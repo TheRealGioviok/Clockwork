@@ -331,4 +331,8 @@ PairHandle PairHandle::complexity_add(ValueHandle value) const {
     return Graph::get().record_pair_value(OpType::PairAddClampedSecond, *this, value);
 }
 
+PairHandle PairHandle::scale_eg_impl(f64 ratio) const {
+    return Graph::get().record_pair_scalar(OpType::ScaleEg, *this, ratio);
+}
+
 }  // namespace Clockwork::Autograd
