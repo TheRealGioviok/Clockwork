@@ -641,7 +641,7 @@ Value Worker::search(
 
         // Singular extensions
         int extension = 0;
-        if (!ROOT_NODE && m == tt_data->move && !excluded && tt_data
+        if (!ROOT_NODE && tt_data && m == tt_data->move && !excluded
             && depth >= tuned::sing_min_depth && is_valid_score(tt_data->score)
             && !is_mate_score(tt_data->score) && tt_data->depth >= depth - tuned::sing_depth_margin
             && tt_data->bound() != Bound::Upper) {
@@ -680,6 +680,11 @@ Value Worker::search(
             else if (tt_data->score >= beta) {
                 extension = -1 - PV_NODE;
             }
+        }
+        // Low-depth singular extensions
+        else if ((depth < 6) && !is_in_check && (ss->static_eval <= alpha - 47) && tt_data
+                 && m == tt_data->move && tt_data->bound() == Bound::Lower) {
+            extension = 1;
         }
 
         // Simplified captures extension
