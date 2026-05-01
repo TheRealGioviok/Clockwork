@@ -37,6 +37,11 @@ Bitboard static_pawn_attacks(const Bitboard pawns) {
     return attacks;
 }
 
+constexpr Bitboard queenside =
+  Bitboard::file_mask(0) | Bitboard::file_mask(1) | Bitboard::file_mask(2) | Bitboard::file_mask(3);
+constexpr Bitboard kingside =
+  Bitboard::file_mask(7) | Bitboard::file_mask(6) | Bitboard::file_mask(5) | Bitboard::file_mask(4);
+
 template<Color color>
 Bitboard pawn_spans(const Bitboard pawns, Bitboard blockers) {
     Bitboard res = pawns;
@@ -474,6 +479,7 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
 
     Bitboard white_pawns = pos.bitboard_for(Color::White, PieceType::Pawn);
     Bitboard black_pawns = pos.bitboard_for(Color::Black, PieceType::Pawn);
+    Bitboard pawns       = white_pawns | black_pawns;
 
     i32 pawn_count = (white_pawns | black_pawns).ipopcount();
 
@@ -483,10 +489,13 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
     i32 sym_files  = (white_files & black_files).ipopcount() / 8;
     i32 asym_files = (white_files ^ black_files).ipopcount() / 8;
 
+    bool both_sides = (queenside & pawns).any() && (kingside & pawns).any();
+
     Score symmetry = static_cast<Score>(WINNABLE_SYM * sym_files + WINNABLE_ASYM * asym_files);
 
     Score winnable = static_cast<Score>(WINNABLE_PAWNS * pawn_count + symmetry
-                                        + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_BIAS);
+                                        + WINNABLE_PAWN_ENDGAME * pawn_endgame
+                                        + both_sides * WINNABLE_BOTH_SIDES + WINNABLE_BIAS);
 
     if (score.eg() < 0) {
         winnable = static_cast<Score>(-winnable);
