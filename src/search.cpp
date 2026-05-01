@@ -210,8 +210,8 @@ void Worker::start_searching() {
         m_search_limits = {
           .hard_time_limit = TM::compute_hard_limit(m_search_start, m_searcher.settings,
                                                     root_position.active_color()),
-          .soft_time_limit = TM::compute_soft_limit<false>(m_search_start, m_searcher.settings,
-                                                           root_position.active_color(), 0.0, 0.0),
+          .soft_time_limit = TM::compute_soft_limit<false>(
+            m_search_start, m_searcher.settings, root_position.active_color(), 0.0, 0.0, 0.0),
           .soft_node_limit = m_searcher.settings.soft_nodes > 0 ? m_searcher.settings.soft_nodes
                                                                 : std::numeric_limits<u64>::max(),
           .hard_node_limit = m_searcher.settings.hard_nodes > 0 ? m_searcher.settings.hard_nodes
@@ -283,6 +283,7 @@ Move Worker::iterative_deepening(const Position& root_position) {
         Value score = -VALUE_INF;
 
         int fail_high_reduction = 0;
+        i32 best_move_stability = 0;
 
         while (true) {
             int asp_window_depth = search_depth - fail_high_reduction;
@@ -314,6 +315,13 @@ Move Worker::iterative_deepening(const Position& root_position) {
         // If m_stopped is true, then the search exited early. Discard the results for this depth.
         if (m_stopped) {
             break;
+        }
+
+        // Otherwise, increment the best move stability or reset it depending on the bestmove for this new depth
+        if (last_best_move == ss[SS_PADDING].pv.first_move()) {
+            ++best_move_stability;
+        } else {
+            best_move_stability = 0;
         }
 
         // Store information only if the last iterative deepening search completed
@@ -352,7 +360,7 @@ Move Worker::iterative_deepening(const Position& root_position) {
             }
             m_search_limits.soft_time_limit = TM::compute_soft_limit<true>(
               m_search_start, m_searcher.settings, root_position.active_color(), nodes_tm_fraction,
-              complexity);
+              complexity, static_cast<f64>(best_move_stability));
         }
 
         // check soft time limit

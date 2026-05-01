@@ -36,7 +36,8 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
                                    const Search::SearchSettings& settings,
                                    const Color                   stm,
                                    const f64                     nodes_tm_fraction,
-                                   const f64                     complexity) {
+                                   const f64                     complexity,
+                                   const f64                     best_move_stability) {
     using namespace std;
     using namespace time;
 
@@ -76,11 +77,16 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
               1.0);
         };
 
+        // Adjustment based on how stable the bestmove is (how consistently it remains the best move during the ID loop)
+        const auto compute_bm_stability_factor = [&]() -> f64 {
+            return 0.8 + 1.2 * std::pow(0.4, best_move_stability);
+        };
+
         soft_limit =
-          min(soft_limit,
-              search_start
-                + Milliseconds(static_cast<i64>(compute_buffer_time() * compute_nodestm_factor()
-                                                * compute_complexitytm_factor())));
+          min(soft_limit, search_start
+                            + Milliseconds(static_cast<i64>(
+                              compute_buffer_time() * compute_nodestm_factor()
+                              * compute_complexitytm_factor() * compute_bm_stability_factor())));
     }
 
     return soft_limit;
@@ -88,8 +94,8 @@ time::TimePoint compute_soft_limit(time::TimePoint               search_start,
 
 // Explicit instantiations
 template time::TimePoint compute_soft_limit<true>(
-  time::TimePoint, const Search::SearchSettings&, const Color, const f64, const f64);
+  time::TimePoint, const Search::SearchSettings&, const Color, const f64, const f64, const f64);
 
 template time::TimePoint compute_soft_limit<false>(
-  time::TimePoint, const Search::SearchSettings&, const Color, const f64, const f64);
+  time::TimePoint, const Search::SearchSettings&, const Color, const f64, const f64, const f64);
 }  // namespace Clockwork::TM
