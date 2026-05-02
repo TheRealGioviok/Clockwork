@@ -159,6 +159,8 @@ inline const PParam KS_FLANK_DEFENSE = S(-5, 1);
 inline const PParam KS_FLANK_DOUBLE_ATTACK   = S(3, -5);
 inline const PParam KS_FLANK_DOUBLE_DEFENSE  = S(-2, -7);
 
+inline const PParam KS_TEMPO  = S(11, -15);
+
 inline const std::array<std::array<PParam, 7>, 4> KING_SHELTER = {{
   {{ S(17, 25), S(-5, 28), S(-3, -46), S(8, -30), S(8, -22), S(-10, 14), S(-20, 15), }},
   {{ S(-2, 116), S(-20, -238), S(-20, -49), S(-8, 30), S(-9, 54), S(-22, 89), S(-36, 90), }},
