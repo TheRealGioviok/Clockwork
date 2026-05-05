@@ -27,7 +27,7 @@ inline const PParam OUTPOST_KNIGHT_VAL    = S(51, 56);
 inline const PParam OUTPOST_BISHOP_VAL    = S(57, 39);
 
 inline const PParam PAWN_PUSH_THREAT_KNIGHT = S(37, 5);
-inline const PParam PAWN_PUSH_THREAT_BISHOP = S(44, -15);
+inline const PParam PAWN_PUSH_THREAT_BISHOP = S(45, -15);
 inline const PParam PAWN_PUSH_THREAT_ROOK   = S(25, 52);
 inline const PParam PAWN_PUSH_THREAT_QUEEN  = S(60, -39);
 

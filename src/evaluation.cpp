@@ -500,8 +500,33 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
 }
 
 PScore apply_eg_scale(const Position& pos, PScore& eval) {
-    // Strong pawn scaling
+    // Strong pawn scaling otherwise
     const Color strong_side = eval.eg() > 0 ? Color::White : Color::Black;
+
+    // Queen vs queenless
+    const isize white_queens = pos.ipiece_count(Color::White, PieceType::Queen);
+    const isize black_queens = pos.ipiece_count(Color::Black, PieceType::Queen);
+
+    if (white_queens + black_queens == 1) {
+        const Color queen_side    = (white_queens == 1) ? Color::White : Color::Black;
+        const Color no_queen_side = ~queen_side;
+
+        // If the side without the queen is strongside, go back to pawn count scaling, but more drawish (easier perpetuals)
+        if (no_queen_side == strong_side){
+            const isize  strong_pawn_count = pos.ipiece_count(strong_side, PieceType::Pawn);
+            const isize pcmul             = 8 - strong_pawn_count;
+
+            return eval.scale_eg<128>(static_cast<i32>(112 - pcmul * pcmul));  // 48 - 112
+        }
+
+        // Otherwise, the side without the queen is defending, use minor count to scale
+        const isize no_queen_minors = pos.ipiece_count(no_queen_side, PieceType::Bishop)
+                                 + pos.ipiece_count(no_queen_side, PieceType::Knight);
+
+        const i32 queen_sf = std::min(128, 74 + 6 * static_cast<i32>(no_queen_minors));
+
+        return eval.scale_eg<128>(queen_sf);
+    }
 
     const isize strong_pawn_count = pos.ipiece_count(strong_side, PieceType::Pawn);
     const isize pcmul             = 8 - strong_pawn_count;
