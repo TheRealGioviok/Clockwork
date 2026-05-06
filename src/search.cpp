@@ -658,15 +658,15 @@ Value Worker::search(
 
                 // Double Extension
                 Value double_margin =
-                  tuned::dext_margin - (move_history / tuned::dext_hist_div * quiet);
-                if (!PV_NODE && singular_value <= singular_beta - double_margin) {
+                  tuned::dext_margin - (move_history / tuned::dext_hist_div * quiet) + 150 * PV_NODE;
+                if (singular_value <= singular_beta - double_margin) {
                     extension = 2;
                 }
 
                 // Triple Extension
                 Value triple_margin =
-                  tuned::triext_margin - (move_history / tuned::triext_hist_div * quiet);
-                if (!PV_NODE && quiet && singular_value <= singular_beta - triple_margin) {
+                  tuned::triext_margin - (move_history / tuned::triext_hist_div * quiet) + 390 * PV_NODE;
+                if (quiet && singular_value <= singular_beta - triple_margin) {
                     extension = 3;
                 }
             }
