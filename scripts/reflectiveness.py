@@ -6,8 +6,11 @@ import sys
 
 ENGINE_PATH = sys.argv[1] if len(sys.argv) > 1 else "./clockwork"
 
-NUM_POSITIONS = 10000
-MAX_RANDOM_PLIES = 40
+NUM_POSITIONS = 1000000
+MIN_RANDOM_PLIES = 4
+MAX_RANDOM_PLIES = 25
+
+DUMP_FILE = "failures.txt"
 
 
 class Engine:
@@ -61,9 +64,9 @@ class Engine:
 def random_position():
     board = chess.Board()
 
-    n_moves = random.randint(0, MAX_RANDOM_PLIES)
+    n_moves = random.randint(MIN_RANDOM_PLIES, MAX_RANDOM_PLIES)
 
-    for _ in range(n_moves):
+    for i in range(n_moves):
         if board.is_game_over():
             break
 
@@ -86,7 +89,7 @@ def mirror_board(board):
 
 def main():
     engine = Engine(ENGINE_PATH)
-
+    dump = open(DUMP_FILE, "w")
     tested = 0
     failures = 0
 
@@ -107,12 +110,26 @@ def main():
 
         if eval1 != eval2:
             failures += 1
+
+            fen1 = board.fen()
+            fen2 = mirrored.fen()
+
             print()
             print("Asymmetry detected!")
-            print("FEN:", board.fen(), " --- ", mirrored.fen())
+            print("FEN:", fen1, " --- ", fen2)
             print("Eval:", eval1)
             print("Mirrored Eval:", eval2)
-            print("Sum:", eval1 - eval2)
+            print("Diff:", eval1 - eval2)
+
+            # Write to file
+            dump.write("=== FAILURE ===\n")
+            dump.write(f"f: {fen1}\t")
+            dump.write(f"m: {fen2}\t\t")
+            dump.write(f"1: {eval1}\t")
+            dump.write(f"2: {eval2}\t")
+
+            if failures % 10 == 0:
+                dump.flush()
 
         tested += 1
 
@@ -121,6 +138,7 @@ def main():
             print(f"Tested: {tested}, Failures: {failures}, Time: {elapsed:.1f}s")
 
     engine.quit()
+    dump.close()
 
     print("\n==== DONE ====")
     print(f"Positions tested: {tested}")

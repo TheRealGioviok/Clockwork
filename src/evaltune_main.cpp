@@ -446,8 +446,6 @@ int main() {
         std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE
                   << ";" << std::endl;
         std::cout << std::endl;
-        std::cout << "inline const PParam KS_TEMPO  = " << KS_TEMPO << ";" << std::endl;
-        std::cout << std::endl;
 
         print_2d_array("KING_SHELTER", KING_SHELTER);
         print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
