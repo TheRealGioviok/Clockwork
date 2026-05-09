@@ -357,7 +357,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         eval += KNIGHT_MOBILITY[(moves & ~bb).popcount()];
-        Bitboard reach = knightknight_attacks(moves & ~bb2, ~bb2);
+        Bitboard reach = knights_setwise(moves & ~bb2, ~bb2);
         eval += KNIGHT_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
@@ -374,7 +374,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
-        Bitboard reach = bishopbishop_attacks(moves & ~bb2, ~bb2);
+        Bitboard reach = bishops_setwise(moves & ~bb2, ~bb2);
         eval += BISHOP_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
     }
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
@@ -389,7 +389,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
                  & (pos.bitboard_for(~color, PieceType::Queen)
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
-        Bitboard reach = rookrook_attacks(moves & ~bb2, ~bb2);
+        Bitboard reach = rooks_setwise(moves & ~bb2, ~bb2);
         eval += ROOK_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
     }
     bb2 |= data.attacked_by(opp, PieceType::Rook);
@@ -397,8 +397,8 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         eval += QUEEN_MOBILITY[(moves & ~bb).popcount()];
         eval += QUEEN_MOBILITY[(moves & ~bb2).popcount()];
-        Bitboard reach =
-          (bishopbishop_attacks(moves & ~bb2, ~bb2) | rookrook_attacks(moves & ~bb2, ~bb2));
+        auto     rookbishop = rookbishop_setwise(moves & ~bb2, moves & ~bb2, ~bb2);
+        Bitboard reach      = rookbishop.first | rookbishop.second;
         eval += QUEEN_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
     }
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {

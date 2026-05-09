@@ -138,7 +138,7 @@ public:
         return result;
     }
 
-    [[nodiscard]] u64 value() const {
+    [[nodiscard]] constexpr u64 value() const {
         return m_raw;
     }
 
