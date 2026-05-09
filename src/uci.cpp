@@ -131,7 +131,7 @@ void UCIHandler::handle_debug(std::istringstream& is) {
       | m_position
           .attack_table(m_position.active_color() == Color::White ? Color::Black : Color::White)
           .get_attacked_bitboard();
-    std::cout << rookrook_attacks(rooks & ~occupancy, occupancy) << std::endl;
+    std::cout << rooks_setwise(rooks & ~occupancy, occupancy) << std::endl;
 }
 
 void UCIHandler::handle_go(std::istringstream& is) {
