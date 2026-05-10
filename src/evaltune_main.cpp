@@ -37,7 +37,7 @@ int main() {
     std::vector<f64>      results;
 
     const std::vector<std::string> fenFiles = {
-      "data/v5_25knpm.txt",
+      "data/v5_25knpm2.txt",
       "data/dfrcv2.txt",
     };
 
