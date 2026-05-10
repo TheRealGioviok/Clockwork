@@ -51,7 +51,7 @@ sliders_setwise(Bitboard src1, Bitboard src2, Bitboard occ) {
     gen = _mm512_ternarylogic_epi64(gen, block, _mm512_rolv_epi64(gen, shift4), 242);
 
     // 2 <=> !a & !b & c
-    gen = _mm512_andnot_si512(mask, _mm_rolv_epi64(gen, shift1));
+    gen = _mm512_andnot_si512(mask, _mm512_rolv_epi64(gen, shift1));
 
     auto attacks1 = u64x4{_mm512_castsi512_si256(gen)}.reduce_or();
     auto attacks2 = u64x4{_mm512_extracti64x4_epi64(gen, 1)}.reduce_or();
