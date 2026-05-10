@@ -282,9 +282,9 @@ PScore evaluate_pieces(const Position& pos) {
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         // Mobility
-        usize  mobility = (moves & ~bb).popcount();
+        usize mobility = (moves & ~bb).popcount();
         eval += BISHOP_MOBILITY[mobility];
-        Square sq       = pos.piece_list_sq(color)[id];
+        Square sq = pos.piece_list_sq(color)[id];
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
                   (own_pawns & Bitboard::squares_of_color(sq.color()))
