@@ -34,9 +34,9 @@ sliders_setwise(Bitboard src1, Bitboard src2, Bitboard occ) {
     auto shift2 = _mm512_add_epi64(shift1, shift1);
     auto shift4 = _mm512_add_epi64(shift2, shift2);
 
-    auto mask  = _mm512_setr_epi64(orth1 ? R1 : R1 | H, orth1 ? A : R1 | A, orth1 ? R8 : R8 | A,
-                                   orth1 ? H : R8 | H, orth2 ? R1 : R1 | H, orth2 ? A : R1 | A,
-                                   orth2 ? R8 : R8 | A, orth2 ? H : R8 | H);
+    auto mask = _mm512_setr_epi64(orth1 ? R1 : R1 | H, orth1 ? A : R1 | A, orth1 ? R8 : R8 | A,
+                                  orth1 ? H : R8 | H, orth2 ? R1 : R1 | H, orth2 ? A : R1 | A,
+                                  orth2 ? R8 : R8 | A, orth2 ? H : R8 | H);
     auto gen   = _mm512_setr_epi64(src1.value(), src1.value(), src1.value(), src1.value(),
                                    src2.value(), src2.value(), src2.value(), src2.value());
     auto block = _mm512_or_si512(mask, _mm512_set1_epi64(occ.value()));
@@ -58,8 +58,7 @@ sliders_setwise(Bitboard src1, Bitboard src2, Bitboard occ) {
 
     return {Bitboard{attacks1}, Bitboard{attacks2}};
 #else
-    u64x4 shift1{
-      std::array<u64, 4>{orth1 ? 8 : 7, orth1 ? 1 : 9, orth2 ? 8 : 7, orth2 ? 1 : 9}};
+    u64x4 shift1{std::array<u64, 4>{orth1 ? 8 : 7, orth1 ? 1 : 9, orth2 ? 8 : 7, orth2 ? 1 : 9}};
     u64x4 shift2 = shift1 + shift1;
     u64x4 shift4 = shift2 + shift2;
 
@@ -110,6 +109,11 @@ rookrook_setwise(Bitboard rooks1, Bitboard rooks2, Bitboard occ) {
 static inline std::pair<Bitboard, Bitboard>
 bishopbishop_setwise(Bitboard bishops1, Bitboard bishops2, Bitboard occ) {
     return sliders_setwise<false, false>(bishops1, bishops2, occ);
+}
+
+static inline Bitboard queens_setwise(Bitboard queens, Bitboard occ) {
+    auto [rook_attacks, bishop_attacks] = sliders_setwise<true, false>(queens, queens, occ);
+    return rook_attacks | bishop_attacks;
 }
 
 static inline Bitboard rooks_setwise(Bitboard rooks, Bitboard occ) {

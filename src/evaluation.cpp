@@ -250,31 +250,41 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
 
 template<Color color>
 PScore evaluate_pieces(const Position& pos) {
-    constexpr Color opp       = ~color;
-    PScore          eval      = PSCORE_ZERO;
-    Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
-    Bitboard occ = pos.board().get_occupied_bitboard();
-    Bitboard        blocked_pawns =
-      own_pawns & occ.shift_relative(color, Direction::South);
+    constexpr Color    opp             = ~color;
+    PScore             eval            = PSCORE_ZERO;
+    Bitboard           own_pawns       = pos.bitboard_for(color, PieceType::Pawn);
+    Bitboard           occ             = pos.board().get_occupied_bitboard();
+    Bitboard           blocked_pawns   = own_pawns & occ.shift_relative(color, Direction::South);
     constexpr Bitboard early_ranks     = color == Color::White
                                          ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
                                          : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
     Bitboard           own_early_pawns = own_pawns & early_ranks;
     Bitboard bb = (blocked_pawns | own_early_pawns) | pos.attacked_by(opp, PieceType::Pawn)
-                 | pos.bitboard_for(color, PieceType::King);
+                | pos.bitboard_for(color, PieceType::King);
     Bitboard bb2 = bb;
 
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
-        eval += KNIGHT_MOBILITY[(moves & ~bb).popcount()];
-        // Remove squares not in mob area, and dont count squares we can already reach with mobility
-        Bitboard reach = knights_setwise(moves & ~bb2) & bb2 & ~moves;
-        eval += KNIGHT_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
+        // Mobility
+        usize mobility = (moves & ~bb).popcount();
+        eval += KNIGHT_MOBILITY[mobility];
+        // Reach factor: extend mobility to depth 2. A knight with a low mobility might still be good if it has a high reach factor, while a knight with low mobility and low reach factor is stuck and should be penalized more.
+        // Our formula takes into consideration the mobility and the reach. A piece who has low reach but already high mobility doesn't need to be penalized.
+        // It only runs if the base mobility is > 0, as reach is always 0 when mobility is 0.
+        if (mobility > 0) {
+            Bitboard reach        = knights_setwise(moves & ~bb2) & ~bb2;
+            i32      reach_factor = static_cast<i32>(reach.popcount() / mobility);
+            eval += KNIGHT_REACH_FACTOR[static_cast<usize>(mobility > 1)]
+                  * reach_factor;  // If mobility is exactly 1, the piece reach is shaky.
+        }
     }
+
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
-        eval += BISHOP_MOBILITY[(moves & ~bb).popcount()];
-        Square sq = pos.piece_list_sq(color)[id];
+        // Mobility
+        usize  mobility = (moves & ~bb).popcount();
+        eval += BISHOP_MOBILITY[mobility];
+        Square sq       = pos.piece_list_sq(color)[id];
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
                   (own_pawns & Bitboard::squares_of_color(sq.color()))
@@ -285,14 +295,21 @@ PScore evaluate_pieces(const Position& pos) {
 
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
-        Bitboard reach = bishops_setwise(moves & ~bb2, occ) & bb2 & ~moves;
-        eval += BISHOP_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
+
+        // Reach factor
+        if (mobility > 0) {
+            Bitboard reach        = bishops_setwise(moves & ~bb2, occ) & ~bb2;
+            i32      reach_factor = static_cast<i32>(reach.popcount() / mobility);
+            eval += BISHOP_REACH_FACTOR[static_cast<usize>(mobility > 1)]
+                  * reach_factor;  // If mobility is exactly 1, the piece reach is shaky.
+        }
     }
     bb2 |= pos.attacked_by(opp, PieceType::Knight) | pos.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         eval += ROOK_MOBILITY[(moves & ~bb).popcount()];
-        eval += ROOK_MOBILITY[(moves & ~bb2).popcount()];
+        usize mobility = (moves & ~bb2).popcount();
+        eval += ROOK_MOBILITY[mobility];
         // Rook lineups
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
@@ -300,17 +317,27 @@ PScore evaluate_pieces(const Position& pos) {
                  & (pos.bitboard_for(~color, PieceType::Queen)
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
-        Bitboard reach = rooks_setwise(moves & ~bb2, occ) & bb2 & ~moves;
-        eval += ROOK_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
+        // Reach factor
+        if (mobility > 0) {
+            Bitboard reach        = rooks_setwise(moves & ~bb2, occ) & ~bb2;
+            i32      reach_factor = static_cast<i32>(reach.popcount() / mobility);
+            eval += ROOK_REACH_FACTOR[static_cast<usize>(mobility > 1)]
+                  * reach_factor;  // If mobility is exactly 1, the piece reach is shaky.
+        }
     }
     bb2 |= pos.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         eval += QUEEN_MOBILITY[(moves & ~bb).popcount()];
-        eval += QUEEN_MOBILITY[(moves & ~bb2).popcount()];
-        auto     rookbishop = rookbishop_setwise(moves & ~bb2, moves & ~bb2, occ);
-        Bitboard reach      = (rookbishop.first | rookbishop.second) & bb2 & ~moves;
-        eval += QUEEN_REACHABILITY[std::bit_width(reach.popcount() * 7 / 4)];
+        usize mobility = (moves & ~bb2).popcount();
+        eval += QUEEN_MOBILITY[mobility];
+        // Reach factor
+        if (mobility > 0) {
+            Bitboard reach        = queens_setwise(moves & ~bb2, occ) & ~bb2;
+            i32      reach_factor = static_cast<i32>(reach.popcount() / mobility);
+            eval += QUEEN_REACH_FACTOR[static_cast<usize>(mobility > 1)]
+                  * reach_factor;  // If mobility is exactly 1, the piece reach is shaky.
+        }
     }
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;
@@ -527,15 +554,15 @@ PScore apply_eg_scale(const Position& pos, PScore& eval) {
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     const Color us    = pos.active_color();
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
-                      + pos.piece_count(Color::Black, PieceType::Knight)
-                      + pos.piece_count(Color::White, PieceType::Bishop)
-                      + pos.piece_count(Color::Black, PieceType::Bishop)
-                      + 2
-                          * (pos.piece_count(Color::White, PieceType::Rook)
-                             + pos.piece_count(Color::Black, PieceType::Rook))
-                      + 4
-                          * (pos.piece_count(Color::White, PieceType::Queen)
-                             + pos.piece_count(Color::Black, PieceType::Queen));
+                + pos.piece_count(Color::Black, PieceType::Knight)
+                + pos.piece_count(Color::White, PieceType::Bishop)
+                + pos.piece_count(Color::Black, PieceType::Bishop)
+                + 2
+                    * (pos.piece_count(Color::White, PieceType::Rook)
+                       + pos.piece_count(Color::Black, PieceType::Rook))
+                + 4
+                    * (pos.piece_count(Color::White, PieceType::Queen)
+                       + pos.piece_count(Color::Black, PieceType::Queen));
 
     phase = std::min<usize>(phase, 24);
 

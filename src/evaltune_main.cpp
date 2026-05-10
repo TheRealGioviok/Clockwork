@@ -37,8 +37,8 @@ int main() {
     std::vector<f64>      results;
 
     const std::vector<std::string> fenFiles = {
-      "data/v5_25knpm.txt",  "data/v4_5knpm.txt",   "data/v4_8knpm.txt",    "data/v4_16knpm.txt",
-      "data/v4.1_5knpm.txt", "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",
+      "data/v4_5knpm.txt",   "data/v4_8knpm.txt",    "data/v4_16knpm.txt", "data/v4.1_5knpm.txt",
+      "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",    "data/v5_25knpm.txt",
     };
 
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
@@ -409,10 +409,10 @@ int main() {
         print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
         std::cout << std::endl;
 
-        print_table("KNIGHT_REACHABILITY", KNIGHT_REACHABILITY);
-        print_table("BISHOP_REACHABILITY", BISHOP_REACHABILITY);
-        print_table("ROOK_REACHABILITY", ROOK_REACHABILITY);
-        print_table("QUEEN_REACHABILITY", QUEEN_REACHABILITY);
+        print_table("KNIGHT_REACH_FACTOR", KNIGHT_REACH_FACTOR);
+        print_table("BISHOP_REACH_FACTOR", BISHOP_REACH_FACTOR);
+        print_table("ROOK_REACH_FACTOR", ROOK_REACH_FACTOR);
+        print_table("QUEEN_REACH_FACTOR", QUEEN_REACH_FACTOR);
         std::cout << std::endl;
 
         std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
