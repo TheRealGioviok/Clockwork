@@ -22,7 +22,8 @@ namespace Clockwork::tuned {
     NO_TUNE(nmp_base_r, 192, 64, 384, 16, 0.002)                  \
     TUNE(nmp_depth_r, 16, 8, 32, 1, 0.002)                        \
     NO_TUNE(nmp_verif_min_depth, 14, 1, 40, .5, 0.002)            \
-    TUNE(nmp_beta_margin, 33, 10, 60, 3, 0.002)                   \
+    TUNE(nmp_beta_margin_base, 200, 125, 500, 19, 0.002)          \
+    TUNE(nmp_beta_depth_margin, 20, 1, 30, 3, 0.002)              \
     TUNE(nmp_beta_diff, 390, 200, 800, 38, 0.002)                 \
     TUNE(nmp_improving_r, 61, 32, 128, 5, 0.002)                  \
                                                                   \
