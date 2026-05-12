@@ -357,80 +357,65 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     Bitboard bb2                                  = bb;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
-        // Mobility
-        usize mobility = (moves & ~bb).popcount();
-        eval += KNIGHT_MOBILITY[mobility];
-        // Reach factor: extend mobility to depth 2. A knight with a low mobility might still be good if it has a high reach factor, while a knight with low mobility and low reach factor is stuck and should be penalized more.
-        // Our formula takes into consideration the mobility and the reach. A piece who has low reach but already high mobility doesn't need to be penalized.
-        // It only runs if the base mobility is > 0, as reach is always 0 when mobility is 0.
-        if (mobility > 0) {
-            Bitboard reach        = knights_setwise(moves & ~bb2) & ~bb2;
-            i32      reach_factor = static_cast<i32>(reach.popcount() / mobility);
-            eval += KNIGHT_REACH_FACTOR[static_cast<usize>(mobility > 1)]
-                  * reach_factor;  // If mobility is exactly 1, the piece reach is shaky.
+        usize    mob   = (moves & ~bb).popcount();
+        eval += KNIGHT_MOBILITY[mob];
+        if (mob > 0 && mob <= REACH_TIER_MAX_MOB) {
+            usize reach = (knights_setwise(moves & ~bb2) & ~bb2).popcount();
+            eval += KNIGHT_REACH_FACTOR[reach_tier(mob, reach, N_REACH_BASE, N_REACH_DENOM)] * (REACH_TIER_MAX_MOB + 1 - mob);
         }
     }
 
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
-        // Mobility
-        usize mobility = (moves & ~bb).popcount();
-        eval += BISHOP_MOBILITY[mobility];
-        Square sq = pos.piece_list_sq(color)[id];
-        eval += BISHOP_PAWNS[std::min(
-                  static_cast<usize>(8),
-                  (own_pawns & Bitboard::squares_of_color(sq.color()))
-                    .popcount())  // Weird non standard positions which can have more than 8 pawns
-        ]
-              * (!pos.is_square_attacked_by(sq, color, PieceType::Pawn)
-                 + (blocked_pawns & Bitboard::central_files()).ipopcount());
+        usize    mob   = (moves & ~bb).popcount();
+        eval += BISHOP_MOBILITY[mob];
+        if (mob > 0 && mob <= REACH_TIER_MAX_MOB) {
+            usize reach = (bishops_setwise(moves & ~bb2, occ) & ~bb2).popcount();
+            eval += BISHOP_REACH_FACTOR[reach_tier(mob, reach, B_REACH_BASE, B_REACH_DENOM)] * (REACH_TIER_MAX_MOB + 1 - mob);
+        }
 
+        Square sq = pos.piece_list_sq(color)[id];
+        eval +=
+          BISHOP_PAWNS[std::min(static_cast<usize>(8),
+                                (own_pawns & Bitboard::squares_of_color(sq.color())).popcount())]
+          * (!pos.is_square_attacked_by(sq, color, PieceType::Pawn)
+             + (blocked_pawns & Bitboard::central_files()).ipopcount());
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
-
-        // Reach factor
-        if (mobility > 0) {
-            Bitboard reach        = bishops_setwise(moves & ~bb2, occ) & ~bb2;
-            i32      reach_factor = static_cast<i32>(reach.popcount() / mobility);
-            eval += BISHOP_REACH_FACTOR[static_cast<usize>(mobility > 1)]
-                  * reach_factor;  // If mobility is exactly 1, the piece reach is shaky.
-        }
     }
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
-        eval += ROOK_MOBILITY[(moves & ~bb).popcount()];
-        usize mobility = (moves & ~bb2).popcount();
-        eval += ROOK_MOBILITY[mobility];
-        // Rook lineups
+        usize    mob   = (moves & ~bb).popcount();
+        usize    mob2  = (moves & ~bb2).popcount();
+        eval += ROOK_MOBILITY[mob];
+        eval += ROOK_MOBILITY[mob2];
+        if (mob2 > 0 && mob2 <= REACH_TIER_MAX_MOB) {
+            usize reach = (rooks_setwise(moves & ~bb2, occ) & ~bb2).popcount();
+            eval += ROOK_REACH_FACTOR[reach_tier(mob2, reach, R_REACH_BASE, R_REACH_DENOM)] * (REACH_TIER_MAX_MOB + 1 - mob2);
+            std::cout << "Reach tier for rook with mob " << mob2 << " and reach " << reach << ": " << reach_tier(mob2, reach, R_REACH_BASE, R_REACH_DENOM) << std::endl;
+        }
+
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
               * (rook_file
                  & (pos.bitboard_for(~color, PieceType::Queen)
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
-        // Reach factor
-        if (mobility > 0) {
-            Bitboard reach        = rooks_setwise(moves & ~bb2, occ) & ~bb2;
-            i32      reach_factor = static_cast<i32>(reach.popcount() / mobility);
-            eval += ROOK_REACH_FACTOR[static_cast<usize>(mobility > 1)]
-                  * reach_factor;  // If mobility is exactly 1, the piece reach is shaky.
-        }
     }
     bb2 |= data.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
-        eval += QUEEN_MOBILITY[(moves & ~bb).popcount()];
-        usize mobility = (moves & ~bb2).popcount();
-        eval += QUEEN_MOBILITY[mobility];
-        // Reach factor
-        if (mobility > 0) {
-            Bitboard reach        = queens_setwise(moves & ~bb2, occ) & ~bb2;
-            i32      reach_factor = static_cast<i32>(reach.popcount() / mobility);
-            eval += QUEEN_REACH_FACTOR[static_cast<usize>(mobility > 1)]
-                  * reach_factor;  // If mobility is exactly 1, the piece reach is shaky.
+        usize    mob   = (moves & ~bb).popcount();
+        usize    mob2  = (moves & ~bb2).popcount();
+        eval += QUEEN_MOBILITY[mob];
+        eval += QUEEN_MOBILITY[mob2];
+        if (mob2 > 0 && mob2 <= REACH_TIER_MAX_MOB) {
+            usize reach = (queens_setwise(moves & ~bb2, occ) & ~bb2).popcount();
+            eval += QUEEN_REACH_FACTOR[reach_tier(mob2, reach, Q_REACH_BASE, Q_REACH_DENOM)] * (REACH_TIER_MAX_MOB + 1 - mob2);
         }
     }
+
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;
     }

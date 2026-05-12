@@ -121,7 +121,6 @@ void UCIHandler::handle_bench(std::istringstream& is) {
     }
     Bench::benchmark(searcher, depth);
 }
-
 // Note: This function is left here so that one doesn't need to reimplement it every time we need to expose a function through uci.
 // The professional thing to do is to empty the body of the function / put a placeholder in here when finished (and before pr).
 void UCIHandler::handle_debug(std::istringstream&) {
