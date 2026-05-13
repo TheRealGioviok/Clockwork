@@ -27,6 +27,8 @@
 using namespace Clockwork;
 using namespace Clockwork::Autograd;
 
+void print_eval_constants();
+
 int main() {
 
     // Todo: make these CLI-specifiable
@@ -333,192 +335,10 @@ int main() {
 
         Graph::get().cleanup();
         Graph::get().zero_grad();
+
+
 #ifndef PROFILE_RUN
-        std::cout << "inline const PParam PAWN_MAT   = " << PAWN_MAT << ";" << std::endl;
-        std::cout << "inline const PParam KNIGHT_MAT = " << KNIGHT_MAT << ";" << std::endl;
-        std::cout << "inline const PParam BISHOP_MAT = " << BISHOP_MAT << ";" << std::endl;
-        std::cout << "inline const PParam ROOK_MAT   = " << ROOK_MAT << ";" << std::endl;
-        std::cout << "inline const PParam QUEEN_MAT  = " << QUEEN_MAT << ";" << std::endl;
-        std::cout << "inline const PParam TEMPO_VAL  = " << TEMPO_VAL << ";" << std::endl;
-        std::cout << std::endl;
-
-        std::cout << "inline const PParam BISHOP_XRAY_PAWNS   = " << BISHOP_XRAY_PAWNS << ";"
-                  << std::endl;
-        std::cout << "inline const PParam BISHOP_PAIR_VAL   = " << BISHOP_PAIR_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam ROOK_OPEN_VAL     = " << ROOK_OPEN_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam MINOR_BEHIND_PAWN = " << MINOR_BEHIND_PAWN << ";"
-                  << std::endl;
-        std::cout << "inline const PParam RESTRICTED_SQUARES = " << RESTRICTED_SQUARES << ";"
-                  << std::endl;
-
-        std::cout << std::endl;
-        std::cout << "inline const PParam DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam ISOLATED_PAWN_VAL = " << ISOLATED_PAWN_VAL << ";"
-                  << std::endl;
-        std::cout << std::endl;
-
-        std::cout << "inline const PParam POTENTIAL_CHECKER_VAL = " << POTENTIAL_CHECKER_VAL << ";"
-                  << std::endl;
-
-        std::cout << "inline const PParam OUTPOST_KNIGHT_VAL    = " << OUTPOST_KNIGHT_VAL << ";"
-                  << std::endl;
-        std::cout << "inline const PParam OUTPOST_BISHOP_VAL    = " << OUTPOST_BISHOP_VAL << ";"
-                  << std::endl;
-
-        std::cout << std::endl;
-
-        std::cout << "inline const PParam PAWN_PUSH_THREAT_KNIGHT = " << PAWN_PUSH_THREAT_KNIGHT
-                  << ";" << std::endl;
-        std::cout << "inline const PParam PAWN_PUSH_THREAT_BISHOP = " << PAWN_PUSH_THREAT_BISHOP
-                  << ";" << std::endl;
-        std::cout << "inline const PParam PAWN_PUSH_THREAT_ROOK   = " << PAWN_PUSH_THREAT_ROOK
-                  << ";" << std::endl;
-        std::cout << "inline const PParam PAWN_PUSH_THREAT_QUEEN  = " << PAWN_PUSH_THREAT_QUEEN
-                  << ";" << std::endl;
-        std::cout << std::endl;
-
-        auto print_table = [](const std::string& name, const auto& table) {
-            std::cout << "inline const std::array<PParam, " << table.size() << "> " << name
-                      << " = {" << std::endl
-                      << "   ";
-            for (const auto& val : table) {
-                std::cout << " " << val << ",";
-            }
-            std::cout << std::endl << "};" << std::endl;
-        };
-
-        print_table("PAWN_PHALANX", PAWN_PHALANX);
-        print_table("DEFENDED_PAWN", DEFENDED_PAWN);
-        print_table("PASSED_PAWN", PASSED_PAWN);
-        print_table("DEFENDED_PASSED_PUSH", DEFENDED_PASSED_PUSH);
-        print_table("BLOCKED_PASSED_PAWN", BLOCKED_PASSED_PAWN);
-        std::cout << std::endl;
-
-        print_table("FRIENDLY_KING_PASSED_PAWN_DISTANCE", FRIENDLY_KING_PASSED_PAWN_DISTANCE);
-        print_table("ENEMY_KING_PASSED_PAWN_DISTANCE", ENEMY_KING_PASSED_PAWN_DISTANCE);
-        std::cout << std::endl;
-
-        print_table("KNIGHT_MOBILITY", KNIGHT_MOBILITY);
-        print_table("BISHOP_MOBILITY", BISHOP_MOBILITY);
-        print_table("ROOK_MOBILITY", ROOK_MOBILITY);
-        print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
-        std::cout << std::endl;
-
-        std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_ROOK   = " << PAWN_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_QUEEN  = " << PAWN_THREAT_QUEEN << ";"
-                  << std::endl;
-        std::cout << std::endl;
-
-        std::cout << "inline const PParam KNIGHT_THREAT_BISHOP = " << KNIGHT_THREAT_BISHOP << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KNIGHT_THREAT_ROOK   = " << KNIGHT_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KNIGHT_THREAT_QUEEN  = " << KNIGHT_THREAT_QUEEN << ";"
-                  << std::endl;
-        std::cout << std::endl;
-
-        std::cout << "inline const PParam BISHOP_THREAT_KNIGHT = " << BISHOP_THREAT_KNIGHT << ";"
-                  << std::endl;
-        std::cout << "inline const PParam BISHOP_THREAT_ROOK   = " << BISHOP_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam BISHOP_THREAT_QUEEN  = " << BISHOP_THREAT_QUEEN << ";"
-                  << std::endl;
-        std::cout << std::endl;
-
-        print_table("BISHOP_PAWNS", BISHOP_PAWNS);
-        std::cout << std::endl;
-        std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;
-        std::cout << std::endl;
-        auto printPsqtArray = [](const std::string& name, const auto& arr) {
-            std::cout << "inline const std::array<PParam, " << arr.size() << "> " << name << " = {"
-                      << std::endl;
-            for (std::size_t i = 0; i < arr.size(); ++i) {
-                if ((i & 7) == 0) {
-                    std::cout << "    ";
-                }
-                std::stringstream ss;
-                ss << arr[i] << ",";
-                std::cout << std::left << std::setw(16) << ss.str();
-                if ((i & 7) == 7) {
-                    std::cout << "//" << std::endl;
-                }
-            }
-            std::cout << "};" << std::endl;
-        };
-
-        printPsqtArray("PAWN_PSQT", PAWN_PSQT);
-        printPsqtArray("KNIGHT_PSQT", KNIGHT_PSQT);
-        printPsqtArray("BISHOP_PSQT", BISHOP_PSQT);
-        printPsqtArray("ROOK_PSQT", ROOK_PSQT);
-        printPsqtArray("QUEEN_PSQT", QUEEN_PSQT);
-        printPsqtArray("KING_PSQT", KING_PSQT);
-        std::cout << std::endl;
-
-        auto print_2d_array = [](const std::string& name, const auto& arr) {
-            std::cout << "inline const std::array<std::array<PParam, " << arr[0].size() << ">, "
-                      << arr.size() << "> " << name << " = {{" << std::endl;
-            for (const auto& subarr : arr) {
-                std::cout << "  {{";
-                for (const auto& val : subarr) {
-                    std::cout << " " << val << ",";
-                }
-                std::cout << " }}," << std::endl;
-            }
-            std::cout << "}};" << std::endl;
-        };
-
-        std::cout << "inline const PParam KS_NO_QUEEN = " << KS_NO_QUEEN << ";" << std::endl;
-        std::cout << std::endl;
-
-        print_table("PT_INNER_RING_ATTACKS", PT_INNER_RING_ATTACKS);
-        print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
-        std::cout << std::endl;
-
-
-        std::cout << "inline const PParam KS_FLANK_ATTACK = " << KS_FLANK_ATTACK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KS_FLANK_DEFENSE = " << KS_FLANK_DEFENSE << ";"
-                  << std::endl;
-        std::cout << "inline const PParam KS_FLANK_DOUBLE_ATTACK   = " << KS_FLANK_DOUBLE_ATTACK
-                  << ";" << std::endl;
-        std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE
-                  << ";" << std::endl;
-        std::cout << std::endl;
-
-        print_2d_array("KING_SHELTER", KING_SHELTER);
-        print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
-        print_2d_array("SHELTER_STORM", SHELTER_STORM);
-
-        auto print_sigmoid = [](const std::string& name, const auto& sigmoid, const i32 templ) {
-            PairHandle a_h = static_cast<PairHandle>(sigmoid.a());
-            PairHandle c_h = static_cast<PairHandle>(sigmoid.c());
-            std::cout << "inline TunableSigmoid<" << templ << "> " << name << "(\n"
-                      << "\t" << std::lround(a_h.first()) << ", " << std::lround(a_h.second())
-                      << ", " << std::lround(c_h.first()) << ", " << std::lround(c_h.second())
-                      << "\n"
-                      << ");\n";
-        };
-        print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
-
-        std::cout << std::endl;
-
-        std::cout << "inline VParam WINNABLE_PAWNS = " << WINNABLE_PAWNS << ";\n";
-        std::cout << "inline VParam WINNABLE_SYM = " << WINNABLE_SYM << ";\n";
-        std::cout << "inline VParam WINNABLE_ASYM = " << WINNABLE_ASYM << ";\n";
-        std::cout << "inline VParam WINNABLE_PAWN_ENDGAME = " << WINNABLE_PAWN_ENDGAME << ";\n";
-        std::cout << "inline VParam WINNABLE_BIAS = " << WINNABLE_BIAS << ";\n";
-        std::cout << std::endl;
-
+        print_eval_constants();
 #endif
         const auto end = time::Clock::now();
         std::cout << "// Epoch duration: " << time::cast<time::FloatSeconds>(end - start).count()
@@ -526,4 +346,190 @@ int main() {
     }
 
     return 0;
+}
+
+void print_eval_constants() {
+
+    auto print_table = [](const std::string& name, const auto& table) {
+        std::cout << "inline const std::array<PParam, " << table.size() << "> " << name << " = {"
+                  << std::endl
+                  << "   ";
+        for (const auto& val : table) {
+            std::cout << " " << val << ",";
+        }
+        std::cout << std::endl << "};" << std::endl;
+    };
+
+    auto printPsqtArray = [](const std::string& name, const auto& arr) {
+        std::cout << "inline const std::array<PParam, " << arr.size() << "> " << name << " = {"
+                  << std::endl;
+        for (std::size_t i = 0; i < arr.size(); ++i) {
+            if ((i & 7) == 0) {
+                std::cout << "    ";
+            }
+            std::stringstream ss;
+            ss << arr[i] << ",";
+            std::cout << std::left << std::setw(16) << ss.str();
+            if ((i & 7) == 7) {
+                std::cout << "//" << std::endl;
+            }
+        }
+        std::cout << "};" << std::endl;
+    };
+
+
+    auto print_2d_array = [](const std::string& name, const auto& arr) {
+        std::cout << "inline const std::array<std::array<PParam, " << arr[0].size() << ">, "
+                  << arr.size() << "> " << name << " = {{" << std::endl;
+        for (const auto& subarr : arr) {
+            std::cout << "  {{";
+            for (const auto& val : subarr) {
+                std::cout << " " << val << ",";
+            }
+            std::cout << " }}," << std::endl;
+        }
+        std::cout << "}};" << std::endl;
+    };
+
+    auto print_sigmoid = [](const std::string& name, const auto& sigmoid, const i32 templ) {
+        PairHandle a_h = static_cast<PairHandle>(sigmoid.a());
+        PairHandle c_h = static_cast<PairHandle>(sigmoid.c());
+        std::cout << "inline TunableSigmoid<" << templ << "> " << name << "(\n"
+                  << "\t" << std::lround(a_h.first()) << ", " << std::lround(a_h.second()) << ", "
+                  << std::lround(c_h.first()) << ", " << std::lround(c_h.second()) << "\n"
+                  << ");\n";
+    };
+
+    std::cout << "inline const PParam PAWN_MAT   = " << PAWN_MAT << ";" << std::endl;
+    std::cout << "inline const PParam KNIGHT_MAT = " << KNIGHT_MAT << ";" << std::endl;
+    std::cout << "inline const PParam BISHOP_MAT = " << BISHOP_MAT << ";" << std::endl;
+    std::cout << "inline const PParam ROOK_MAT   = " << ROOK_MAT << ";" << std::endl;
+    std::cout << "inline const PParam QUEEN_MAT  = " << QUEEN_MAT << ";" << std::endl;
+    std::cout << "inline const PParam TEMPO_VAL  = " << TEMPO_VAL << ";" << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam BISHOP_XRAY_PAWNS   = " << BISHOP_XRAY_PAWNS << ";"
+              << std::endl;
+    std::cout << "inline const PParam BISHOP_PAIR_VAL   = " << BISHOP_PAIR_VAL << ";" << std::endl;
+    std::cout << "inline const PParam ROOK_OPEN_VAL     = " << ROOK_OPEN_VAL << ";" << std::endl;
+    std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
+              << std::endl;
+    std::cout << "inline const PParam MINOR_BEHIND_PAWN = " << MINOR_BEHIND_PAWN << ";"
+              << std::endl;
+    std::cout << "inline const PParam RESTRICTED_SQUARES = " << RESTRICTED_SQUARES << ";"
+              << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "inline const PParam DOUBLED_PAWN_VAL = " << DOUBLED_PAWN_VAL << ";" << std::endl;
+    std::cout << "inline const PParam ISOLATED_PAWN_VAL = " << ISOLATED_PAWN_VAL << ";"
+              << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam POTENTIAL_CHECKER_VAL = " << POTENTIAL_CHECKER_VAL << ";"
+              << std::endl;
+
+    std::cout << "inline const PParam OUTPOST_KNIGHT_VAL    = " << OUTPOST_KNIGHT_VAL << ";"
+              << std::endl;
+    std::cout << "inline const PParam OUTPOST_BISHOP_VAL    = " << OUTPOST_BISHOP_VAL << ";"
+              << std::endl;
+
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam PAWN_PUSH_THREAT_KNIGHT = " << PAWN_PUSH_THREAT_KNIGHT << ";"
+              << std::endl;
+    std::cout << "inline const PParam PAWN_PUSH_THREAT_BISHOP = " << PAWN_PUSH_THREAT_BISHOP << ";"
+              << std::endl;
+    std::cout << "inline const PParam PAWN_PUSH_THREAT_ROOK   = " << PAWN_PUSH_THREAT_ROOK << ";"
+              << std::endl;
+    std::cout << "inline const PParam PAWN_PUSH_THREAT_QUEEN  = " << PAWN_PUSH_THREAT_QUEEN << ";"
+              << std::endl;
+    std::cout << std::endl;
+
+    print_table("PAWN_PHALANX", PAWN_PHALANX);
+    print_table("DEFENDED_PAWN", DEFENDED_PAWN);
+    print_2d_array("PASSED_PAWN", PASSED_PAWN);
+    print_2d_array("CANDIDATE_PASSED_PAWN", CANDIDATE_PASSED_PAWN);
+    print_table("DEFENDED_PASSED_PUSH", DEFENDED_PASSED_PUSH);
+    print_table("BLOCKED_PASSED_PAWN", BLOCKED_PASSED_PAWN);
+    std::cout << std::endl;
+
+    print_table("FRIENDLY_KING_PASSED_PAWN_DISTANCE", FRIENDLY_KING_PASSED_PAWN_DISTANCE);
+    print_table("ENEMY_KING_PASSED_PAWN_DISTANCE", ENEMY_KING_PASSED_PAWN_DISTANCE);
+    std::cout << std::endl;
+
+    print_table("KNIGHT_MOBILITY", KNIGHT_MOBILITY);
+    print_table("BISHOP_MOBILITY", BISHOP_MOBILITY);
+    print_table("ROOK_MOBILITY", ROOK_MOBILITY);
+    print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
+              << std::endl;
+    std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
+              << std::endl;
+    std::cout << "inline const PParam PAWN_THREAT_ROOK   = " << PAWN_THREAT_ROOK << ";"
+              << std::endl;
+    std::cout << "inline const PParam PAWN_THREAT_QUEEN  = " << PAWN_THREAT_QUEEN << ";"
+              << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam KNIGHT_THREAT_BISHOP = " << KNIGHT_THREAT_BISHOP << ";"
+              << std::endl;
+    std::cout << "inline const PParam KNIGHT_THREAT_ROOK   = " << KNIGHT_THREAT_ROOK << ";"
+              << std::endl;
+    std::cout << "inline const PParam KNIGHT_THREAT_QUEEN  = " << KNIGHT_THREAT_QUEEN << ";"
+              << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam BISHOP_THREAT_KNIGHT = " << BISHOP_THREAT_KNIGHT << ";"
+              << std::endl;
+    std::cout << "inline const PParam BISHOP_THREAT_ROOK   = " << BISHOP_THREAT_ROOK << ";"
+              << std::endl;
+    std::cout << "inline const PParam BISHOP_THREAT_QUEEN  = " << BISHOP_THREAT_QUEEN << ";"
+              << std::endl;
+    std::cout << std::endl;
+
+    print_table("BISHOP_PAWNS", BISHOP_PAWNS);
+    std::cout << std::endl;
+    std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;
+    std::cout << std::endl;
+
+    printPsqtArray("PAWN_PSQT", PAWN_PSQT);
+    printPsqtArray("KNIGHT_PSQT", KNIGHT_PSQT);
+    printPsqtArray("BISHOP_PSQT", BISHOP_PSQT);
+    printPsqtArray("ROOK_PSQT", ROOK_PSQT);
+    printPsqtArray("QUEEN_PSQT", QUEEN_PSQT);
+    printPsqtArray("KING_PSQT", KING_PSQT);
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam KS_NO_QUEEN = " << KS_NO_QUEEN << ";" << std::endl;
+    std::cout << std::endl;
+
+    print_table("PT_INNER_RING_ATTACKS", PT_INNER_RING_ATTACKS);
+    print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
+    std::cout << std::endl;
+
+
+    std::cout << "inline const PParam KS_FLANK_ATTACK = " << KS_FLANK_ATTACK << ";" << std::endl;
+    std::cout << "inline const PParam KS_FLANK_DEFENSE = " << KS_FLANK_DEFENSE << ";" << std::endl;
+    std::cout << "inline const PParam KS_FLANK_DOUBLE_ATTACK   = " << KS_FLANK_DOUBLE_ATTACK << ";"
+              << std::endl;
+    std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE << ";"
+              << std::endl;
+    std::cout << std::endl;
+
+    print_2d_array("KING_SHELTER", KING_SHELTER);
+    print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
+    print_2d_array("SHELTER_STORM", SHELTER_STORM);
+
+    print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
+
+    std::cout << std::endl;
+
+    std::cout << "inline VParam WINNABLE_PAWNS = " << WINNABLE_PAWNS << ";\n";
+    std::cout << "inline VParam WINNABLE_SYM = " << WINNABLE_SYM << ";\n";
+    std::cout << "inline VParam WINNABLE_ASYM = " << WINNABLE_ASYM << ";\n";
+    std::cout << "inline VParam WINNABLE_PAWN_ENDGAME = " << WINNABLE_PAWN_ENDGAME << ";\n";
+    std::cout << "inline VParam WINNABLE_BIAS = " << WINNABLE_BIAS << ";\n";
+    std::cout << std::endl;
 }
