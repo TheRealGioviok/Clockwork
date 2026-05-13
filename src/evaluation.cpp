@@ -215,7 +215,7 @@ PScore evaluate_pawns(const Position& pos) {
             } else {
                 const Bitboard levers = static_pawn_attacks<color>(sqb) & stoppers;
                 const Bitboard lever_pushes =
-                  static_pawn_attacks<color>(levers).shift_relative(color, Direction::North)
+                  static_pawn_attacks<color>(sqb).shift_relative(color, Direction::North)
                   & stoppers;
                 const Bitboard phalanx =
                   static_pawn_attacks<them>(Bitboard::from_square(push)) & pawns;
