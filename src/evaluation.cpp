@@ -221,7 +221,9 @@ PScore evaluate_pawns(const Position& pos) {
                   static_pawn_attacks<them>(Bitboard::from_square(push)) & pawns;
                 usize      support_count = (static_pawn_attacks<them>(sqb) & pawns).popcount();
                 const bool is_candidate =
-                  (stoppers == (levers | lever_pushes))  // No extra pawns behind immediate stopers
+                  (stoppers == levers
+                   || stoppers
+                        == lever_pushes)  // No extra pawns behind immediate stopers, only levers or lever pushes
                   && !(levers.popcount() > support_count + 1)  // No more lever than support
                   && (support_count >= phalanx.popcount());    // Not more phalanx than support
                 if (is_candidate) {
