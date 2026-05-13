@@ -127,6 +127,7 @@ PScore king_shelter(const Position& pos) {
     constexpr Color opp = ~color;
 
     Square king_square = pos.king_sq(color);
+    i32    king_rank   = king_square.relative_rank(color);
 
     Bitboard b = ~Bitboard::forward_ranks(opp, king_square);  // Squares ahead or on king's rank
     Bitboard our_pawns =
@@ -157,9 +158,15 @@ PScore king_shelter(const Position& pos) {
         } else {
             score += SHELTER_STORM[static_cast<usize>(edge_idx)][static_cast<usize>(their_rank)];
         }
+
+        // If our king is above the shelter, add a penalty
+        // TODO: penalty greater if the king has no direct moves to get back to the shelter
+        if (offset == 0 && king_rank > our_rank) {
+            score += KING_EXPOSED;
+        }
     }
 
-    return score;
+    return KING_SHELTER_ACTIVATION(score);
 }
 
 template<Color color>

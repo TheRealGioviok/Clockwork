@@ -296,7 +296,8 @@ int main() {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
-              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
+              0,
+              counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 1 + 2 + 2));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
@@ -499,6 +500,10 @@ int main() {
         print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
         print_2d_array("SHELTER_STORM", SHELTER_STORM);
 
+        std::cout << std::endl;
+
+        std::cout << "inline const PParam KING_EXPOSED = " << KING_EXPOSED << ";" << std::endl;
+
         auto print_sigmoid = [](const std::string& name, const auto& sigmoid, const i32 templ) {
             PairHandle a_h = static_cast<PairHandle>(sigmoid.a());
             PairHandle c_h = static_cast<PairHandle>(sigmoid.c());
@@ -508,6 +513,7 @@ int main() {
                       << "\n"
                       << ");\n";
         };
+        print_sigmoid("KING_SHELTER_ACTIVATION", KING_SHELTER_ACTIVATION, 32);
         print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
 
         std::cout << std::endl;
