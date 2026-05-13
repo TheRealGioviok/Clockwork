@@ -128,6 +128,7 @@ PScore king_shelter(const Position& pos) {
 
     Square king_square = pos.king_sq(color);
     i32    king_rank   = king_square.relative_rank(color);
+    i32 king_file   = king_square.file();
 
     Bitboard b = ~Bitboard::forward_ranks(opp, king_square);  // Squares ahead or on king's rank
     Bitboard our_pawns =
@@ -136,7 +137,7 @@ PScore king_shelter(const Position& pos) {
 
     PScore score = PSCORE_ZERO;
 
-    i32 shelter_center = std::clamp(king_square.file(), 1, 6);
+    i32 shelter_center = std::clamp(king_file, 1, 6);
 
     for (i32 offset = -1; offset <= 1; offset++) {
         i32      file    = shelter_center + offset;
@@ -161,7 +162,7 @@ PScore king_shelter(const Position& pos) {
 
         // If our king is above the shelter, add a penalty
         // TODO: penalty greater if the king has no direct moves to get back to the shelter
-        if (offset == 0 && king_rank > our_rank) {
+        if ((file == king_file) && king_rank > our_rank) {
             score += KING_EXPOSED;
         }
     }
