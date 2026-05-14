@@ -299,8 +299,8 @@ int main() {
               0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
             optim.set_lr(.1);
         }
-        if (epoch == 96) {
-            // Unfreeze king safety parameters after 96 epochs
+        if (epoch == 72) {
+            // Unfreeze king safety parameters after 72 epochs
             Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count);
         }
 
@@ -308,9 +308,9 @@ int main() {
         if (epoch < 24) {
             optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
         } else if (epoch < 72) {
-            optim.set_lr(2 * std::pow(0.0667, double(epoch - 24) / 28.0));
+            optim.set_lr(2 * std::pow(0.0667, double(epoch - 24) / 64.0));
         } else {
-            optim.set_lr(std::pow(0.1, double(epoch - 72) / 128.0));
+            optim.set_lr(std::pow(0.1, double(epoch - 72) / 160.0));
         }
 
         std::cout << "Epoch " << epoch + 1 << "/" << epochs << "\n";
@@ -493,6 +493,9 @@ int main() {
                   << ";" << std::endl;
         std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE
                   << ";" << std::endl;
+        std::cout << std::endl;
+
+        print_2d_array("KS_SAFE_CHECKS", KS_SAFE_CHECKS);
         std::cout << std::endl;
 
         print_2d_array("KING_SHELTER", KING_SHELTER);
