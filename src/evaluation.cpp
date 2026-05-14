@@ -251,10 +251,10 @@ PScore king_shelter(const Position& pos) {
     return score;
 }
 
-template<Color color> 
+template<Color color>
 struct CheckerInfo {
     Wordboard mask;
-    Bitboard  undefended; 
+    Bitboard  undefended;
 };
 
 template<Color color>
@@ -281,12 +281,14 @@ CheckerInfo<color> make_checker_info(const Position& pos) {
     };
 }
 
-template<Color color, PieceType pt> 
+template<Color color, PieceType pt>
 PScore piece_safe_checks(PieceId id, const CheckerInfo<color>& ci) {
-    const Bitboard safe_checks = ci.mask.get_piece_mask_bitboard(id.to_piece_mask()) & ci.undefended;
+    const Bitboard safe_checks =
+      ci.mask.get_piece_mask_bitboard(id.to_piece_mask()) & ci.undefended;
 
-    if (!safe_checks.any())
+    if (!safe_checks.any()) {
         return PSCORE_ZERO;
+    }
 
     const usize ptidx = static_cast<usize>(pt) - static_cast<usize>(PieceType::Knight);
     return KS_SAFE_CHECKS[ptidx][std::min(safe_checks.popcount() - 1, usize{1})];
@@ -546,15 +548,15 @@ PScore apply_eg_scale(const Position& pos, PScore& eval) {
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     const Color us    = pos.active_color();
     usize       phase = pos.piece_count(Color::White, PieceType::Knight)
-                      + pos.piece_count(Color::Black, PieceType::Knight)
-                      + pos.piece_count(Color::White, PieceType::Bishop)
-                      + pos.piece_count(Color::Black, PieceType::Bishop)
-                      + 2
-                          * (pos.piece_count(Color::White, PieceType::Rook)
-                             + pos.piece_count(Color::Black, PieceType::Rook))
-                      + 4
-                          * (pos.piece_count(Color::White, PieceType::Queen)
-                             + pos.piece_count(Color::Black, PieceType::Queen));
+                + pos.piece_count(Color::Black, PieceType::Knight)
+                + pos.piece_count(Color::White, PieceType::Bishop)
+                + pos.piece_count(Color::Black, PieceType::Bishop)
+                + 2
+                    * (pos.piece_count(Color::White, PieceType::Rook)
+                       + pos.piece_count(Color::Black, PieceType::Rook))
+                + 4
+                    * (pos.piece_count(Color::White, PieceType::Queen)
+                       + pos.piece_count(Color::Black, PieceType::Queen));
 
     phase = std::min<usize>(phase, 24);
 
@@ -577,8 +579,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
       evaluate_pawn_push_threats<Color::White>(pos) - evaluate_pawn_push_threats<Color::Black>(pos);
 
     // King safety
-    PScore white_king_attack_total = evaluate_king_safety<Color::Black>(pos) + bc;
-    PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos) + wc;
+    PScore white_king_attack_total = evaluate_king_safety<Color::Black>(pos) + wc;
+    PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos) + bc;
 
     // Nonlinear adjustment
     eval += king_safety_activation<Color::White>(white_king_attack_total)
