@@ -526,7 +526,7 @@ PScore apply_eg_scale(const Position& pos,
             return eval.scale_eg<128>(28 + 8 * strong_passers
                                       + 8 * (strong_pawn_count >= weak_pawn_count + 2));
         } else {
-            return eval.scale_eg<128>(44 + 3 * pos.piece_count(strong_side));
+            return eval.scale_eg<128>(44 + 6 * pos.piece_count(strong_side));
         }
     }
 
