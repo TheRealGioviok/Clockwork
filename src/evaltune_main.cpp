@@ -394,6 +394,7 @@ int main() {
 
         print_table("PAWN_PHALANX", PAWN_PHALANX);
         print_table("DEFENDED_PAWN", DEFENDED_PAWN);
+        print_table("BACKWARD_PAWN", BACKWARD_PAWN);
         print_table("PASSED_PAWN", PASSED_PAWN);
         print_table("DEFENDED_PASSED_PUSH", DEFENDED_PASSED_PUSH);
         print_table("BLOCKED_PASSED_PAWN", BLOCKED_PASSED_PAWN);

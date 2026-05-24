@@ -122,6 +122,20 @@ std::array<std::array<Bitboard, 64>, 2> passed_pawn_spans = []() {
     return passed_pawn_masks;
 }();
 
+std::array<std::array<Bitboard, 64>, 2> backward_pawn_mask = []() {
+    for (Color color : {Color::White, Color::Black}) {
+        for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
+            Bitboard sq_bb = Bitboard::from_square(Square{sq_idx});
+            Bitboard mask  = sq_bb.shift(Direction::East) | sq_bb.shift(Direction::West);
+            for (u8 i = 0; i < 8; i++) {
+                mask |= mask.shift_relative(color, Direction::North);
+            }
+            backward_pawn_mask[static_cast<usize>(color)][sq_idx] = mask;
+        }
+    }
+    return backward_pawn_mask;
+}();
+
 template<Color color>
 PScore king_shelter(const Position& pos) {
     constexpr Color opp = ~color;
@@ -205,6 +219,12 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos) {
 
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+        }
+        if ((backward_pawn_mask[static_cast<usize>(color)][sq.raw] & pawns).empty()) {
+            if (pos.piece_at(push) != PieceType::None
+                || pos.is_square_attacked_by(push, them, PieceType::Pawn)) {
+                eval += BACKWARD_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+            }
         }
     }
 
