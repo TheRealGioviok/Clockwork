@@ -4,7 +4,7 @@
 
 namespace Clockwork {
 
-inline void print_progress(size_t current, size_t total, size_t bar_width = 40) {
+inline void print_progress(size_t current, size_t total, f64 running_loss, size_t bar_width = 40) {
     if (total == 0) {
         std::cout << "\r[error: total=0]" << std::flush;
         return;
@@ -15,7 +15,7 @@ inline void print_progress(size_t current, size_t total, size_t bar_width = 40) 
         progress = 1.0f;  // clamp if overshoot
     }
 
-    size_t pos = static_cast<size_t>(bar_width * progress);
+    size_t pos = static_cast<size_t>(static_cast<f32>(bar_width) * progress);
 
     std::cout << "\r[";
     for (size_t i = 0; i < bar_width; ++i) {
@@ -29,7 +29,7 @@ inline void print_progress(size_t current, size_t total, size_t bar_width = 40) 
     }
 
     std::cout << "] " << static_cast<int>(progress * 100.0f) << "% (" << current << "/" << total
-              << ")" << std::flush;
+              << ") \t Running Loss: " << running_loss << std::flush;
 }
 
 }  // namespace Clockwork

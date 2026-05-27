@@ -304,7 +304,7 @@ PScore evaluate_pieces(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_outposts(const Position& pos) {
+std::tuple<PScore, Bitboard> evaluate_outposts(const Position& pos) {
     // First calculate all the viable outpost squares
     // A viable outpost square is one that is not attackable by enemy pawns and is:
     // - on ranks 4,5,6 for white (5,4,3 for black)
@@ -329,7 +329,7 @@ PScore evaluate_outposts(const Position& pos) {
           * (pos.bitboard_for(color, PieceType::Knight) & viable_outposts).ipopcount();
     eval += OUTPOST_BISHOP_VAL
           * (pos.bitboard_for(color, PieceType::Bishop) & viable_outposts).ipopcount();
-    return eval;
+    return {eval, opp_pawn_span | opp_pawn_span_attacks};
 }
 
 
@@ -404,7 +404,7 @@ PScore evaluate_threats(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
-    Bitboard b, weak, defended, non_pawn_enemies, strongly_protected, safe;
+    Bitboard b, weak, defended, non_pawn_enemies, strongly_protected;
 
     non_pawn_enemies =
       pos.board().get_color_bitboard(opp) & ~pos.bitboard_for(opp, PieceType::Pawn);
@@ -446,14 +446,20 @@ PScore evaluate_threats(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_space(const Position& pos) {
-    PScore          eval       = PSCORE_ZERO;
-    constexpr Color them       = color == Color::White ? Color::Black : Color::White;
-    Bitboard        ourfiles   = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
-    Bitboard        theirfiles = Bitboard::fill_verticals(pos.bitboard_for(them, PieceType::Pawn));
-    Bitboard        openfiles  = ~(ourfiles | theirfiles);
-    Bitboard        half_open_files = (~ourfiles) & theirfiles;
-    Bitboard        ourminors =
+PScore evaluate_space(const Position& pos, Bitboard their_span) {
+    PScore             eval       = PSCORE_ZERO;
+    constexpr Color    them       = color == Color::White ? Color::Black : Color::White;
+    constexpr Bitboard their_half = color == Color::White
+                                    ? (Bitboard::rank_mask(7) | Bitboard::rank_mask(6)
+                                       | Bitboard::rank_mask(5) | Bitboard::rank_mask(4))
+                                    : (Bitboard::rank_mask(0) | Bitboard::rank_mask(1)
+                                       | Bitboard::rank_mask(2) | Bitboard::rank_mask(3));
+
+    Bitboard ourfiles        = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
+    Bitboard theirfiles      = Bitboard::fill_verticals(pos.bitboard_for(them, PieceType::Pawn));
+    Bitboard openfiles       = ~(ourfiles | theirfiles);
+    Bitboard half_open_files = (~ourfiles) & theirfiles;
+    Bitboard ourminors =
       pos.bitboard_for(color, PieceType::Knight) | pos.bitboard_for(color, PieceType::Bishop);
 
     eval += ROOK_OPEN_VAL * (openfiles & pos.bitboard_for(color, PieceType::Rook)).ipopcount();
@@ -473,6 +479,14 @@ PScore evaluate_space(const Position& pos) {
           * (pos.attack_table(color).get_attacked_bitboard() & ~strongly_defended
              & pos.attack_table(them).get_attacked_bitboard())
               .ipopcount();
+
+    Bitboard latent_invasions =
+      their_half & ~their_span & ~pos.attacked_by(them, PieceType::Pawn)
+      & pos.attacked_by_two_or_more(color)
+      & pos.attack_table(color).get_piece_mask_bitboard(
+        pos.get_piece_mask<PieceType::Knight, PieceType::Bishop, PieceType::Rook, PieceType::Queen>(
+          color));
+    eval += LATENT_INVASION_SQUARES * latent_invasions.ipopcount();
 
     return eval;
 }
@@ -573,8 +587,11 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     // pieces & space
     eval += evaluate_pieces<Color::White>(pos) - evaluate_pieces<Color::Black>(pos);
-    eval += evaluate_outposts<Color::White>(pos) - evaluate_outposts<Color::Black>(pos);
-    eval += evaluate_space<Color::White>(pos) - evaluate_space<Color::Black>(pos);
+    auto [white_outposts_eval, black_span] = evaluate_outposts<Color::White>(pos);
+    auto [black_outposts_eval, white_span] = evaluate_outposts<Color::Black>(pos);
+    eval += white_outposts_eval - black_outposts_eval;
+    eval +=
+      evaluate_space<Color::White>(pos, black_span) - evaluate_space<Color::Black>(pos, white_span);
 
     // Threats
     eval += evaluate_threats<Color::White>(pos) - evaluate_threats<Color::Black>(pos);
