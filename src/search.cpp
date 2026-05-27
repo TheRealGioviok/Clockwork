@@ -599,6 +599,8 @@ Value Worker::search(
     (ss + 1)->killer = Move::none();
     // Clear child's fail high count
     (ss + 1)->fail_high_count = 0;
+    // Clear child's extension lmr
+    (ss + 1)->lmr_ext = 0;
 
     // Iterate over the move list
     for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
@@ -655,19 +657,28 @@ Value Worker::search(
 
             if (singular_value < singular_beta) {
                 extension = 1;
-
-                // Double Extension
-                Value double_margin =
-                  tuned::dext_margin - (move_history / tuned::dext_hist_div * quiet);
-                if (!PV_NODE && singular_value <= singular_beta - double_margin) {
-                    extension = 2;
-                }
-
-                // Triple Extension
-                Value triple_margin =
-                  tuned::triext_margin - (move_history / tuned::triext_hist_div * quiet);
-                if (!PV_NODE && quiet && singular_value <= singular_beta - triple_margin) {
-                    extension = 3;
+                // In non pv nodes, we can try to extend further
+                if (!PV_NODE) {
+                    // Double Extension
+                    Value double_margin =
+                      tuned::dext_margin - (move_history / tuned::dext_hist_div * quiet);
+                    if (singular_value <= singular_beta - double_margin) {
+                        extension = 2;
+                        // If the tt move is quiet, we can try to extend even further
+                        if (quiet) {
+                            Value triple_margin = tuned::triext_margin
+                                                - (move_history / tuned::triext_hist_div * quiet);
+                            if (singular_value <= singular_beta - triple_margin) {
+                                extension = 3;
+                            } else {
+                                (ss + 1)->lmr_ext = 1024
+                                                  * (singular_beta - double_margin - singular_value)
+                                                  / (triple_margin - double_margin);
+                            }
+                        }
+                    } else {
+                        (ss + 1)->lmr_ext = 1024 * (singular_beta - singular_value) / double_margin;
+                    }
                 }
             }
 
@@ -725,7 +736,7 @@ Value Worker::search(
         Depth new_depth = depth - 1 + extension;
         Value value;
         if (depth >= 3 && moves_played >= 2 + 2 * PV_NODE) {
-            i32 reduction;
+            i32 reduction = -ss->lmr_ext;
 
             if (quiet) {
                 reduction = static_cast<i32>(tuned::lmr_quiet_base
