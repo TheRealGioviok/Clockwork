@@ -498,7 +498,7 @@ PScore king_safety_activation(PScore& king_safety_score) {
     return activated;
 }
 
-PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
+PScore apply_winnable(const Position& pos, PScore& score, usize phase, i32 passers) {
 
     bool pawn_endgame = phase == 0;
 
@@ -515,8 +515,9 @@ PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
 
     Score symmetry = static_cast<Score>(WINNABLE_SYM * sym_files + WINNABLE_ASYM * asym_files);
 
-    Score winnable = static_cast<Score>(WINNABLE_PAWNS * pawn_count + symmetry
-                                        + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_BIAS);
+    Score winnable =
+      static_cast<Score>(WINNABLE_PAWNS * pawn_count + WINNABLE_PASSERS * passers + symmetry
+                         + WINNABLE_PAWN_ENDGAME * pawn_endgame + WINNABLE_BIAS);
 
     if (score.eg() < 0) {
         winnable = static_cast<Score>(-winnable);
@@ -613,7 +614,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
 
     // Winnable
-    eval = apply_winnable(pos, eval, phase);
+    eval = apply_winnable(pos, eval, phase, white_passers + black_passers);
 
     // Eg scaling
     eval = apply_eg_scale(pos, eval, white_phase, black_phase, white_passers, black_passers);
