@@ -409,15 +409,8 @@ int main() {
         print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
         std::cout << std::endl;
 
-        std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
+        std::cout << "inline const PParam SAFE_PAWN_THREAT = " << SAFE_PAWN_THREAT << ";"
                   << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_ROOK   = " << PAWN_THREAT_ROOK << ";"
-                  << std::endl;
-        std::cout << "inline const PParam PAWN_THREAT_QUEEN  = " << PAWN_THREAT_QUEEN << ";"
-                  << std::endl;
-        std::cout << std::endl;
 
         print_table("MINOR_THREAT", MINOR_THREAT);
         print_table("ROOK_THREAT", ROOK_THREAT);

@@ -433,14 +433,11 @@ PScore evaluate_threats(const Position& pos) {
         }
     }
 
-    Bitboard pawn_attacks = pos.attacked_by(color, PieceType::Pawn);
-    eval +=
-      PAWN_THREAT_KNIGHT * (pos.bitboard_for(opp, PieceType::Knight) & pawn_attacks).ipopcount();
-    eval +=
-      PAWN_THREAT_BISHOP * (pos.bitboard_for(opp, PieceType::Bishop) & pawn_attacks).ipopcount();
-    eval += PAWN_THREAT_ROOK * (pos.bitboard_for(opp, PieceType::Rook) & pawn_attacks).ipopcount();
-    eval +=
-      PAWN_THREAT_QUEEN * (pos.bitboard_for(opp, PieceType::Queen) & pawn_attacks).ipopcount();
+    safe = ~pos.attack_table(opp).get_attacked_bitboard()
+         & pos.attack_table(color).get_attacked_bitboard();
+    b = pos.bitboard_for(color, PieceType::Pawn) & safe;
+    b = static_pawn_attacks<color>(b) & non_pawn_enemies;
+    eval += SAFE_PAWN_THREAT * b.ipopcount();
 
     return eval;
 }
