@@ -404,7 +404,7 @@ PScore evaluate_threats(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
-    Bitboard b, weak, defended, opp_pawn, opp_non_pawn, strongly_protected, safe;
+    Bitboard b, weak, defended, opp_pawn, opp_non_pawn, strongly_protected;
     opp_pawn     = pos.bitboard_for(opp, PieceType::Pawn);
     opp_non_pawn = pos.board().get_color_bitboard(opp) & ~opp_pawn;
 
@@ -490,10 +490,58 @@ PScore evaluate_space(const Position& pos) {
 }
 
 template<Color color>
-PScore king_safety_activation(PScore& king_safety_score) {
-    // Apply sigmoid activation to king safety score
-    PScore activated = KING_SAFETY_ACTIVATION(king_safety_score);
-    return activated;
+std::pair<PScore, PScore> king_safety_activation(const Position& pos,
+                                                 PScore&   white_king_safety_score,
+                                                 PScore&   black_king_safety_score) {
+    // Identify the king sides.
+    i32 wkf = pos.king_sq(Color::White).file();
+    i32 bkf = pos.king_sq(Color::Black).file();
+
+    i32 wf = (wkf >= 3) + (wkf >= 5);
+    i32 bf = (bkf >= 3) + (bkf >= 5);
+
+    using Result = std::pair<PScore, PScore>;
+    using Fn     = Result (*)(PScore, PScore);
+
+    static constexpr Fn table[3][3] = {
+      {[](PScore w, PScore b) -> Result {
+           return {SAME_SIDE_KS_ACTIVATION(w), SAME_SIDE_KS_ACTIVATION(b)};
+       },
+
+       [](PScore w, PScore b) -> Result {
+           return {OCOS_S_SIDE_KS_ACTIVATION(w), OCOS_C_SIDE_KS_ACTIVATION(b)};
+       },
+
+       [](PScore w, PScore b) -> Result {
+           return {OPP_SIDE_KS_ACTIVATION(w), OPP_SIDE_KS_ACTIVATION(b)};
+       }},
+
+      {[](PScore w, PScore b) -> Result {
+           return {OCOS_C_SIDE_KS_ACTIVATION(w), OCOS_S_SIDE_KS_ACTIVATION(b)};
+       },
+
+       [](PScore w, PScore b) -> Result {
+           return {SAME_SIDE_KS_ACTIVATION(w), SAME_SIDE_KS_ACTIVATION(b)};
+       },
+
+       [](PScore w, PScore b) -> Result {
+           return {OCOS_C_SIDE_KS_ACTIVATION(w), OCOS_S_SIDE_KS_ACTIVATION(b)};
+       }},
+
+      {[](PScore w, PScore b) -> Result {
+           return {OPP_SIDE_KS_ACTIVATION(w), OPP_SIDE_KS_ACTIVATION(b)};
+       },
+
+       [](PScore w, PScore b) -> Result {
+           return {OCOS_S_SIDE_KS_ACTIVATION(w), OCOS_C_SIDE_KS_ACTIVATION(b)};
+       },
+
+
+       [](PScore w, PScore b) -> Result {
+           return {SAME_SIDE_KS_ACTIVATION(w), SAME_SIDE_KS_ACTIVATION(b)};
+       }}};
+
+    return table[wf][bf](white_king_safety_score, black_king_safety_score);
 }
 
 PScore apply_winnable(const Position& pos, PScore& score, usize phase) {
@@ -602,8 +650,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos);
 
     // Nonlinear adjustment
-    eval += king_safety_activation<Color::White>(white_king_attack_total)
-          - king_safety_activation<Color::Black>(black_king_attack_total);
+    auto [wks, bks] = king_safety_activation<Color::White>(pos, white_king_attack_total, black_king_attack_total);
+    eval += wks - bks;
 
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;
 
