@@ -491,8 +491,8 @@ PScore evaluate_space(const Position& pos) {
 
 template<Color color>
 std::pair<PScore, PScore> king_safety_activation(const Position& pos,
-                                                 PScore&   white_king_safety_score,
-                                                 PScore&   black_king_safety_score) {
+                                                 PScore&         white_king_safety_score,
+                                                 PScore&         black_king_safety_score) {
     // Identify the king sides.
     i32 wkf = pos.king_sq(Color::White).file();
     i32 bkf = pos.king_sq(Color::Black).file();
@@ -650,7 +650,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos);
 
     // Nonlinear adjustment
-    auto [wks, bks] = king_safety_activation<Color::White>(pos, white_king_attack_total, black_king_attack_total);
+    auto [wks, bks] =
+      king_safety_activation<Color::White>(pos, white_king_attack_total, black_king_attack_total);
     eval += wks - bks;
 
     eval += (us == Color::White) ? TEMPO_VAL : -TEMPO_VAL;

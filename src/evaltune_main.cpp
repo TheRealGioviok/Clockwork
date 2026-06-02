@@ -324,7 +324,8 @@ int main() {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
-              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2 + 2 + 2 + 2));
+              0, counts.pair_parameter_count
+                   - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2 + 2 + 2 + 2));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
@@ -353,8 +354,7 @@ int main() {
 
             batch_barrier.arrive_and_wait();
 
-            const f64 running_loss =
-              running_loss_accum.exchange(0.0, std::memory_order_relaxed);
+            const f64 running_loss = running_loss_accum.exchange(0.0, std::memory_order_relaxed);
 
             print_progress(bi + 1, total_batches, running_loss);
         }
@@ -503,13 +503,12 @@ void print_params() {
               << std::endl;
     std::cout << std::endl;
 
-        print_table("MINOR_THREAT", MINOR_THREAT);
-        print_table("ROOK_THREAT", ROOK_THREAT);
-        std::cout << "inline const PParam KING_THREAT  = " << KING_THREAT << ";" << std::endl;
-        std::cout << "inline const PParam HANGING_PAWN  = " << HANGING_PAWN << ";" << std::endl;
-        std::cout << "inline const PParam HANGING_NON_PAWN  = " << HANGING_NON_PAWN << ";"
-                  << std::endl
-                  << std::endl;
+    print_table("MINOR_THREAT", MINOR_THREAT);
+    print_table("ROOK_THREAT", ROOK_THREAT);
+    std::cout << "inline const PParam KING_THREAT  = " << KING_THREAT << ";" << std::endl;
+    std::cout << "inline const PParam HANGING_PAWN  = " << HANGING_PAWN << ";" << std::endl;
+    std::cout << "inline const PParam HANGING_NON_PAWN  = " << HANGING_NON_PAWN << ";" << std::endl
+              << std::endl;
 
     print_table("BISHOP_PAWNS", BISHOP_PAWNS);
     std::cout << std::endl;
