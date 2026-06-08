@@ -133,8 +133,8 @@ std::array<isize, 256> pawn_island_count = []() {
     // Indexed by pawn file mask. For example, 0b00011011 means there are pawns on files a,b,c,e, which is 2 islands. 0b10101010 means pawns on b,d,f,h, which is 4 islands.
     std::array<isize, 256> pawn_island_count{};
     for (u16 mask = 0; mask < 256; mask++) {
-        isize count = 0;
-        bool in_island = false;
+        isize count     = 0;
+        bool  in_island = false;
         for (i32 file = 0; file < 8; file++) {
             if (mask & (1 << file)) {
                 if (!in_island) {
