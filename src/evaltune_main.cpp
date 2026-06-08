@@ -457,6 +457,10 @@ void print_params() {
               << std::endl;
     std::cout << std::endl;
 
+
+    print_table("PAWN_ISLANDS", PAWN_ISLANDS);
+    std::cout << std::endl;
+
     std::cout << "inline const PParam POTENTIAL_CHECKER_VAL = " << POTENTIAL_CHECKER_VAL << ";"
               << std::endl;
 

@@ -129,6 +129,27 @@ std::array<Bitboard, 64> king_ring_table = []() {
     return king_ring_table;
 }();
 
+std::array<isize, 256> pawn_island_count = []() {
+    // Indexed by pawn file mask. For example, 0b00011011 means there are pawns on files a,b,c,e, which is 2 islands. 0b10101010 means pawns on b,d,f,h, which is 4 islands.
+    std::array<isize, 256> pawn_island_count{};
+    for (u16 mask = 0; mask < 256; mask++) {
+        isize count = 0;
+        bool in_island = false;
+        for (i32 file = 0; file < 8; file++) {
+            if (mask & (1 << file)) {
+                if (!in_island) {
+                    in_island = true;
+                    count++;
+                }
+            } else {
+                in_island = false;
+            }
+        }
+        pawn_island_count[mask] = count;
+    }
+    return pawn_island_count;
+}();
+
 std::array<Bitboard, 64> extended_ring_table = []() {
     std::array<Bitboard, 64> extended_ring_table{};
     for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
@@ -276,6 +297,10 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data
     Bitboard defended = pawns & data.attacked_by(color, PieceType::Pawn);
     for (Square sq : defended) {
         eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
+    }
+
+    if (pawns.any()) {
+        eval += PAWN_ISLANDS[pawn_island_count[pawn_files.value() & 0xFFLL]];
     }
 
     return {eval, passers};
