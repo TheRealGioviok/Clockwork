@@ -494,7 +494,10 @@ Value Worker::search(
     }
 
     if (cutnode && !PV_NODE && !is_in_check && !pos.is_kp_endgame() && depth >= tuned::nmp_depth
-        && !excluded && tt_adjusted_eval >= beta + std::max(0, tuned::nmp_beta_margin_base - tuned::nmp_beta_depth_margin * depth)
+        && !excluded
+        && tt_adjusted_eval
+             >= beta
+                  + std::max(0, tuned::nmp_beta_margin_base - tuned::nmp_beta_depth_margin * depth)
         && !is_being_mated_score(beta) && !m_in_nmp_verification) {
 
         i32 R = tuned::nmp_base_r + depth * tuned::nmp_depth_r
