@@ -7,6 +7,8 @@
 #include "psqt_state.hpp"
 #include "square.hpp"
 #include <array>
+#include <optional>
+#include "dbg_tools.hpp"
 #include <ranges>
 
 namespace Clockwork {
@@ -78,6 +80,52 @@ struct EvalData {
         return any2_attacks_by[static_cast<usize>(color)];
     }
 };
+
+struct alignas(16) PawnCacheEntry {
+    u32      key;           // Upper key
+    PScore   pawn_score;    // Stored eval
+    Bitboard passed_pawns;  // Grouped passers
+};
+
+static u64 mulhi64(u64 a, u64 b) {
+    u128 result = static_cast<u128>(a) * static_cast<u128>(b);
+    return static_cast<u64>(result >> 64);
+}
+
+static u32 shrink_key(HashKey key) {
+    return static_cast<u32>(key);
+}
+
+// Pawn evaluation cache
+class PawnEvalCache {
+private:
+    static constexpr usize                 CACHE_SIZE = 16384;  // 2^14 entries
+    alignas(16) std::array<PawnCacheEntry, CACHE_SIZE> m_cache;
+
+public:
+    [[nodiscard]] std::optional<PawnCacheEntry> probe(HashKey pawn_key) const {
+        const usize idx   = mulhi64(pawn_key, CACHE_SIZE);
+        const auto key = shrink_key(pawn_key);  
+        const auto& entry = m_cache[idx];
+        if (entry.key == key) {
+            return entry;
+        }
+        return std::nullopt;
+    }
+
+    void store(HashKey pawn_key, PScore pawn_score, Bitboard passed_pawns) {
+        const usize idx = mulhi64(pawn_key, CACHE_SIZE);
+        m_cache[idx]    = {shrink_key(pawn_key), pawn_score, passed_pawns};
+    }
+
+    void clear() {
+        for (auto& entry : m_cache) {
+            entry.key = 0;
+        }
+    }
+};
+
+static PawnEvalCache g_pawn_eval_cache;
 
 static i32 chebyshev_distance(Square a, Square b) {
     i32 file_dist = std::abs(a.file() - b.file());
@@ -258,16 +306,12 @@ PScore king_shelter(const Position& pos, const EvalData& eval_data) {
 }
 
 template<Color color>
-std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data) {
-    constexpr i32   RANK_2 = 1;
-    constexpr i32   RANK_3 = 2;
-    constexpr Color them   = color == Color::White ? Color::Black : Color::White;
+std::tuple<PScore, Bitboard> evaluate_pawns_base(const Position& pos, const EvalData& data) {
+    constexpr i32 RANK_2 = 1;
+    constexpr i32 RANK_3 = 2;
 
-    Square our_king   = pos.king_sq(color);
-    Square their_king = pos.king_sq(them);
-    PScore eval       = PSCORE_ZERO;
-
-    i32 passers = 0;
+    PScore   eval = PSCORE_ZERO;
+    Bitboard passed_pawns{};
 
     Bitboard pawns     = pos.board().bitboard_for(color, PieceType::Pawn);
     Bitboard opp_pawns = pos.board().bitboard_for(~color, PieceType::Pawn);
@@ -279,30 +323,13 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data
     eval += DOUBLED_PAWN_VAL * doubled.ipopcount();
     eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
 
+    // Identify passed pawns (structure-only, no scoring yet)
     for (Square sq : pawns) {
-        Square   push     = sq.push<color>();
         Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
         if (stoppers.empty()) {
-            ++passers;
-            eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-            if (pos.attack_table(color).read(push).popcount()
-                > pos.attack_table(them).read(push).popcount()) {
-                eval +=
-                  DEFENDED_PASSED_PUSH[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-            }
-            if (pos.piece_at(push) != PieceType::None) {
-                eval +=
-                  BLOCKED_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-            }
-
-            i32 our_king_dist   = chebyshev_distance(our_king, sq);
-            i32 their_king_dist = chebyshev_distance(their_king, sq);
-
-            eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
-            eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+            passed_pawns |= Bitboard::from_square(sq);
         }
     }
-
 
     Bitboard phalanx = pawns & pawns.shift(Direction::East);
     for (Square sq : phalanx) {
@@ -314,8 +341,41 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data
         eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
     }
 
-    return {eval, passers};
+    return {eval, passed_pawns};
 }
+
+template<Color color>
+PScore evaluate_pawns_passed(const Position&                  pos,
+                             [[maybe_unused]] const EvalData& data,
+                             Bitboard                         passed_pawns) {
+    constexpr i32   RANK_2 = 1;
+    constexpr Color them   = color == Color::White ? Color::Black : Color::White;
+
+    Square our_king   = pos.king_sq(color);
+    Square their_king = pos.king_sq(them);
+    PScore eval       = PSCORE_ZERO;
+
+    for (Square sq : passed_pawns) {
+        Square push = sq.push<color>();
+        eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+        if (pos.attack_table(color).read(push).popcount()
+            > pos.attack_table(them).read(push).popcount()) {
+            eval += DEFENDED_PASSED_PUSH[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+        }
+        if (pos.piece_at(push) != PieceType::None) {
+            eval += BLOCKED_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+        }
+
+        i32 our_king_dist   = chebyshev_distance(our_king, sq);
+        i32 their_king_dist = chebyshev_distance(their_king, sq);
+
+        eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
+        eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+    }
+
+    return eval;
+}
+
 
 template<Color color>
 PScore evaluate_pawn_push_threats(const Position& pos) {
@@ -703,10 +763,69 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 
     PScore eval = psqt_state.score();  // Used for linear components
 
-    // pawn eval
-    auto [white_pawn_eval, white_passers] = evaluate_pawns<Color::White>(pos, eval_data);
-    auto [black_pawn_eval, black_passers] = evaluate_pawns<Color::Black>(pos, eval_data);
+    // Probe pawn cache (if not in tuning mode)
+#ifdef EVAL_TUNING
+    auto [white_pawn_base, white_passed_pawns] = evaluate_pawns_base<Color::White>(pos, eval_data);
+    auto [black_pawn_base, black_passed_pawns] = evaluate_pawns_base<Color::Black>(pos, eval_data);
+
+    PScore white_pawn_eval =
+      white_pawn_base + evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
+    PScore black_pawn_eval =
+      black_pawn_base + evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
+
+    i32 white_passers = white_passed_pawns.ipopcount();
+    i32 black_passers = black_passed_pawns.ipopcount();
     eval += white_pawn_eval - black_pawn_eval;
+#else
+    HashKey pawn_key = pos.get_pawn_key();
+
+    i32    white_passers = 0;
+    i32    black_passers = 0;
+
+    // Probe cache
+    auto cached = g_pawn_eval_cache.probe(pawn_key);
+
+    // dbg_hit_on(cached.has_value(), 0);
+
+    if (cached) {
+        PScore base = cached->pawn_score;
+
+        Bitboard white_passed_pawns =
+          cached->passed_pawns & pos.bitboard_for(Color::White, PieceType::Pawn);
+        Bitboard black_passed_pawns =
+          cached->passed_pawns & pos.bitboard_for(Color::Black, PieceType::Pawn);
+
+        PScore white_passed_eval =
+          evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
+        PScore black_passed_eval =
+          evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
+
+        eval += base + white_passed_eval - black_passed_eval;
+
+        white_passers = white_passed_pawns.ipopcount();
+        black_passers = black_passed_pawns.ipopcount();
+    } else {
+        auto [white_pawn_base, white_passed_pawns] =
+          evaluate_pawns_base<Color::White>(pos, eval_data);
+        auto [black_pawn_base, black_passed_pawns] =
+          evaluate_pawns_base<Color::Black>(pos, eval_data);
+
+        Bitboard combined_passed_pawns = white_passed_pawns | black_passed_pawns;
+
+        g_pawn_eval_cache.store(pawn_key, white_pawn_base - black_pawn_base, combined_passed_pawns);
+
+        PScore white_passed_eval =
+          evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
+        PScore black_passed_eval =
+          evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
+        
+        // TODO: if we ever need the white and black pawn evals separately for later, we need to change the cache storage
+        eval += white_pawn_base - black_pawn_base + white_passed_eval - black_passed_eval;
+
+        white_passers = white_passed_pawns.ipopcount();
+        black_passers = black_passed_pawns.ipopcount();
+    }
+#endif
 
     // pieces & space
     eval +=
