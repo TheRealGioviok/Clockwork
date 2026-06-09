@@ -1,5 +1,6 @@
 #pragma once
 
+#include "evaluation.hpp"
 #include "history.hpp"
 #include "move.hpp"
 #include "position.hpp"
@@ -80,6 +81,7 @@ struct SearchLimits {
 
 struct ThreadData {
     History                history;
+    PawnEvalCache          pawn_eval_cache;
     std::vector<PsqtState> psqt_states;
     Value                  root_score;
 

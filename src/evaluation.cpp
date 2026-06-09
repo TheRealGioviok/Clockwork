@@ -14,6 +14,14 @@
 namespace Clockwork {
 
 
+// Explicit instantiations
+template Score evaluate_stm_pov<false>(const Position&, const PsqtState&, PawnEvalCache*);
+template Score evaluate_stm_pov<true>(const Position&, const PsqtState&, PawnEvalCache*);
+
+template Score evaluate_white_pov<false>(const Position&, const PsqtState&, PawnEvalCache*);
+template Score evaluate_white_pov<true>(const Position&, const PsqtState&, PawnEvalCache*);
+
+
 struct EvalData {
 
     Bitboard any_attacks_by[2];
@@ -74,52 +82,6 @@ struct EvalData {
         return any2_attacks_by[static_cast<usize>(color)];
     }
 };
-
-struct alignas(16) PawnCacheEntry {
-    u32      key;           // Upper key
-    PScore   pawn_score;    // Stored eval
-    Bitboard passed_pawns;  // Grouped passers
-};
-
-static u64 mulhi64(u64 a, u64 b) {
-    u128 result = static_cast<u128>(a) * static_cast<u128>(b);
-    return static_cast<u64>(result >> 64);
-}
-
-static u32 shrink_key(HashKey key) {
-    return static_cast<u32>(key);
-}
-
-// Pawn evaluation cache
-class PawnEvalCache {
-private:
-    static constexpr usize CACHE_SIZE = 16384;  // 2^14 entries
-    alignas(16) std::array<PawnCacheEntry, CACHE_SIZE> m_cache;
-
-public:
-    [[nodiscard]] std::optional<PawnCacheEntry> probe(HashKey pawn_key) const {
-        const usize idx   = mulhi64(pawn_key, CACHE_SIZE);
-        const auto  key   = shrink_key(pawn_key);
-        const auto& entry = m_cache[idx];
-        if (entry.key == key) {
-            return entry;
-        }
-        return std::nullopt;
-    }
-
-    void store(HashKey pawn_key, PScore pawn_score, Bitboard passed_pawns) {
-        const usize idx = mulhi64(pawn_key, CACHE_SIZE);
-        m_cache[idx]    = {shrink_key(pawn_key), pawn_score, passed_pawns};
-    }
-
-    void clear() {
-        for (auto& entry : m_cache) {
-            entry.key = 0;
-        }
-    }
-};
-
-static PawnEvalCache g_pawn_eval_cache;
 
 static i32 chebyshev_distance(Square a, Square b) {
     i32 file_dist = std::abs(a.file() - b.file());
@@ -737,7 +699,10 @@ PScore apply_eg_scale(const Position& pos,
     return eval.scale_eg<128>(static_cast<i32>(128 - pcmul * pcmul));  // 64 - 128
 }
 
-Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
+template<bool use_pawn_cache>
+Score evaluate_white_pov(const Position&  pos,
+                         const PsqtState& psqt_state,
+                         PawnEvalCache*   pawn_eval_cache) {
     const Color us = pos.active_color();
 
     EvalData eval_data;
@@ -756,70 +721,71 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     i32 phase = std::min<i32>(white_phase + black_phase, 24);
 
     PScore eval = psqt_state.score();  // Used for linear components
+    i32    white_passers, black_passers;
 
     // Probe pawn cache (if not in tuning mode)
-#ifdef EVAL_TUNING
-    auto [white_pawn_base, white_passed_pawns] = evaluate_pawns_base<Color::White>(pos, eval_data);
-    auto [black_pawn_base, black_passed_pawns] = evaluate_pawns_base<Color::Black>(pos, eval_data);
-
-    PScore white_pawn_eval =
-      white_pawn_base + evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
-    PScore black_pawn_eval =
-      black_pawn_base + evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
-
-    i32 white_passers = white_passed_pawns.ipopcount();
-    i32 black_passers = black_passed_pawns.ipopcount();
-    eval += white_pawn_eval - black_pawn_eval;
-#else
-    HashKey pawn_key = pos.get_pawn_key();
-
-    i32 white_passers = 0;
-    i32 black_passers = 0;
-
-    // Probe cache
-    auto cached = g_pawn_eval_cache.probe(pawn_key);
-
-    // dbg_hit_on(cached.has_value(), 0);
-
-    if (cached) {
-        PScore base = cached->pawn_score;
-
-        Bitboard white_passed_pawns =
-          cached->passed_pawns & pos.bitboard_for(Color::White, PieceType::Pawn);
-        Bitboard black_passed_pawns =
-          cached->passed_pawns & pos.bitboard_for(Color::Black, PieceType::Pawn);
-
-        PScore white_passed_eval =
-          evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
-        PScore black_passed_eval =
-          evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
-
-        eval += base + white_passed_eval - black_passed_eval;
-
-        white_passers = white_passed_pawns.ipopcount();
-        black_passers = black_passed_pawns.ipopcount();
-    } else {
+    if constexpr (!use_pawn_cache) {
         auto [white_pawn_base, white_passed_pawns] =
           evaluate_pawns_base<Color::White>(pos, eval_data);
         auto [black_pawn_base, black_passed_pawns] =
           evaluate_pawns_base<Color::Black>(pos, eval_data);
 
-        Bitboard combined_passed_pawns = white_passed_pawns | black_passed_pawns;
-
-        g_pawn_eval_cache.store(pawn_key, white_pawn_base - black_pawn_base, combined_passed_pawns);
-
-        PScore white_passed_eval =
-          evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
-        PScore black_passed_eval =
-          evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
-
-        // TODO: if we ever need the white and black pawn evals separately for later, we need to change the cache storage
-        eval += white_pawn_base - black_pawn_base + white_passed_eval - black_passed_eval;
+        PScore white_pawn_eval =
+          white_pawn_base + evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
+        PScore black_pawn_eval =
+          black_pawn_base + evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
 
         white_passers = white_passed_pawns.ipopcount();
         black_passers = black_passed_pawns.ipopcount();
+        eval += white_pawn_eval - black_pawn_eval;
+    } else {
+        HashKey pawn_key = pos.get_pawn_key();
+
+        // Probe cache
+        auto cached = pawn_eval_cache->probe(pawn_key);
+
+        // dbg_hit_on(cached.has_value(), 0);
+
+        if (cached) {
+            PScore base = cached->pawn_score;
+
+            Bitboard white_passed_pawns =
+              cached->passed_pawns & pos.bitboard_for(Color::White, PieceType::Pawn);
+            Bitboard black_passed_pawns =
+              cached->passed_pawns & pos.bitboard_for(Color::Black, PieceType::Pawn);
+
+            PScore white_passed_eval =
+              evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
+            PScore black_passed_eval =
+              evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
+
+            eval += base + white_passed_eval - black_passed_eval;
+
+            white_passers = white_passed_pawns.ipopcount();
+            black_passers = black_passed_pawns.ipopcount();
+        } else {
+            auto [white_pawn_base, white_passed_pawns] =
+              evaluate_pawns_base<Color::White>(pos, eval_data);
+            auto [black_pawn_base, black_passed_pawns] =
+              evaluate_pawns_base<Color::Black>(pos, eval_data);
+
+            Bitboard combined_passed_pawns = white_passed_pawns | black_passed_pawns;
+
+            pawn_eval_cache->store(pawn_key, white_pawn_base - black_pawn_base,
+                                   combined_passed_pawns);
+
+            PScore white_passed_eval =
+              evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
+            PScore black_passed_eval =
+              evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
+
+            // TODO: if we ever need the white and black pawn evals separately for later, we need to change the cache storage
+            eval += white_pawn_base - black_pawn_base + white_passed_eval - black_passed_eval;
+
+            white_passers = white_passed_pawns.ipopcount();
+            black_passers = black_passed_pawns.ipopcount();
+        }
     }
-#endif
 
     // pieces & space
     eval +=
@@ -859,10 +825,15 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     return static_cast<Score>(eval.phase<24>(static_cast<i32>(phase)));
 };
 
-Score evaluate_stm_pov(const Position& pos, const PsqtState& psqt_state) {
+template<bool use_pawn_cache>
+Score evaluate_stm_pov(const Position&  pos,
+                       const PsqtState& psqt_state,
+                       PawnEvalCache*   pawn_eval_cache) {
     const Color us = pos.active_color();
-    return static_cast<Score>((us == Color::White) ? evaluate_white_pov(pos, psqt_state)
-                                                   : -evaluate_white_pov(pos, psqt_state));
+    return static_cast<Score>(
+      (us == Color::White) ? evaluate_white_pov<use_pawn_cache>(pos, psqt_state, pawn_eval_cache)
+                           : -evaluate_white_pov<use_pawn_cache>(pos, psqt_state, pawn_eval_cache));
 }
+
 
 }  // namespace Clockwork
