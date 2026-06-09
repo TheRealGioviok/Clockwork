@@ -7,17 +7,66 @@
 
 namespace Clockwork {
 
-Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state);
-Score evaluate_stm_pov(const Position& pos, const PsqtState& psqt_state);
 
-inline Score evaluate_white_pov(const Position& pos) {
-    return evaluate_white_pov(pos, PsqtState{pos});
+struct alignas(16) PawnCacheEntry {
+    u32      key;           // Upper key
+    PScore   pawn_score;    // Stored eval
+    Bitboard passed_pawns;  // Grouped passers
+};
+
+static u64 mulhi64(u64 a, u64 b) {
+    u128 result = static_cast<u128>(a) * static_cast<u128>(b);
+    return static_cast<u64>(result >> 64);
 }
+
+static u32 shrink_key(HashKey key) {
+    return static_cast<u32>(key);
+}
+
+// Pawn evaluation cache
+class PawnEvalCache {
+private:
+    static constexpr usize CACHE_SIZE = 32768;  // 2^14 entries
+    alignas(16) std::array<PawnCacheEntry, CACHE_SIZE> m_cache;
+
+public:
+    [[nodiscard]] std::optional<PawnCacheEntry> probe(HashKey pawn_key) const {
+        const usize idx   = mulhi64(pawn_key, CACHE_SIZE);
+        const auto  key   = shrink_key(pawn_key);
+        const auto& entry = m_cache[idx];
+        if (entry.key == key) {
+            return entry;
+        }
+        return std::nullopt;
+    }
+
+    void store(HashKey pawn_key, PScore pawn_score, Bitboard passed_pawns) {
+        const usize idx = mulhi64(pawn_key, CACHE_SIZE);
+        m_cache[idx]    = {shrink_key(pawn_key), pawn_score, passed_pawns};
+    }
+
+    void clear() {
+        for (auto& entry : m_cache) {
+            entry.key = 0;
+        }
+    }
+};
+
+template<bool use_pawn_cache>
+Score evaluate_stm_pov(const Position&  pos,
+                       const PsqtState& psqt_state,
+                       PawnEvalCache*   pawn_eval_cache);
+template<bool use_pawn_cache>
+Score evaluate_white_pov(const Position&  pos,
+                         const PsqtState& psqt_state,
+                         PawnEvalCache*   pawn_eval_cache);
 
 inline Score evaluate_stm_pov(const Position& pos) {
-    return evaluate_stm_pov(pos, PsqtState{pos});
+    return evaluate_stm_pov<false>(pos, PsqtState{pos}, nullptr);
 }
-
+inline Score evaluate_white_pov(const Position& pos) {
+    return evaluate_white_pov<false>(pos, PsqtState{pos}, nullptr);
+}
 static constexpr std::array<std::array<Bitboard, 8>, 2> king_flank = []() {
     std::array<std::array<Bitboard, 8>, 2> result{};
 
@@ -44,6 +93,5 @@ static constexpr std::array<std::array<Bitboard, 8>, 2> king_flank = []() {
 
     return result;
 }();
-
 
 };  // namespace Clockwork

@@ -101,7 +101,8 @@ void UCIHandler::execute_command(const std::string& line) {
     }
 #ifndef EVAL_TUNING
     else if (command == "eval") {
-        std::cout << "Evaluation (stm): " << evaluate_stm_pov(m_position) << std::endl;
+        // Take the pawn eval hash from the first searcher thread
+        std::cout << "Evaluation (stm): " << evaluate_stm_pov(m_position) << "\n";
     }
 #endif
     else if (command == "genfens") {
