@@ -1,6 +1,7 @@
 #include "evaluation.hpp"
 #include "bitboard.hpp"
 #include "common.hpp"
+#include "dbg_tools.hpp"
 #include "eval_constants.hpp"
 #include "eval_types.hpp"
 #include "position.hpp"
@@ -8,7 +9,6 @@
 #include "square.hpp"
 #include <array>
 #include <optional>
-#include "dbg_tools.hpp"
 #include <ranges>
 
 namespace Clockwork {
@@ -99,13 +99,13 @@ static u32 shrink_key(HashKey key) {
 // Pawn evaluation cache
 class PawnEvalCache {
 private:
-    static constexpr usize                 CACHE_SIZE = 16384;  // 2^14 entries
+    static constexpr usize CACHE_SIZE = 16384;  // 2^14 entries
     alignas(16) std::array<PawnCacheEntry, CACHE_SIZE> m_cache;
 
 public:
     [[nodiscard]] std::optional<PawnCacheEntry> probe(HashKey pawn_key) const {
         const usize idx   = mulhi64(pawn_key, CACHE_SIZE);
-        const auto key = shrink_key(pawn_key);  
+        const auto  key   = shrink_key(pawn_key);
         const auto& entry = m_cache[idx];
         if (entry.key == key) {
             return entry;
@@ -779,8 +779,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
 #else
     HashKey pawn_key = pos.get_pawn_key();
 
-    i32    white_passers = 0;
-    i32    black_passers = 0;
+    i32 white_passers = 0;
+    i32 black_passers = 0;
 
     // Probe cache
     auto cached = g_pawn_eval_cache.probe(pawn_key);
@@ -818,7 +818,7 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
           evaluate_pawns_passed<Color::White>(pos, eval_data, white_passed_pawns);
         PScore black_passed_eval =
           evaluate_pawns_passed<Color::Black>(pos, eval_data, black_passed_pawns);
-        
+
         // TODO: if we ever need the white and black pawn evals separately for later, we need to change the cache storage
         eval += white_pawn_base - black_pawn_base + white_passed_eval - black_passed_eval;
 
