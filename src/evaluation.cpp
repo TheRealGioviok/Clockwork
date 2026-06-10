@@ -34,12 +34,6 @@ struct EvalData {
     i32 wcount = 0;
     i32 bcount = 0;
 
-    Bitboard mobility_area[2];
-
-    i32 m_piece_count[2][6];
-    i32 wcount = 0;
-    i32 bcount = 0;
-
     void init(const Position& pos) {
         any_attacks_by[0]  = pos.attack_table(Color::White).get_attacked_bitboard();
         any_attacks_by[1]  = pos.attack_table(Color::Black).get_attacked_bitboard();
