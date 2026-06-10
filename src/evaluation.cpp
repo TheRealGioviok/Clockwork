@@ -222,7 +222,7 @@ std::array<std::array<Bitboard, 64>, 2> passed_pawn_spans = []() {
 }();
 
 template<Color color>
-PScore king_shelter(const Position& pos, const EvalData& eval_data) {
+inline PScore king_shelter(const Position& pos, const EvalData& eval_data) {
     constexpr Color opp = ~color;
 
     Square king_square = pos.king_sq(color);
@@ -262,9 +262,10 @@ PScore king_shelter(const Position& pos, const EvalData& eval_data) {
 }
 
 template<Color color>
-std::tuple<PScore, Bitboard> evaluate_pawns_base(const Position& pos, const EvalData& data) {
+inline std::tuple<PScore, Bitboard> evaluate_pawns_base(const Position& pos, const EvalData& data) {
     constexpr i32 RANK_2 = 1;
     constexpr i32 RANK_3 = 2;
+    constexpr Color them = invert(color);
 
     PScore   eval = PSCORE_ZERO;
     Bitboard passed_pawns{};
@@ -285,6 +286,22 @@ std::tuple<PScore, Bitboard> evaluate_pawns_base(const Position& pos, const Eval
         if (stoppers.empty()) {
             passed_pawns |= Bitboard::from_square(sq);
         }
+        else {
+            Bitboard sqb        = Bitboard::from_square(sq);
+            Bitboard push_sqb   = sqb.shift_relative(color, Direction::North);
+
+            Bitboard backward_mask = Bitboard::forward_ranks(them, sq.push<color>());
+            Bitboard neighbours = Bitboard::file_mask(sq.file());
+            Bitboard lever_push    = opp_pawns & static_pawn_attacks<color>(push_sqb);
+            Bitboard blocked_push  = opp_pawns & push_sqb;
+
+            neighbours = neighbours.shift(Direction::East) | neighbours.shift(Direction::West);
+            neighbours &= pawns;
+
+            if ((neighbours & backward_mask).empty() && (lever_push | blocked_push).any()){
+                eval += BACKWARD_PAWN_VAL[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+            }
+        }
     }
 
     Bitboard phalanx = pawns & pawns.shift(Direction::East);
@@ -301,9 +318,9 @@ std::tuple<PScore, Bitboard> evaluate_pawns_base(const Position& pos, const Eval
 }
 
 template<Color color>
-PScore evaluate_pawns_passed(const Position&                  pos,
-                             [[maybe_unused]] const EvalData& data,
-                             Bitboard                         passed_pawns) {
+inline PScore evaluate_pawns_passed(const Position&                  pos,
+                                    [[maybe_unused]] const EvalData& data,
+                                    Bitboard                         passed_pawns) {
     constexpr i32   RANK_2 = 1;
     constexpr Color them   = color == Color::White ? Color::Black : Color::White;
 
@@ -334,7 +351,7 @@ PScore evaluate_pawns_passed(const Position&                  pos,
 
 
 template<Color color>
-PScore evaluate_pawn_push_threats(const Position& pos) {
+inline PScore evaluate_pawn_push_threats(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
@@ -361,7 +378,7 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_pieces(const Position& pos, EvalData& data) {
+inline PScore evaluate_pieces(const Position& pos, EvalData& data) {
     constexpr Color opp       = ~color;
     PScore          eval      = PSCORE_ZERO;
     Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
@@ -416,7 +433,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 }
 
 template<Color color>
-PScore evaluate_outposts(const Position& pos, const EvalData& data) {
+inline PScore evaluate_outposts(const Position& pos, const EvalData& data) {
     // First calculate all the viable outpost squares
     // A viable outpost square is one that is not attackable by enemy pawns and is:
     // - on ranks 4,5,6 for white (5,4,3 for black)
@@ -446,7 +463,7 @@ PScore evaluate_outposts(const Position& pos, const EvalData& data) {
 
 
 template<Color color>
-PScore evaluate_potential_checkers(const Position& pos) {
+inline PScore evaluate_potential_checkers(const Position& pos) {
     constexpr Color opp = ~color;
 
     const PieceMask orth   = pos.get_piece_mask<PieceType::Rook, PieceType::Queen>(opp);
@@ -467,7 +484,7 @@ PScore evaluate_potential_checkers(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_king_safety(const Position& pos, const EvalData& data) {
+inline PScore evaluate_king_safety(const Position& pos, const EvalData& data) {
     constexpr Color opp = ~color;
 
     // Iterate over the opponent's attack bbs
@@ -512,7 +529,7 @@ PScore evaluate_king_safety(const Position& pos, const EvalData& data) {
 }
 
 template<Color color>
-PScore evaluate_threats(const Position& pos, const EvalData& data) {
+inline PScore evaluate_threats(const Position& pos, const EvalData& data) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
 
@@ -598,7 +615,7 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
 }
 
 template<Color color>
-PScore evaluate_space(const Position& pos, const EvalData& data) {
+inline PScore evaluate_space(const Position& pos, const EvalData& data) {
     PScore          eval       = PSCORE_ZERO;
     constexpr Color them       = color == Color::White ? Color::Black : Color::White;
     Bitboard        ourfiles   = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
@@ -627,13 +644,13 @@ PScore evaluate_space(const Position& pos, const EvalData& data) {
 }
 
 template<Color color>
-PScore king_safety_activation(PScore& king_safety_score) {
+inline PScore king_safety_activation(PScore& king_safety_score) {
     // Apply sigmoid activation to king safety score
     PScore activated = KING_SAFETY_ACTIVATION(king_safety_score);
     return activated;
 }
 
-PScore apply_winnable(const Position& pos, PScore& score, i32 phase) {
+inline PScore apply_winnable(const Position& pos, PScore& score, i32 phase) {
 
     bool pawn_endgame = phase == 0;
 
@@ -660,13 +677,13 @@ PScore apply_winnable(const Position& pos, PScore& score, i32 phase) {
     return score.complexity_add(winnable);
 }
 
-PScore apply_eg_scale(const Position& pos,
-                      PScore&         eval,
-                      i32             strong_phase,
-                      i32             weak_phase,
-                      i32             strong_passers,
-                      i32             weak_passers,
-                      EvalData&       eval_data) {
+inline PScore apply_eg_scale(const Position& pos,
+                             PScore&         eval,
+                             i32             strong_phase,
+                             i32             weak_phase,
+                             i32             strong_passers,
+                             i32             weak_passers,
+                             EvalData&       eval_data) {
     // Strong pawn scaling
     const Color strong_side = eval.eg() > 0 ? Color::White : Color::Black;
 
@@ -700,9 +717,9 @@ PScore apply_eg_scale(const Position& pos,
 }
 
 template<bool use_pawn_cache>
-Score evaluate_white_pov(const Position&  pos,
-                         const PsqtState& psqt_state,
-                         PawnEvalCache*   pawn_eval_cache) {
+inline Score evaluate_white_pov(const Position&  pos,
+                                const PsqtState& psqt_state,
+                                PawnEvalCache*   pawn_eval_cache) {
     const Color us = pos.active_color();
 
     EvalData eval_data;
