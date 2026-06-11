@@ -340,8 +340,10 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     return eval;
 }
 
+constexpr i32 REACH_TIER_MAX_MOB = 2;
+
 template<Color color>
-PScore evaluate_pieces(const Position& pos, EvalData& data) {
+  PScore evaluate_pieces(const Position& pos, EvalData& data) {
     constexpr Color opp       = ~color;
     PScore          eval      = PSCORE_ZERO;
     Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
@@ -355,13 +357,15 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     Bitboard bb = (blocked_pawns | own_early_pawns) | data.attacked_by(opp, PieceType::Pawn);
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
+    const Bitboard reach_mask = ~(bb2 | pos.board().get_color_bitboard(color));
+
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         usize    mob   = (moves & ~bb).popcount();
         eval += KNIGHT_MOBILITY[mob];
-        if (mob > 0 && mob <= REACH_TIER_MAX_MOB) {
-            usize reach = (knights_setwise(moves & ~bb2) & ~bb2).popcount();
-            eval += KNIGHT_REACH_FACTOR[reach_tier(mob, reach, N_REACH_BASE, N_REACH_DENOM)] * (REACH_TIER_MAX_MOB + 1 - mob);
+        if (mob > 0) {
+            Bitboard reach = knights_setwise(moves & reach_mask) & reach_mask;
+            
         }
     }
 
@@ -369,11 +373,6 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         usize    mob   = (moves & ~bb).popcount();
         eval += BISHOP_MOBILITY[mob];
-        if (mob > 0 && mob <= REACH_TIER_MAX_MOB) {
-            usize reach = (bishops_setwise(moves & ~bb2, occ) & ~bb2).popcount();
-            eval += BISHOP_REACH_FACTOR[reach_tier(mob, reach, B_REACH_BASE, B_REACH_DENOM)] * (REACH_TIER_MAX_MOB + 1 - mob);
-        }
-
         Square sq = pos.piece_list_sq(color)[id];
         eval +=
           BISHOP_PAWNS[std::min(static_cast<usize>(8),
@@ -390,11 +389,6 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         usize    mob2  = (moves & ~bb2).popcount();
         eval += ROOK_MOBILITY[mob];
         eval += ROOK_MOBILITY[mob2];
-        if (mob2 > 0 && mob2 <= REACH_TIER_MAX_MOB) {
-            usize reach = (rooks_setwise(moves & ~bb2, occ) & ~bb2).popcount();
-            eval += ROOK_REACH_FACTOR[reach_tier(mob2, reach, R_REACH_BASE, R_REACH_DENOM)] * (REACH_TIER_MAX_MOB + 1 - mob2);
-            std::cout << "Reach tier for rook with mob " << mob2 << " and reach " << reach << ": " << reach_tier(mob2, reach, R_REACH_BASE, R_REACH_DENOM) << std::endl;
-        }
 
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
@@ -410,10 +404,6 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         usize    mob2  = (moves & ~bb2).popcount();
         eval += QUEEN_MOBILITY[mob];
         eval += QUEEN_MOBILITY[mob2];
-        if (mob2 > 0 && mob2 <= REACH_TIER_MAX_MOB) {
-            usize reach = (queens_setwise(moves & ~bb2, occ) & ~bb2).popcount();
-            eval += QUEEN_REACH_FACTOR[reach_tier(mob2, reach, Q_REACH_BASE, Q_REACH_DENOM)] * (REACH_TIER_MAX_MOB + 1 - mob2);
-        }
     }
 
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
