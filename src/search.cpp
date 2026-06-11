@@ -767,6 +767,7 @@ Value Worker::search(
 
             if ((ss + 1)->fail_high_count > 3) {
                 reduction += tuned::lmr_fail_high_red;
+                reduction += 384 * (!PV_NODE && !cutnode);
             }
 
             if (quiet) {
