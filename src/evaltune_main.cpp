@@ -500,6 +500,12 @@ void print_params() {
     print_table("QUEEN_TRAP_FACTOR", QUEEN_TRAP_FACTOR);
     std::cout << std::endl;
 
+    std::cout << "inline const PParam KNIGHT_REACH_LIN = " << KNIGHT_REACH_LIN << ";" << std::endl;
+    std::cout << "inline const PParam BISHOP_REACH_LIN = " << BISHOP_REACH_LIN << ";" << std::endl;
+    std::cout << "inline const PParam ROOK_REACH_LIN   = " << ROOK_REACH_LIN << ";" << std::endl;
+    std::cout << "inline const PParam QUEEN_REACH_LIN  = " << QUEEN_REACH_LIN << ";" << std::endl;
+    std::cout << std::endl;
+
     std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
               << std::endl;
     std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"

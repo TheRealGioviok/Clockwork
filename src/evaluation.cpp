@@ -341,6 +341,11 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     return eval;
 }
 
+constexpr usize KNIGHT_REACH_CUTOFF = 13;
+constexpr usize BISHOP_REACH_CUTOFF = 13;
+constexpr usize ROOK_REACH_CUTOFF   = 8;
+constexpr usize QUEEN_REACH_CUTOFF  = 19;
+
 template<Color color>
 PScore evaluate_pieces(const Position& pos, EvalData& data) {
     constexpr Color    opp             = ~color;
@@ -354,17 +359,22 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     Bitboard           own_early_pawns = own_pawns & early_ranks;
     Bitboard bb = (blocked_pawns | own_early_pawns) | data.attacked_by(opp, PieceType::Pawn);
     data.mobility_area[static_cast<usize>(color)] = ~bb;
-    Bitboard       bb2                            = bb;
-    const Bitboard reach_mask                     = ~(bb2 | pos.board().get_color_bitboard(color));
+    Bitboard bb2                                  = bb;
+    Bitboard reach_mask                           = ~(bb | pos.board().get_color_bitboard(color));
 
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         usize    mob   = (moves & ~bb).popcount();
         eval += KNIGHT_MOBILITY[mob];
-        if (mob > 0 && mob <= 5) {
+        if (mob > 0) {
             usize reach = (knights_setwise(moves & reach_mask) & ~bb2).popcount();
-            if (reach + mob <= 5) {
-                eval += KNIGHT_TRAP_FACTOR[reach + mob - 1];
+            usize idx =
+              static_cast<usize>(std::max(static_cast<i32>(reach) - static_cast<i32>(mob), -1) + 1);
+            if (idx > KNIGHT_REACH_CUTOFF) {
+                eval += KNIGHT_TRAP_FACTOR[KNIGHT_REACH_CUTOFF]
+                      + KNIGHT_REACH_LIN * static_cast<i32>(idx - KNIGHT_REACH_CUTOFF);
+            } else {
+                eval += KNIGHT_TRAP_FACTOR[idx];
             }
         }
     }
@@ -381,14 +391,22 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
              + (blocked_pawns & Bitboard::central_files()).ipopcount());
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
-        if (mob > 0 && mob <= 5) {
+        if (mob > 0) {
             usize reach = (bishops_setwise(moves & reach_mask, occ) & ~bb2).popcount();
-            if (reach + mob <= 5) {
-                eval += BISHOP_TRAP_FACTOR[reach + mob - 1];
+            usize idx =
+              static_cast<usize>(std::max(static_cast<i32>(reach) - static_cast<i32>(mob), -1) + 1);
+            if (idx > BISHOP_REACH_CUTOFF) {
+                eval += BISHOP_TRAP_FACTOR[BISHOP_REACH_CUTOFF]
+                      + BISHOP_REACH_LIN * static_cast<i32>(idx - BISHOP_REACH_CUTOFF);
+            } else {
+                eval += BISHOP_TRAP_FACTOR[idx];
             }
         }
     }
+
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
+    reach_mask &= ~bb2;
+
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         usize    mob   = (moves & ~bb).popcount();
@@ -403,24 +421,37 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
 
-        if (mob2 > 0 && mob2 <= 6) {
+        if (mob2 > 0) {
             usize reach = (rooks_setwise(moves & reach_mask, occ) & ~bb2).popcount();
-            if (reach + mob2 <= 6) {
-                eval += ROOK_TRAP_FACTOR[reach + mob2 - 1];
+            usize idx   = static_cast<usize>(
+              std::max(static_cast<i32>(reach) - static_cast<i32>(mob2), -1) + 1);
+            if (idx > ROOK_REACH_CUTOFF) {
+                eval += ROOK_TRAP_FACTOR[ROOK_REACH_CUTOFF]
+                      + ROOK_REACH_LIN * static_cast<i32>(idx - ROOK_REACH_CUTOFF);
+            } else {
+                eval += ROOK_TRAP_FACTOR[idx];
             }
         }
     }
+
     bb2 |= data.attacked_by(opp, PieceType::Rook);
+    reach_mask &= ~bb2;
+
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         usize    mob   = (moves & ~bb).popcount();
         usize    mob2  = (moves & ~bb2).popcount();
         eval += QUEEN_MOBILITY[mob];
         eval += QUEEN_MOBILITY[mob2];
-        if (mob2 > 0 && mob2 <= 9) {
+        if (mob2 > 0) {
             usize reach = (queens_setwise(moves & reach_mask, occ) & ~bb2).popcount();
-            if (reach + mob2 <= 9) {
-                eval += QUEEN_TRAP_FACTOR[reach + mob2 - 1];
+            usize idx   = static_cast<usize>(
+              std::max(static_cast<i32>(reach) - static_cast<i32>(mob2), -1) + 1);
+            if (idx > QUEEN_REACH_CUTOFF) {
+                eval += QUEEN_TRAP_FACTOR[QUEEN_REACH_CUTOFF]
+                      + QUEEN_REACH_LIN * static_cast<i32>(idx - QUEEN_REACH_CUTOFF);
+            } else {
+                eval += QUEEN_TRAP_FACTOR[idx];
             }
         }
     }

@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <iostream>
 #include <limits>
+#include <map>
+#include <mutex>
 
 namespace {
 
@@ -40,6 +42,12 @@ std::array<DebugInfo<2>, MAX_DEBUG_SLOTS>  mean;
 std::array<DebugInfo<3>, MAX_DEBUG_SLOTS>  stdev;
 std::array<DebugInfo<6>, MAX_DEBUG_SLOTS>  correl;
 std::array<DebugExtremes, MAX_DEBUG_SLOTS> extremes;
+
+struct OccSlot {
+    std::mutex                 mtx;
+    std::map<int64_t, int64_t> counts;
+};
+std::array<OccSlot, MAX_DEBUG_SLOTS> occ;
 
 }  // namespace
 
@@ -84,6 +92,12 @@ void dbg_correl_of(int64_t value1, int64_t value2, size_t slot) {
     correl.at(slot)[3] += value2;
     correl.at(slot)[4] += value2 * value2;
     correl.at(slot)[5] += value1 * value2;
+}
+
+void dbg_occ(int64_t value, size_t slot) {
+    OccSlot&                    s = occ.at(slot);
+    std::lock_guard<std::mutex> lock(s.mtx);
+    ++s.counts[value];
 }
 
 void dbg_print() {
@@ -131,6 +145,23 @@ void dbg_print() {
             std::cerr << "Correl. #" << i << ": Total " << n << " Coefficient " << r << std::endl;
         }
     }
+
+    for (size_t i = 0; i < MAX_DEBUG_SLOTS; ++i) {
+        const auto& s = occ[i];
+        if (s.counts.empty()) {
+            continue;
+        }
+        int64_t total = 0;
+        for (const auto& [val, cnt] : s.counts) {
+            total += cnt;
+        }
+        std::cerr << "Occ #" << i << ": Total " << total << std::endl;
+        for (const auto& [val, cnt] : s.counts) {
+            std::cerr << "  " << val << ": " << cnt << " ("
+                      << 100.0 * static_cast<double>(cnt) / static_cast<double>(total) << "%)"
+                      << std::endl;
+        }
+    }
 }
 
 void dbg_clear() {
@@ -139,4 +170,8 @@ void dbg_clear() {
     stdev.fill({});
     correl.fill({});
     extremes.fill({});
+    for (auto& s : occ) {
+        std::lock_guard<std::mutex> lock(s.mtx);
+        s.counts.clear();
+    }
 }
