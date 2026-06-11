@@ -39,13 +39,8 @@ int main() {
     std::vector<f64>      results;
 
     const std::vector<std::string> fenFiles = {
-<<<<<<< HEAD
       "data/v5_25knpm.txt",  "data/v4_8knpm.txt",    "data/v4_16knpm.txt",
       "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",
-=======
-      "data/v4_5knpm.txt",   "data/v4_8knpm.txt",    "data/v4_16knpm.txt", "data/v4.1_5knpm.txt",
-      "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",    "data/v5_25knpm.txt",
->>>>>>> c33e4cf (Bench: 14253951)
     };
 
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());

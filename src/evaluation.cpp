@@ -359,10 +359,10 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
-        isize    mob   = (moves & ~bb).ipopcount();
+        usize    mob   = (moves & ~bb).popcount();
         eval += KNIGHT_MOBILITY[mob];
         if (mob > 0 && mob <= 5) {
-            isize reach = (knights_setwise(moves & reach_mask) & ~bb2).ipopcount();
+            usize reach = (knights_setwise(moves & reach_mask) & ~bb2).popcount();
             if (reach + mob <= 5) {
                 eval += KNIGHT_TRAP_FACTOR[reach + mob - 1];
             }
@@ -382,7 +382,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
         if (mob > 0 && mob <= 5) {
-            isize reach = (bishops_setwise(moves & reach_mask, occ) & ~bb2).ipopcount();
+            usize reach = (bishops_setwise(moves & reach_mask, occ) & ~bb2).popcount();
             if (reach + mob <= 5) {
                 eval += BISHOP_TRAP_FACTOR[reach + mob - 1];
             }
@@ -418,7 +418,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         eval += QUEEN_MOBILITY[mob];
         eval += QUEEN_MOBILITY[mob2];
         if (mob2 > 0 && mob2 <= 9) {
-            isize reach = (queens_setwise(moves & reach_mask, occ) & ~bb2).ipopcount();
+            usize reach = (queens_setwise(moves & reach_mask, occ) & ~bb2).popcount();
             if (reach + mob2 <= 9) {
                 eval += QUEEN_TRAP_FACTOR[reach + mob2 - 1];
             }
