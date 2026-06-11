@@ -68,6 +68,19 @@ inline const std::array<PParam, 28> QUEEN_MOBILITY = {
     S(-206, -159), S(-51, 6), S(-26, 132), S(-4, 256), S(13, 295), S(19, 348), S(26, 381), S(32, 396), S(36, 420), S(40, 437), S(45, 445), S(49, 453), S(52, 459), S(54, 465), S(55, 468), S(54, 470), S(51, 470), S(56, 461), S(56, 460), S(59, 452), S(55, 436), S(59, 418), S(28, 444), S(-17, 432), S(-46, 434), S(-75, 451), S(-118, 463), S(-85, 391),
 };
 
+inline const std::array<PParam, 5> KNIGHT_TRAP_FACTOR = {
+    S(-88, -373), S(-27, -134), S(1, -16), S(1, -16), S(1, -16)
+};
+inline const std::array<PParam, 5> BISHOP_TRAP_FACTOR = {
+    S(-62, -284), S(-14, -104), S(34, -29), S(57, 21), S(78, 62)
+};
+inline const std::array<PParam, 6> ROOK_TRAP_FACTOR = {
+    S(108, -177), S(24, 10), S(44, 43), S(60, 60), S(71, 77), S(74, 91)
+};
+inline const std::array<PParam, 9> QUEEN_TRAP_FACTOR = {
+   S(-26, 132), S(-4, 256), S(13, 295), S(19, 348), S(26, 381), S(32, 396), S(54, 465), S(55, 468), S(54, 470)
+};
+
 inline const PParam PAWN_THREAT_KNIGHT = S(194, 147);
 inline const PParam PAWN_THREAT_BISHOP = S(170, 212);
 inline const PParam PAWN_THREAT_ROOK   = S(194, 137);

@@ -499,6 +499,12 @@ void print_params() {
     print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
     std::cout << std::endl;
 
+    print_table("KNIGHT_TRAP_FACTOR", KNIGHT_TRAP_FACTOR);
+    print_table("BISHOP_TRAP_FACTOR", BISHOP_TRAP_FACTOR);
+    print_table("ROOK_TRAP_FACTOR", ROOK_TRAP_FACTOR);
+    print_table("QUEEN_TRAP_FACTOR", QUEEN_TRAP_FACTOR);
+    std::cout << std::endl;
+
     std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
               << std::endl;
     std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"

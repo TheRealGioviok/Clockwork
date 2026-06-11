@@ -1,6 +1,7 @@
 #include "evaluation.hpp"
 #include "bitboard.hpp"
 #include "common.hpp"
+#include "dbg_tools.hpp"
 #include "eval_constants.hpp"
 #include "eval_types.hpp"
 #include "kogge_stone.hpp"
@@ -340,32 +341,31 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     return eval;
 }
 
-constexpr i32 REACH_TIER_MAX_MOB = 2;
-
 template<Color color>
-  PScore evaluate_pieces(const Position& pos, EvalData& data) {
-    constexpr Color opp       = ~color;
-    PScore          eval      = PSCORE_ZERO;
-    Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
-    Bitboard occ = pos.board().get_occupied_bitboard();
-    Bitboard        blocked_pawns =
-      own_pawns & occ.shift_relative(color, Direction::South);
+PScore evaluate_pieces(const Position& pos, EvalData& data) {
+    constexpr Color    opp             = ~color;
+    PScore             eval            = PSCORE_ZERO;
+    Bitboard           own_pawns       = pos.bitboard_for(color, PieceType::Pawn);
+    Bitboard           occ             = pos.board().get_occupied_bitboard();
+    Bitboard           blocked_pawns   = own_pawns & occ.shift_relative(color, Direction::South);
     constexpr Bitboard early_ranks     = color == Color::White
                                          ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
                                          : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
     Bitboard           own_early_pawns = own_pawns & early_ranks;
     Bitboard bb = (blocked_pawns | own_early_pawns) | data.attacked_by(opp, PieceType::Pawn);
     data.mobility_area[static_cast<usize>(color)] = ~bb;
-    Bitboard bb2                                  = bb;
-    const Bitboard reach_mask = ~(bb2 | pos.board().get_color_bitboard(color));
+    Bitboard       bb2                            = bb;
+    const Bitboard reach_mask                     = ~(bb2 | pos.board().get_color_bitboard(color));
 
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
-        usize    mob   = (moves & ~bb).popcount();
+        isize    mob   = (moves & ~bb).ipopcount();
         eval += KNIGHT_MOBILITY[mob];
-        if (mob > 0) {
-            Bitboard reach = knights_setwise(moves & reach_mask) & reach_mask;
-            
+        if (mob > 0 && mob <= 5) {
+            isize reach = (knights_setwise(moves & reach_mask) & ~bb2).ipopcount();
+            if (reach + mob <= 5) {
+                eval += KNIGHT_TRAP_FACTOR[reach + mob - 1];
+            }
         }
     }
 
@@ -381,6 +381,12 @@ template<Color color>
              + (blocked_pawns & Bitboard::central_files()).ipopcount());
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
+        if (mob > 0 && mob <= 5) {
+            isize reach = (bishops_setwise(moves & reach_mask, occ) & ~bb2).ipopcount();
+            if (reach + mob <= 5) {
+                eval += BISHOP_TRAP_FACTOR[reach + mob - 1];
+            }
+        }
     }
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
@@ -396,6 +402,13 @@ template<Color color>
                  & (pos.bitboard_for(~color, PieceType::Queen)
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
+
+        if (mob2 > 0 && mob2 <= 6) {
+            usize reach = (rooks_setwise(moves & reach_mask, occ) & ~bb2).popcount();
+            if (reach + mob2 <= 6) {
+                eval += ROOK_TRAP_FACTOR[reach + mob2 - 1];
+            }
+        }
     }
     bb2 |= data.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
@@ -404,6 +417,12 @@ template<Color color>
         usize    mob2  = (moves & ~bb2).popcount();
         eval += QUEEN_MOBILITY[mob];
         eval += QUEEN_MOBILITY[mob2];
+        if (mob2 > 0 && mob2 <= 9) {
+            isize reach = (queens_setwise(moves & reach_mask, occ) & ~bb2).ipopcount();
+            if (reach + mob2 <= 9) {
+                eval += QUEEN_TRAP_FACTOR[reach + mob2 - 1];
+            }
+        }
     }
 
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
