@@ -341,6 +341,29 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     return eval;
 }
 
+struct BishopTrapData {
+    Bitboard frontier;
+    u8       mob;
+    Color    color;
+};
+
+struct RookTrapData {
+    Bitboard frontier;
+    u8       mob;
+};
+
+inline void score_bishop_trap(PScore& eval, usize reach, usize mob) {
+    if (reach + mob <= 5) {
+        eval += BISHOP_TRAP_FACTOR[reach + mob - 1];
+    }
+}
+
+inline void score_rook_trap(PScore& eval, usize reach, usize mob) {
+    if (reach + mob <= 6) {
+        eval += ROOK_TRAP_FACTOR[reach + mob - 1];
+    }
+}
+
 template<Color color>
 PScore evaluate_pieces(const Position& pos, EvalData& data) {
     constexpr Color    opp             = ~color;
@@ -354,8 +377,11 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     Bitboard           own_early_pawns = own_pawns & early_ranks;
     Bitboard bb = (blocked_pawns | own_early_pawns) | data.attacked_by(opp, PieceType::Pawn);
     data.mobility_area[static_cast<usize>(color)] = ~bb;
-    Bitboard       bb2                            = bb;
-    const Bitboard reach_mask                     = ~(bb2 | pos.board().get_color_bitboard(color));
+    Bitboard       bb2, bb3;
+    const Bitboard reach_mask = ~(bb | pos.board().get_color_bitboard(color));
+
+    std::array<BishopTrapData, 2> bishop_traps;
+    std::array<RookTrapData, 2>   rook_traps;
 
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
@@ -368,7 +394,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
             }
         }
     }
-
+    usize bt_cnt = 0;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         usize    mob   = (moves & ~bb).popcount();
@@ -381,14 +407,13 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
              + (blocked_pawns & Bitboard::central_files()).ipopcount());
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
-        if (mob > 0 && mob <= 5) {
-            usize reach = (bishops_setwise(moves & reach_mask, occ) & ~bb2).popcount();
-            if (reach + mob <= 5) {
-                eval += BISHOP_TRAP_FACTOR[reach + mob - 1];
-            }
+        if (mob > 0 && mob <= 5 && data.piece_count(color, PieceType::Bishop) <= 2) {
+            bishop_traps[bt_cnt++] = BishopTrapData{moves, static_cast<u8>(mob), sq.color()};
         }
     }
-    bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
+    usize rt_cnt = 0;
+    bb2 = bb | data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
+    const Bitboard reach_mask2 = ~(bb2 | pos.board().get_color_bitboard(color));
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         usize    mob   = (moves & ~bb).popcount();
@@ -403,30 +428,114 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
 
-        if (mob2 > 0 && mob2 <= 6) {
-            usize reach = (rooks_setwise(moves & reach_mask, occ) & ~bb2).popcount();
-            if (reach + mob2 <= 6) {
-                eval += ROOK_TRAP_FACTOR[reach + mob2 - 1];
-            }
+        if (mob2 > 0 && mob2 <= 6 && data.piece_count(color, PieceType::Rook) <= 2) {
+            rook_traps[rt_cnt++] = RookTrapData{moves, static_cast<u8>(mob2)};
         }
     }
-    bb2 |= data.attacked_by(opp, PieceType::Rook);
+    bb3                        = bb2 | data.attacked_by(opp, PieceType::Rook);
+    const Bitboard reach_mask3 = ~(bb3 | pos.board().get_color_bitboard(color));
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
         Bitboard moves = pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
         usize    mob   = (moves & ~bb).popcount();
-        usize    mob2  = (moves & ~bb2).popcount();
+        usize    mob3  = (moves & ~bb3).popcount();
         eval += QUEEN_MOBILITY[mob];
-        eval += QUEEN_MOBILITY[mob2];
-        if (mob2 > 0 && mob2 <= 9) {
-            usize reach = (queens_setwise(moves & reach_mask, occ) & ~bb2).popcount();
-            if (reach + mob2 <= 9) {
-                eval += QUEEN_TRAP_FACTOR[reach + mob2 - 1];
+        eval += QUEEN_MOBILITY[mob3];
+        if (mob3 > 0 && mob3 <= 9) {
+            usize reach = (queens_setwise(moves & reach_mask3, occ) & ~bb3).popcount();
+            if (reach + mob3 <= 9) {
+                eval += QUEEN_TRAP_FACTOR[reach + mob3 - 1];
             }
         }
     }
 
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;
+    }
+
+    // Bishop and rook trapped eval
+    switch (bt_cnt * 3 + rt_cnt) {
+    case 0:
+        break;
+    case 1: {
+        usize reach = (rooks_setwise(rook_traps[0].frontier & reach_mask2, occ) & ~bb2).popcount();
+        score_rook_trap(eval, reach, rook_traps[0].mob);
+        break;
+    }
+    case 2: {
+        auto [r0, r1] = rookrook_setwise(rook_traps[0].frontier & reach_mask2,
+                                         rook_traps[1].frontier & reach_mask2, occ);
+        usize reach0  = (r0 & ~bb2).popcount();
+        usize reach1  = (r1 & ~bb2).popcount();
+        score_rook_trap(eval, reach0, rook_traps[0].mob);
+        score_rook_trap(eval, reach1, rook_traps[1].mob);
+        break;
+    }
+    case 3: {
+        usize reach =
+          (bishops_setwise(bishop_traps[0].frontier & reach_mask, occ) & ~bb).popcount();
+        score_bishop_trap(eval, reach, bishop_traps[0].mob);
+
+        break;
+    }
+    case 4: {
+        auto [r, b]  = rookbishop_setwise(bishop_traps[0].frontier & reach_mask,
+                                          rook_traps[0].frontier & reach_mask2, occ);
+        usize reach0 = (b & ~bb).popcount();
+        usize reach1 = (r & ~bb2).popcount();
+        score_bishop_trap(eval, reach0, bishop_traps[0].mob);
+        score_rook_trap(eval, reach1, rook_traps[0].mob);
+        break;
+    }
+    case 5: {
+        usize reach =
+          (bishops_setwise(bishop_traps[0].frontier & reach_mask, occ) & ~bb).popcount();
+        score_bishop_trap(eval, reach, bishop_traps[0].mob);
+        auto [r0, r1] = rookrook_setwise(rook_traps[0].frontier & reach_mask2,
+                                         rook_traps[1].frontier & reach_mask2, occ);
+        usize reach0  = (r0 & ~bb2).popcount();
+        usize reach1  = (r1 & ~bb2).popcount();
+        score_rook_trap(eval, reach0, rook_traps[0].mob);
+        score_rook_trap(eval, reach1, rook_traps[1].mob);
+        break;
+    }
+    case 6: {
+        auto [b0, b1] = bishopbishop_setwise(bishop_traps[0].frontier & reach_mask,
+                                             bishop_traps[1].frontier & reach_mask, occ);
+        usize reach0  = (b0 & ~bb).popcount();
+        usize reach1  = (b1 & ~bb).popcount();
+        score_bishop_trap(eval, reach0, bishop_traps[0].mob);
+        score_bishop_trap(eval, reach1, bishop_traps[1].mob);
+        break;
+    }
+    case 7: {
+        auto [r1, b] = rookbishop_setwise(
+          rook_traps[0].frontier & reach_mask2,
+          (bishop_traps[0].frontier | bishop_traps[1].frontier) & reach_mask, occ);
+        usize reach  = (r1 & ~bb2).popcount();
+        usize reach0 = (b & ~bb & Bitboard::squares_of_color(bishop_traps[0].color)).popcount();
+        usize reach1 = (b & ~bb & Bitboard::squares_of_color(bishop_traps[1].color)).popcount();
+        score_rook_trap(eval, reach, rook_traps[0].mob);
+        score_bishop_trap(eval, reach0, bishop_traps[0].mob);
+        score_bishop_trap(eval, reach1, bishop_traps[1].mob);
+        break;
+    }
+    case 8: {
+        auto [b0, b1] = bishopbishop_setwise(bishop_traps[0].frontier & reach_mask,
+                                             bishop_traps[1].frontier & reach_mask, occ);
+        usize reach0  = (b0 & ~bb).popcount();
+        usize reach1  = (b1 & ~bb).popcount();
+        score_bishop_trap(eval, reach0, bishop_traps[0].mob);
+        score_bishop_trap(eval, reach1, bishop_traps[1].mob);
+
+        auto [r0, r1] = rookrook_setwise(rook_traps[0].frontier & reach_mask2,
+                                         rook_traps[1].frontier & reach_mask2, occ);
+        reach0        = (r0 & ~bb2).popcount();
+        reach1        = (r1 & ~bb2).popcount();
+        score_rook_trap(eval, reach0, rook_traps[0].mob);
+        score_rook_trap(eval, reach1, rook_traps[1].mob);
+
+        break;
+    }
     }
 
     return eval;
