@@ -188,7 +188,7 @@ int main() {
 #ifdef PROFILE_RUN
     const i32 epochs = 8;
 #else
-    const i32 epochs = 450;
+    const i32 epochs = 4500;
 #endif
 
     const f64 K = 1.0 / 400;
@@ -317,31 +317,39 @@ int main() {
     // Freeze all pair, except first 5 (material parameters)
     Globals::get().freeze_pair_range(5, counts.pair_parameter_count);
 
+    auto cosine_decay = [](double start, double end, double t) {
+        t              = std::clamp(t, 0.0, 1.0);
+        const double c = 0.5 * (1.0 + std::cos(M_PI * t));
+        return end + (start - end) * c;
+    };
+
     // Epoch loop
     for (int epoch = 0; epoch < epochs; ++epoch) {
 
         if (epoch == 24) {
-            // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
               0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
-            optim.set_lr(.1);
         }
-        if (epoch == 96) {
-            // Unfreeze king safety parameters after 96 epochs
+        if (epoch == 196) {
             Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count);
         }
 
+        double lr;
 
         if (epoch < 24) {
-            optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
-        } else if (epoch < 72) {
-            optim.set_lr(2 * std::pow(0.0667, double(epoch - 24) / 28.0));
+            const double t = double(epoch) / double(24);
+            lr             = cosine_decay(20.0, 5.0, t);
+        } else if (epoch < 196) {
+            const double t = double(epoch - 24) / double(196 - 24);
+            lr             = cosine_decay(5.0, 0.5, t);
         } else {
-            optim.set_lr(std::pow(0.1, double(epoch - 72) / 128.0));
+            const double t = double(epoch - 196) / double(epochs - 196);
+            lr             = cosine_decay(0.5, 0.02, t);
         }
+        optim.set_lr(lr);
 
-        std::cout << "Epoch " << epoch + 1 << "/" << epochs << "\n";
+        std::cout << "Epoch " << epoch + 1 << "/" << epochs << " | lr = " << lr << "\n";
 
         const auto start = time::Clock::now();
 
