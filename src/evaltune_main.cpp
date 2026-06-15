@@ -324,7 +324,7 @@ int main() {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
-              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
+              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2 + 4));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
@@ -546,6 +546,9 @@ void print_params() {
               << std::endl;
     std::cout << "inline const PParam KS_FLANK_DOUBLE_DEFENSE  = " << KS_FLANK_DOUBLE_DEFENSE << ";"
               << std::endl;
+    std::cout << std::endl;
+
+    print_table("KS_INNER_WEIGHTS", KS_INNER_WEIGHTS);
     std::cout << std::endl;
 
     print_2d_array("KING_SHELTER", KING_SHELTER);

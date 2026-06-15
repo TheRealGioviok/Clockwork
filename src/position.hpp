@@ -188,6 +188,10 @@ public:
         return piece_list(color).mask_eq<ptypes...>();
     }
 
+    [[nodiscard]] Bitboard attacked_by(const Color color, const PieceMask mask) const {
+        return m_attack_table[static_cast<usize>(color)].get_piece_mask_bitboard(mask);
+    }
+
     [[nodiscard]] bool is_square_attacked_by(Square sq, Color color) const {
         return !attack_table(color).read(sq).empty();
     }
