@@ -357,10 +357,13 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
     Bitboard        blocked_pawns =
       own_pawns & pos.board().get_occupied_bitboard().shift_relative(color, Direction::South);
-    constexpr Bitboard early_ranks     = color == Color::White
-                                         ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
-                                         : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
-    Bitboard           own_early_pawns = own_pawns & early_ranks;
+    constexpr Bitboard early_ranks    = color == Color::White
+                                        ? Bitboard::rank_mask(1) | Bitboard::rank_mask(2)
+                                        : Bitboard::rank_mask(5) | Bitboard::rank_mask(6);
+    constexpr Bitboard center_squares = (Bitboard::rank_mask(3) | Bitboard::rank_mask(4))
+                                      & (Bitboard::file_mask(3) | Bitboard::file_mask(4));
+
+    Bitboard own_early_pawns = own_pawns & early_ranks;
     Bitboard bb = (blocked_pawns | own_early_pawns) | data.attacked_by(opp, PieceType::Pawn);
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
@@ -380,6 +383,9 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
+        if (pos.mobility_of(color, id, center_squares) >= 2) {
+            eval += BISHOP_LONG_DIAG;
+        }
     }
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {

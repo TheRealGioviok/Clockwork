@@ -519,6 +519,8 @@ void print_params() {
 
     print_table("BISHOP_PAWNS", BISHOP_PAWNS);
     std::cout << std::endl;
+    std::cout << "inline const PParam BISHOP_LONG_DIAG = " << BISHOP_LONG_DIAG << ";" << std::endl;
+    std::cout << std::endl;
     std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;
     std::cout << std::endl;
 
