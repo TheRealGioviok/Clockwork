@@ -488,13 +488,21 @@ Value Worker::search(
         tt_adjusted_eval = tt_data->score;
     }
 
-    if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth && !excluded
-        && tt_adjusted_eval >= beta + tuned::rfp_margin * depth) {
-        return tt_adjusted_eval;
+    if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth && !excluded) {
+        Value margin = (tuned::rfp_margin * depth + tuned::rfp_improving * improving
+                        + std::abs(correction * tuned::rfp_correction_weight))
+                     / 32;
+        if (tt_adjusted_eval >= beta + margin) {
+            return tt_adjusted_eval;
+        }
     }
 
     if (cutnode && !PV_NODE && !is_in_check && !pos.is_kp_endgame() && depth >= tuned::nmp_depth
-        && !excluded && tt_adjusted_eval >= beta + tuned::nmp_beta_margin
+        && !excluded
+        && tt_adjusted_eval
+             >= beta
+                  + std::max(0, tuned::nmp_beta_margin_base - tuned::nmp_beta_depth_margin * depth
+                                  - tuned::nmp_beta_improving * improving)
         && !is_being_mated_score(beta) && !m_in_nmp_verification) {
 
         i32 R = tuned::nmp_base_r + depth * tuned::nmp_depth_r
@@ -613,12 +621,15 @@ Value Worker::search(
 
         if (!ROOT_NODE && !is_being_mated_score(best_value)) {
             // Late Move Pruning (LMP)
-            if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - improving)) {
-                break;
+            if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - improving)
+                                  + move_history / tuned::lmp_hh_div) {
+                moves.skip_quiets();
+                continue;
             }
 
             // Forward Futility Pruning (FFP)
             Value futility = ss->static_eval + tuned::ffp_margin_base
+                           + tuned::ffp_margin_improving * improving
                            + tuned::ffp_margin_mult * depth + move_history / tuned::ffp_hist_div;
             if (quiet && !is_in_check && depth <= tuned::ffp_depth && futility <= alpha) {
                 moves.skip_quiets();
@@ -745,6 +756,8 @@ Value Worker::search(
 
             reduction -= tuned::lmr_in_check_red * pos_after.is_in_check();
 
+            reduction -= (tuned::lmr_corrplexity * std::abs(correction)) / 32;
+
             if (cutnode) {
                 reduction += tuned::lmr_cutnode_red;
                 // If there is no available tt move, increase reduction
@@ -767,6 +780,7 @@ Value Worker::search(
 
             if ((ss + 1)->fail_high_count > 3) {
                 reduction += tuned::lmr_fail_high_red;
+                reduction += tuned::lmr_fail_high_all * (!PV_NODE && !cutnode);
             }
 
             if (quiet) {
@@ -788,7 +802,8 @@ Value Worker::search(
             value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha, reduced_depth,
                                             ply + 1, true);
             if (value > alpha) {
-                const bool do_deeper = reduced_depth < new_depth && value > best_value + 94;
+                const bool do_deeper =
+                  reduced_depth < new_depth && value > best_value + tuned::do_deeper_margin;
                 const bool do_shallower =
                   !do_deeper && new_depth > 1 && value < best_value + new_depth;
                 new_depth += do_deeper;

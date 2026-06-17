@@ -1,5 +1,6 @@
 #include "history.hpp"
 #include "search.hpp"
+#include "tuned.hpp"
 
 namespace Clockwork {
 
@@ -10,19 +11,23 @@ i32 History::get_conthist(const Position& pos, Move move, i32 ply, Search::Stack
     PieceType pt      = pos.piece_at(move.from());
     usize     pt_idx  = static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn);
     if (ply >= 1 && (ss - 1)->cont_hist_entry != nullptr) {
-        stats += (*(ss - 1)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw];
+        stats +=
+          (*(ss - 1)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw] * tuned::CONTHIST_WEIGHT_1;
     }
     if (ply >= 2 && (ss - 2)->cont_hist_entry != nullptr) {
-        stats += (*(ss - 2)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw];
+        stats +=
+          (*(ss - 2)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw] * tuned::CONTHIST_WEIGHT_2;
     }
     if (ply >= 4 && (ss - 4)->cont_hist_entry != nullptr) {
-        stats += (*(ss - 4)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw];
+        stats +=
+          (*(ss - 4)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw] * tuned::CONTHIST_WEIGHT_4;
     }
     if (ply >= 6 && (ss - 6)->cont_hist_entry != nullptr) {
-        stats += (*(ss - 6)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw];
+        stats +=
+          (*(ss - 6)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw] * tuned::CONTHIST_WEIGHT_6;
     }
 
-    return stats;
+    return stats / 1024;
 }
 
 i32 History::get_quiet_stats(const Position& pos, Move move, i32 ply, Search::Stack* ss) const {
@@ -30,7 +35,7 @@ i32 History::get_quiet_stats(const Position& pos, Move move, i32 ply, Search::St
     auto from_attacked = pos.is_square_attacked_by(move.from(), ~pos.active_color());
     i32  stats         = m_main_hist[static_cast<usize>(pos.active_color())][move.from_to()]
                            [from_attacked * 2 + to_attacked];
-    stats += 2 * get_conthist(pos, move, ply, ss);
+    stats += tuned::CONTHIST_STATS * get_conthist(pos, move, ply, ss) / 1024;
     return stats;
 }
 
@@ -43,21 +48,21 @@ void History::update_cont_hist(
 
     if (ply >= 1 && (ss - 1)->cont_hist_entry != nullptr) {
         update_hist_entry_banger((*(ss - 1)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw],
-                                 conthist, bonus);
+                                 conthist, bonus * tuned::CONTHIST_UPDATE_1 / 1024);
     }
     if (ply >= 2 && (ss - 2)->cont_hist_entry != nullptr) {
         update_hist_entry_banger((*(ss - 2)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw],
-                                 conthist, bonus);
+                                 conthist, bonus * tuned::CONTHIST_UPDATE_2 / 1024);
     }
     // Updates past ply 2 only when not in check
     if (!pos.is_in_check()) {
         if (ply >= 4 && (ss - 4)->cont_hist_entry != nullptr) {
             update_hist_entry_banger((*(ss - 4)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw],
-                                     conthist, bonus);
+                                     conthist, bonus * tuned::CONTHIST_UPDATE_4 / 1024);
         }
         if (ply >= 6 && (ss - 6)->cont_hist_entry != nullptr) {
             update_hist_entry_banger((*(ss - 6)->cont_hist_entry)[stm_idx][pt_idx][move.to().raw],
-                                     conthist, bonus);
+                                     conthist, bonus * tuned::CONTHIST_UPDATE_6 / 1024);
         }
     }
 }
