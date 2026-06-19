@@ -60,7 +60,7 @@ namespace Clockwork::tuned {
     TUNE(asp_window_delta, 25, 12, 50, 3, 0.002)                  \
     NO_TUNE(razor_depth, 7, 1, 20, 0.5, 0.002)                    \
     TUNE(razor_margin, 657, 353, 1414, 53, 0.002)                 \
-    TUNE(lmp_hh_div, 8192, 16384, 4096, 512, 0.002)               \
+    TUNE(lmp_hh_div, 8192, 4096, 16384, 512, 0.002)                \
     NO_TUNE(lmp_depth_mult, 3, 1, 20, 0.5, 0.002)                 \
                                                                   \
     /* Futility Pruning */                                        \
