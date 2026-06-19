@@ -628,9 +628,11 @@ Value Worker::search(
             }
 
             // Forward Futility Pruning (FFP)
-            Value futility = ss->static_eval + tuned::ffp_margin_base
-                           + tuned::ffp_margin_improving * improving
-                           + tuned::ffp_margin_mult * depth + move_history / tuned::ffp_hist_div;
+            Value futility =
+              ss->static_eval
+              + (tuned::ffp_margin_base + tuned::ffp_margin_improving * improving
+                 + tuned::ffp_margin_depth * depth + tuned::ffp_margin_hist * move_history)
+                  / 1024;
             if (quiet && !is_in_check && depth <= tuned::ffp_depth && futility <= alpha) {
                 moves.skip_quiets();
                 continue;
@@ -642,10 +644,13 @@ Value Worker::search(
                 break;
             }
 
-            Value see_threshold =
-              quiet ? tuned::see_pvs_quiet * depth : tuned::see_pvs_noisy_quad * depth * depth;
+            Value see_threshold = quiet ? tuned::see_pvs_quiet_lin * depth
+                                            - move_history * tuned::see_pvs_quiet_hist / 1024
+                                        : tuned::see_pvs_noisy_quad * depth * depth
+                                            - move_history * tuned::see_pvs_noisy_hist / 1024;
+
             // SEE PVS Pruning
-            if (!SEE::see(pos, m, see_threshold - move_history * tuned::see_pvs_hist_mult / 1024)) {
+            if (!SEE::see(pos, m, see_threshold)) {
                 continue;
             }
         }
@@ -656,8 +661,13 @@ Value Worker::search(
             && depth >= tuned::sing_min_depth && is_valid_score(tt_data->score)
             && !is_mate_score(tt_data->score) && tt_data->depth >= depth - tuned::sing_depth_margin
             && tt_data->bound() != Bound::Upper) {
-            Value singular_beta  = tt_data->score - depth * tuned::sing_beta_margin / 64;
-            int   singular_depth = depth / 2;
+            Value singular_beta =
+              tt_data->score
+              - depth
+                  * (tt_data->bound() == Bound::Exact ? tuned::sing_beta_exact_margin
+                                                      : tuned::sing_beta_margin)
+                  / 64;
+            int singular_depth = depth / 2;
 
             ss->excluded_move    = m;
             Value singular_value = search<IS_MAIN, false>(pos, ss, singular_beta - 1, singular_beta,
@@ -683,7 +693,7 @@ Value Worker::search(
             }
 
             // Multicut
-            else if (singular_value >= beta) {
+            else if (singular_value >= beta && !is_mate_score(singular_value)) {
                 return singular_value;
             }
 
@@ -756,6 +766,8 @@ Value Worker::search(
 
             reduction -= tuned::lmr_in_check_red * pos_after.is_in_check();
 
+            reduction += tuned::lmr_exact_bound * (tt_data && tt_data->bound() == Bound::Exact);
+
             reduction -= (tuned::lmr_corrplexity * std::abs(correction)) / 32;
 
             if (cutnode) {
@@ -784,7 +796,8 @@ Value Worker::search(
             }
 
             if (quiet) {
-                reduction += (tuned::lmr_quiet_hist_base - move_history / tuned::lmr_hist_div);
+                reduction +=
+                  (tuned::lmr_quiet_hist_base - move_history * tuned::lmr_hist_div / 1024);
                 reduction +=
                   (ss->static_eval + tuned::lmr_fut_red_base + tuned::lmr_fut_red_mult * depth
                      <= alpha
