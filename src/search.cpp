@@ -489,7 +489,7 @@ Value Worker::search(
     }
 
     if (!PV_NODE && !is_in_check && depth <= tuned::rfp_depth && !excluded) {
-        Value margin = (tuned::rfp_margin * depth + tuned::rfp_improving * improving
+        Value margin = (tuned::rfp_margin * depth - tuned::rfp_improving * improving
                         + std::abs(correction * tuned::rfp_correction_weight))
                      / 32;
         if (tt_adjusted_eval >= beta + margin) {
