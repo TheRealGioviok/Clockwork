@@ -32,13 +32,13 @@ namespace Clockwork::tuned {
     NO_TUNE(probcut_min_depth, 5, 1, 20, 0.5, 0.002)              \
                                                                   \
     /* SEE Values */                                              \
-    TUNE(quiesce_see_threshold, 18, -1000, 200, 20, 0.002)        \
+    TUNE(quiesce_see_threshold, 74, -1000, 200, 20, 0.002)        \
     TUNE(movepicker_see_capthist_divisor, 51, 16, 192, 10, 0.002) \
-    TUNE(see_pawn_val, 96, 50, 200, 8, 0.002)                     \
-    TUNE(see_knight_val, 310, 150, 600, 23, 0.002)                \
-    TUNE(see_bishop_val, 278, 150, 600, 23, 0.002)                \
-    TUNE(see_rook_val, 570, 250, 1000, 38, 0.002)                 \
-    TUNE(see_queen_val, 939, 450, 1800, 68, 0.002)                \
+    TUNE(see_pawn_val, 109, 50, 200, 8, 0.002)                    \
+    TUNE(see_knight_val, 403, 150, 600, 23, 0.002)                \
+    TUNE(see_bishop_val, 435, 150, 600, 23, 0.002)                \
+    TUNE(see_rook_val, 679, 250, 1000, 38, 0.002)                 \
+    TUNE(see_queen_val, 1242, 450, 1800, 68, 0.002)               \
                                                                   \
     /* Stat Bonus */                                              \
     TUNE(stat_bonus_max, 1882, 948, 3792, 142, 0.002)             \
@@ -69,9 +69,15 @@ namespace Clockwork::tuned {
     TUNE(qhp_threshold, -2133, -4096, -1024, 154, 0.002)          \
                                                                   \
     /* SEE PVS */                                                 \
-    TUNE(see_pvs_quiet, -59, -134, -33, 5, 0.002)                 \
-    TUNE(see_pvs_noisy_quad, -11, -44, -11, 2, 0.002)             \
-    TUNE(see_pvs_hist_mult, 17, 10, 40, 2, 0.002)                 \
+    TUNE(see_pvs_quiet_quad, -12, -22, -2, 2, 0.002)              \
+    TUNE(see_pvs_quiet_lin, 56, 75, 25, 2, 0.002)                 \
+    TUNE(see_pvs_quiet_base, 27, 0, 50, 2, 0.002)                 \
+    TUNE(see_pvs_quiet_hist, 27, 20, 50, 2, 0.002)                \
+                                                                  \
+    TUNE(see_pvs_noisy_quad, -7, -44, -11, 2, 0.002)              \
+    TUNE(see_pvs_noisy_lin, -36, -44, -11, 2, 0.002)              \
+    TUNE(see_pvs_noisy_base, 14, -44, -11, 2, 0.002)              \
+    TUNE(see_pvs_noisy_hist, 39, 20, 50, 2, 0.002)                \
                                                                   \
     /* Singular Extensions */                                     \
     NO_TUNE(sing_min_depth, 6, 1, 20, 0.5, 0.002)                 \

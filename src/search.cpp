@@ -631,10 +631,16 @@ Value Worker::search(
                 break;
             }
 
-            Value see_threshold =
-              quiet ? tuned::see_pvs_quiet * depth : tuned::see_pvs_noisy_quad * depth * depth;
+            Value see_threshold = quiet
+                                  ? tuned::see_pvs_quiet_base * depth * depth
+                                      + tuned::see_pvs_quiet_lin * depth + tuned::see_pvs_quiet_base
+                                      - move_history * tuned::see_pvs_quiet_hist / 1024
+                                  : tuned::see_pvs_noisy_base * depth * depth
+                                      + tuned::see_pvs_noisy_lin * depth + tuned::see_pvs_noisy_base
+                                      - move_history * tuned::see_pvs_noisy_hist / 1024;
+
             // SEE PVS Pruning
-            if (!SEE::see(pos, m, see_threshold - move_history * tuned::see_pvs_hist_mult / 1024)) {
+            if (!SEE::see(pos, m, std::min(0,see_threshold))) {
                 continue;
             }
         }
@@ -999,7 +1005,10 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         }
 
         // QS SEE Pruning
-        if (!is_being_mated_score(best_value) && !SEE::see(pos, m, tuned::quiesce_see_threshold)) {
+        if (!is_being_mated_score(best_value)
+            && !SEE::see(pos, m,
+                         (alpha - static_eval) / 8 - std::min(std::abs(correction), 68)
+                           - tuned::quiesce_see_threshold)) {
             continue;
         }
 
