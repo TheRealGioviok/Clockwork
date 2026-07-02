@@ -82,7 +82,14 @@ struct Move {
         return static_cast<PieceType>(((raw >> 12) & 0b0011) + 2);
     }
 
+    // Parse UCI move notation.
+    // A successfully parsed move is not guaranteed to be legal.
     static std::optional<Move> parse(std::string_view str, const Position& context);
+
+    // Parse Standard Algebraic Notation (SAN).
+    // Candidate moves are validated for legality to resolve disambiguation, but pawn pushes and
+    // castling are not, so a successfully parsed move is not guaranteed to be legal.
+    static std::optional<Move> parse_san(std::string_view san, const Position& context);
 
     [[nodiscard]] constexpr bool operator==(const Move& other) const = default;
 

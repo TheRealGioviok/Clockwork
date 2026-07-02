@@ -3,9 +3,11 @@
 #include "evaluation.hpp"
 #include "position.hpp"
 
+#include "tuning/gamefile.hpp"
 #include "tuning/graph.hpp"
 #include "tuning/loss.hpp"
 #include "tuning/optim.hpp"
+#include "tuning/pgn.hpp"
 #include "tuning/value.hpp"
 
 #include "util/mem.hpp"
@@ -13,14 +15,22 @@
 #include "util/types.hpp"
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <barrier>
+#include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <random>
+#include <span>
 #include <sstream>
+#include <string>
+#include <string_view>
 #include <thread>
 #include <tuple>
 
@@ -29,149 +39,375 @@ using namespace Clockwork::Autograd;
 
 void print_params();
 
-int main() {
+namespace {
 
+struct GameRecord {
+    Position             start;
+    std::span<const u16> moves;
+    std::span<const u8>  flags;
+    f64                  result;  // white POV: 1.0 / 0.5 / 0.0
+};
+
+// Desired (unnormalized) phase distribution shape, ported from scripts/phase-dist-filter.py.
+f64 phase_scale_factor(u8 phase) {
+    f64 odd_scale = std::min(0.9, -0.09793221 * (phase - 23.0) + 0.189393939);
+    f64 p16       = std::abs(phase - 16.0);
+    f64 base      = phase > 16 ? 1.0 - 0.875 * (p16 / 8.0) * (p16 / 8.0)
+                               : 1.0 - 0.95 * (p16 / 16.0) * (p16 / 16.0);
+    if (phase % 2 != 0 && phase > 12) {
+        return odd_scale * base;
+    }
+    return base;
+}
+
+// Replays every game once, keeping eligible positions with per-phase probability.
+// positions/results have fixed capacity; returns the number of slots filled.
+usize sample_positions(const std::vector<GameRecord>& games,
+                       const std::array<f64, 25>&     keep_probs,
+                       std::vector<Position>&         positions,
+                       std::vector<f64>&              results,
+                       u64                            seed,
+                       u32                            thread_count) {
+    const usize        capacity = positions.size();
+    std::atomic<usize> cursor{0};
+    std::atomic<usize> out{0};
+
+    std::vector<std::thread> threads;
+    threads.reserve(thread_count);
+    for (u32 t = 0; t < thread_count; ++t) {
+        threads.emplace_back([&, t]() {
+            std::mt19937_64                     rng(seed ^ (0x9E3779B97F4A7C15ULL * (t + 1)));
+            std::uniform_real_distribution<f64> uni(0.0, 1.0);
+            std::vector<u32>                    accepted;
+
+            for (;;) {
+                usize g = cursor.fetch_add(1, std::memory_order_relaxed);
+                if (g >= games.size()) {
+                    return;
+                }
+                const GameRecord& game = games[g];
+
+                // Pre-roll acceptance so games with no accepted positions are skipped
+                // entirely and replay stops at the last accepted ply.
+                accepted.clear();
+                for (u32 i = 0; i < game.flags.size(); ++i) {
+                    u8 f = game.flags[i];
+                    if (Tuning::is_eligible(f) && uni(rng) < keep_probs[Tuning::phase_of(f)]) {
+                        accepted.push_back(i);
+                    }
+                }
+                if (accepted.empty()) {
+                    continue;
+                }
+
+                usize idx = out.fetch_add(accepted.size(), std::memory_order_relaxed);
+                if (idx >= capacity) {
+                    return;
+                }
+                usize writable = std::min(accepted.size(), capacity - idx);
+
+                Position pos = game.start;
+                usize    k   = 0;
+                for (u32 i = 0; k < writable; ++i) {
+                    Move m;
+                    m.raw = game.moves[i];
+                    pos   = pos.move(m);
+                    if (i == accepted[k]) {
+                        positions[idx + k] = pos;
+                        results[idx + k]   = game.result;
+                        ++k;
+                    }
+                }
+            }
+        });
+    }
+    for (auto& th : threads) {
+        th.join();
+    }
+    return std::min(out.load(), capacity);
+}
+
+}  // namespace
+
+// Converts selfplay PGN files into a single .ckg binary game file.
+// Usage: clockwork-evaltune pack out.ckg in1.pgn [in2.pgn ...]
+static int run_pack(int argc, char* argv[]) {
+    if (argc < 4) {
+        std::cerr << "usage: clockwork-evaltune pack out.ckg in1.pgn [in2.pgn ...]\n";
+        return 1;
+    }
+
+    std::ofstream out(argv[2], std::ios::binary | std::ios::trunc);
+    if (!out) {
+        std::cerr << "Error opening " << argv[2] << " for writing\n";
+        return 1;
+    }
+    Tuning::CkgWriter writer{out};
+
+    const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
+
+    u64 dropped        = 0;
+    u64 total_plies    = 0;
+    u64 total_eligible = 0;
+
+    constexpr size_t CHUNK = 8192;
+
+    for (int arg = 3; arg < argc; ++arg) {
+        std::ifstream in(argv[arg]);
+        if (!in) {
+            std::cerr << "Error opening " << argv[arg] << "\n";
+            return 1;
+        }
+        Tuning::PgnSplitter splitter(in);
+
+        std::vector<std::string>                    raw;
+        std::vector<std::optional<Tuning::PgnGame>> parsed;
+        raw.reserve(CHUNK);
+
+        bool done = false;
+        while (!done) {
+            raw.clear();
+            while (raw.size() < CHUNK) {
+                auto game_text = splitter.next();
+                if (!game_text) {
+                    done = true;
+                    break;
+                }
+                raw.push_back(std::move(*game_text));
+            }
+            if (raw.empty()) {
+                break;
+            }
+
+            parsed.assign(raw.size(), std::nullopt);
+            {
+                std::vector<std::thread> threads;
+                threads.reserve(thread_count);
+                for (u32 t = 0; t < thread_count; ++t) {
+                    threads.emplace_back([&, t]() {
+                        for (size_t i = t; i < raw.size(); i += thread_count) {
+                            parsed[i] = Tuning::parse_pgn_game(raw[i]);
+                        }
+                    });
+                }
+                for (auto& th : threads) {
+                    th.join();
+                }
+            }
+
+            for (const auto& game : parsed) {
+                if (!game) {
+                    dropped++;
+                    continue;
+                }
+                writer.write(*game);
+                total_plies += game->moves.size();
+                for (u8 f : game->flags) {
+                    total_eligible += Tuning::is_eligible(f);
+                }
+            }
+
+            std::cout << "\r" << writer.games_written() << " games packed (" << dropped
+                      << " dropped)" << std::flush;
+        }
+    }
+
+    writer.finish();
+    if (!out) {
+        std::cerr << "\nError writing " << argv[2] << "\n";
+        return 1;
+    }
+
+    std::cout << "\r" << writer.games_written() << " games packed (" << dropped << " dropped), "
+              << total_plies << " positions, " << total_eligible << " eligible\n";
+    return 0;
+}
+
+// Tunes eval parameters against a fresh phase-balanced sample drawn from .ckg game files
+// every --refresh epochs.
+// Usage: clockwork-evaltune tune data.ckg [more.ckg ...] [--target N] [--epochs N]
+//        [--refresh N] [--seed N]
+static int run_tune(int argc, char* argv[]) {
     // Todo: make these CLI-specifiable
     const size_t batch_size       = 16 * 16384;
     const size_t micro_batch_size = 160;
 
-    std::vector<Position> positions;
-    std::vector<f64>      results;
+    std::vector<std::string> files;
+    u64                      target  = 20'000'000;
+    i32                      epochs  = 450;
+    i32                      refresh = 1;
+    u64                      seed    = std::random_device{}();
 
-    const std::vector<std::string> fenFiles = {
-      "data/v5_25knpm.txt",  "data/v4_8knpm.txt",    "data/v4_16knpm.txt",
-      "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",
-    };
+    bool cli_ok = true;
+    for (int i = 2; i < argc; ++i) {
+        std::string_view arg = argv[i];
+        if (!arg.starts_with("--")) {
+            files.emplace_back(arg);
+            continue;
+        }
+        if (i + 1 >= argc) {
+            cli_ok = false;
+            break;
+        }
+        const char* value = argv[++i];
+        if (arg == "--target") {
+            target = std::strtoull(value, nullptr, 10);
+        } else if (arg == "--epochs") {
+            epochs = std::atoi(value);
+        } else if (arg == "--refresh") {
+            refresh = std::atoi(value);
+        } else if (arg == "--seed") {
+            seed = std::strtoull(value, nullptr, 10);
+        } else {
+            cli_ok = false;
+            break;
+        }
+    }
+    if (!cli_ok || files.empty() || epochs <= 0 || refresh <= 0 || target == 0) {
+        std::cerr << "usage: clockwork-evaltune tune data.ckg [more.ckg ...] [--target N] "
+                     "[--epochs N] [--refresh N] [--seed N]\n";
+        return 1;
+    }
 
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
 
     std::cout << "Running on " << thread_count << " threads\n";
 
-    // Pre-pass: Count total lines to reserve memory
-    size_t total_positions_estimate = 0;
-    auto   count_lines              = [](const std::string& filename) -> size_t {
-        std::ifstream f(filename, std::ios::binary);
-        if (!f) {
-            return 0;
-        }
-        constexpr size_t  buffer_size = 128 * 1024;
-        std::vector<char> buffer(buffer_size);
-        size_t            lines = 0;
-        while (f.read(buffer.data(), buffer_size) || f.gcount() > 0) {
-            lines +=
-              static_cast<size_t>(std::count(buffer.data(), buffer.data() + f.gcount(), '\n'));
-            if (!f) {
-                break;
-            }
-        }
-        return lines;
-    };
+    // Load game files. The raw bytes stay alive for the whole run: game views hold
+    // spans into them.
+    std::vector<std::vector<u8>>     file_data;
+    std::vector<Tuning::CkgGameView> views;
 
-    struct RawEntry {
-        std::string line;
-        std::string filename;
-    };
-
-    std::vector<RawEntry> raw_lines;
-
-    std::cout << "Counting positions..." << std::endl;
-    for (const auto& filename : fenFiles) {
-        total_positions_estimate += count_lines(filename);
-    }
-    std::cout << "Estimated positions: " << total_positions_estimate << "\n";
-
-    raw_lines.reserve(total_positions_estimate);
-
-    for (const auto& filename : fenFiles) {
-        std::ifstream fenFile(filename);
-        if (!fenFile) {
+    for (const std::string& filename : files) {
+        std::ifstream in(filename, std::ios::binary);
+        if (!in) {
             std::cerr << "Error opening " << filename << "\n";
             return 1;
         }
-        std::string line;
-        while (std::getline(fenFile, line)) {
-            raw_lines.push_back({std::move(line), filename});
+        in.seekg(0, std::ios::end);
+        std::streamsize size = in.tellg();
+        in.seekg(0);
+        std::vector<u8> data(static_cast<usize>(size));
+        if (!in.read(reinterpret_cast<char*>(data.data()), size)) {
+            std::cerr << "Error reading " << filename << "\n";
+            return 1;
         }
+        file_data.push_back(std::move(data));
+
+        auto reader = Tuning::CkgReader::open(file_data.back());
+        if (!reader) {
+            std::cerr << filename << " is not a valid .ckg file\n";
+            return 1;
+        }
+        views.reserve(views.size() + reader->game_count());
+        while (auto view = reader->next()) {
+            views.push_back(*view);
+        }
+        if (reader->games_read() < reader->game_count()) {
+            std::cerr << filename << ": corrupt record after " << reader->games_read() << " of "
+                      << reader->game_count() << " games\n";
+            return 1;
+        }
+        std::cout << filename << ": " << reader->games_read() << " games\n";
     }
 
-    std::cout << "Read " << raw_lines.size() << " raw lines. Parsing...\n";
+    if (views.empty()) {
+        std::cerr << "No games loaded\n";
+        return 1;
+    }
 
-    const size_t N = raw_lines.size();
-
-    positions.resize(N);
-    results.resize(N, -1.0);
-
-    advise_huge_pages(positions.data(), positions.capacity() * sizeof(Position));
-    advise_huge_pages(results.data(), results.capacity() * sizeof(f64));
-
+    // Rebuild start positions (once: this is the expensive attack table build) and
+    // histogram the eligible positions by phase.
+    std::vector<GameRecord> games(views.size());
+    std::array<u64, 25>     observed{};
+    std::atomic<usize>      bad{0};
     {
-        std::vector<std::thread> parse_threads;
-        parse_threads.reserve(thread_count);
-
+        std::vector<std::array<u64, 25>> thread_hist(thread_count);
+        std::vector<std::thread>         threads;
+        threads.reserve(thread_count);
         for (u32 t = 0; t < thread_count; ++t) {
-            parse_threads.emplace_back([&, t]() {
-                for (size_t i = t; i < N; i += thread_count) {
-                    const auto& [line, filename] = raw_lines[i];
-
-                    size_t sep = line.find(';');
-                    if (sep == std::string::npos) {
-                        std::cerr << "Bad line in " << filename << ": " << line << "\n";
+            threads.emplace_back([&, t]() {
+                for (usize i = t; i < views.size(); i += thread_count) {
+                    auto start = Tuning::reconstruct_start_position(views[i]);
+                    if (!start) {
+                        bad.fetch_add(1, std::memory_order_relaxed);
                         continue;
                     }
-
-                    auto parsed = Position::parse(line.substr(0, sep));
-                    if (!parsed) {
-                        std::cerr << "Failed to parse FEN in " << filename << ": "
-                                  << line.substr(0, sep) << "\n";
-                        continue;
+                    games[i] =
+                      GameRecord{*start, views[i].moves, views[i].flags,
+                                 1.0 - 0.5 * static_cast<f64>(static_cast<u8>(views[i].result))};
+                    for (u8 f : views[i].flags) {
+                        if (Tuning::is_eligible(f)) {
+                            thread_hist[t][Tuning::phase_of(f)]++;
+                        }
                     }
-
-                    std::string result = line.substr(sep + 1);
-                    result.erase(std::remove_if(result.begin(), result.end(), ::isspace),
-                                 result.end());
-
-                    f64 r;
-                    if (result == "w") {
-                        r = 1.0;
-                    } else if (result == "d") {
-                        r = 0.5;
-                    } else if (result == "b") {
-                        r = 0.0;
-                    } else {
-                        std::cerr << "Invalid result in " << filename << ": " << line << "\n";
-                        continue;
-                    }
-
-                    positions[i] = *parsed;
-                    results[i]   = r;
                 }
             });
         }
-        for (auto& th : parse_threads) {
+        for (auto& th : threads) {
             th.join();
         }
-    }
-
-    {
-        size_t write = 0;
-        for (size_t read = 0; read < N; ++read) {
-            if (results[read] >= 0.0) {
-                if (write != read) {
-                    positions[write] = std::move(positions[read]);
-                    results[write]   = results[read];
-                }
-                ++write;
+        for (const auto& hist : thread_hist) {
+            for (usize p = 0; p < observed.size(); ++p) {
+                observed[p] += hist[p];
             }
         }
-        positions.resize(write);
-        results.resize(write);
     }
-
-    std::cout << "Loaded " << positions.size() << " FENs.\n";
-
-    if (positions.empty()) {
+    if (bad.load() > 0) {
+        std::cerr << bad.load() << " games failed start position reconstruction\n";
         return 1;
     }
+
+    // Per-phase keep probabilities: reshape the eligible pool into the desired phase
+    // distribution, then scale to the per-epoch target.
+    u64 total_eligible = 0;
+    for (u64 count : observed) {
+        total_eligible += count;
+    }
+
+    std::array<f64, 25> keep_probs{};
+    f64                 norm_const = std::numeric_limits<f64>::infinity();
+    for (usize p = 0; p < keep_probs.size(); ++p) {
+        if (observed[p] == 0) {
+            continue;
+        }
+        f64 obs       = static_cast<f64>(observed[p]) / static_cast<f64>(total_eligible);
+        f64 desired   = phase_scale_factor(static_cast<u8>(p));
+        keep_probs[p] = desired / obs;
+        norm_const    = std::min(norm_const, obs / desired);
+    }
+    f64 expected = 0;
+    for (usize p = 0; p < keep_probs.size(); ++p) {
+        keep_probs[p] = std::min(keep_probs[p] * norm_const, 1.0);
+        expected += static_cast<f64>(observed[p]) * keep_probs[p];
+    }
+    if (expected > static_cast<f64>(target)) {
+        f64 scale = static_cast<f64>(target) / expected;
+        for (f64& kp : keep_probs) {
+            kp *= scale;
+        }
+        expected = static_cast<f64>(target);
+    } else {
+        std::cout << "Note: phase distribution caps the epoch at ~" << static_cast<u64>(expected)
+                  << " positions (--target " << target << ")\n";
+    }
+
+    std::cout << "Eligible pool: " << total_eligible << " positions over " << games.size()
+              << " games, ~" << static_cast<u64>(expected) << " sampled per epoch\n";
+    for (usize p = 0; p < keep_probs.size(); ++p) {
+        std::cout << "Phase " << p << ": " << observed[p] << " eligible, keep probability "
+                  << keep_probs[p] << "\n";
+    }
+
+    // Fixed-capacity sample buffers, refilled in place every --refresh epochs.
+    const usize capacity = static_cast<usize>(expected * 1.02) + 65536;
+
+    std::vector<Position> positions(capacity);
+    std::vector<f64>      results(capacity);
+    size_t                n_sampled = 0;
+
+    advise_huge_pages(positions.data(), positions.capacity() * sizeof(Position));
+    advise_huge_pages(results.data(), results.capacity() * sizeof(f64));
 
     // Setup tuning
     const ParameterCountInfo parameter_count = Globals::get().get_parameter_counts();
@@ -186,22 +422,15 @@ int main() {
     AdamW optim(parameter_count, 1, 0.9, 0.999, 1e-8, 0.0);
 
 #ifdef PROFILE_RUN
-    const i32 epochs = 8;
-#else
-    const i32 epochs = 450;
+    epochs = 8;
 #endif
 
     const f64 K = 1.0 / 400;
 
-    std::mt19937        rng(std::random_device{}());
-    std::vector<size_t> indices(positions.size());
-
-    // Initialize indices 0..N-1
-    std::iota(indices.begin(), indices.end(), 0);
+    std::mt19937        rng(static_cast<std::mt19937::result_type>(seed));
+    std::vector<size_t> indices(capacity);
 
     advise_huge_pages(indices.data(), indices.size() * sizeof(size_t));
-
-    const size_t total_batches = (positions.size() + batch_size - 1) / batch_size;
 
     // Per-thread gradient buffers for lock-free accumulation
     std::vector<Parameters> thread_grads(thread_count, Parameters::zeros(parameter_count));
@@ -240,10 +469,9 @@ int main() {
 
                 epoch_barrier.arrive_and_wait();
 
-                for (size_t batch_start = 0; batch_start < positions.size();
-                     batch_start += batch_size) {
+                for (size_t batch_start = 0; batch_start < n_sampled; batch_start += batch_size) {
 
-                    size_t batch_end       = std::min(batch_start + batch_size, positions.size());
+                    size_t batch_end       = std::min(batch_start + batch_size, n_sampled);
                     size_t this_batch_size = batch_end - batch_start;
 
                     size_t sub_size  = (this_batch_size + thread_count - 1) / thread_count;
@@ -345,11 +573,28 @@ int main() {
 
         const auto start = time::Clock::now();
 
-        std::shuffle(indices.begin(), indices.end(), rng);
+        if (epoch % refresh == 0) {
+            n_sampled = sample_positions(games, keep_probs, positions, results,
+                                         seed + 0x9E3779B97F4A7C15ULL * static_cast<u64>(epoch + 1),
+                                         thread_count);
+            std::cout << "Sampled " << n_sampled << " positions in "
+                      << time::cast<time::FloatSeconds>(time::Clock::now() - start).count()
+                      << "s\n";
+            if (n_sampled == 0) {
+                std::cerr << "No positions sampled\n";
+                return 1;
+            }
+        }
+
+        const size_t total_batches = (n_sampled + batch_size - 1) / batch_size;
+
+        auto sampled_end = indices.begin() + static_cast<isize>(n_sampled);
+        std::iota(indices.begin(), sampled_end, size_t{0});
+        std::shuffle(indices.begin(), sampled_end, rng);
 
         epoch_barrier.arrive_and_wait();
 
-        for (size_t bi = 0, bstart = 0; bstart < positions.size(); bstart += batch_size, ++bi) {
+        for (size_t bi = 0, bstart = 0; bstart < n_sampled; bstart += batch_size, ++bi) {
 
             batch_barrier.arrive_and_wait();
 
@@ -377,6 +622,20 @@ int main() {
     }
 
     return 0;
+}
+
+int main(int argc, char* argv[]) {
+    if (argc >= 2 && std::string_view(argv[1]) == "pack") {
+        return run_pack(argc, argv);
+    }
+    if (argc >= 2 && std::string_view(argv[1]) == "tune") {
+        return run_tune(argc, argv);
+    }
+    std::cerr << "usage:\n"
+                 "  clockwork-evaltune tune data.ckg [more.ckg ...] [--target N] [--epochs N] "
+                 "[--refresh N] [--seed N]\n"
+                 "  clockwork-evaltune pack out.ckg in1.pgn [in2.pgn ...]\n";
+    return 1;
 }
 
 void print_params() {

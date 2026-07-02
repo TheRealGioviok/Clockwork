@@ -131,6 +131,8 @@ set(srcs
     src/tuned.cpp
     src/tuned.hpp
     src/tuning/arena.hpp
+    src/tuning/gamefile.cpp
+    src/tuning/gamefile.hpp
     src/tuning/globals.hpp
     src/tuning/graph.cpp
     src/tuning/graph.hpp
@@ -138,6 +140,8 @@ set(srcs
     src/tuning/loss.hpp
     src/tuning/operations.hpp
     src/tuning/optim.hpp
+    src/tuning/pgn.cpp
+    src/tuning/pgn.hpp
     src/tuning/value.cpp
     src/tuning/value.hpp
     src/uci.cpp
@@ -167,6 +171,7 @@ else()
     add_executable(clockwork src/main.cpp)
     target_link_libraries(clockwork PUBLIC clockwork-lib)
     target_add_flags(clockwork)
+
     if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         target_link_options(clockwork PUBLIC
             $<$<CONFIG:Release>:
@@ -184,12 +189,15 @@ else()
         add_test(${name} ${name})
     endfunction()
 
+    do_test(test_gamefile)
+    do_test(test_move)
     do_test(test_piece_count)
     # do_test(test_see)
     do_test(test_is_legal)
     do_test(test_repetition)
     do_test(test_static_vector)
     do_test(test_perft)
+    do_test(test_pgn)
     do_test(test_position)
     do_test(test_speedtest)
 

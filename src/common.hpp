@@ -3,6 +3,7 @@
 #include "util/types.hpp"
 #include <atomic>
 #include <cmath>
+#include <optional>
 
 namespace Clockwork {
 
@@ -89,6 +90,32 @@ constexpr char piece_char(PieceType piece) {
         return 'k';
     }
     unreachable();
+}
+
+constexpr std::optional<PieceType> parse_piece_char(char ch) {
+    using enum PieceType;
+    switch (ch) {
+    case 'P':
+    case 'p':
+        return Pawn;
+    case 'N':
+    case 'n':
+        return Knight;
+    case 'B':
+    case 'b':
+        return Bishop;
+    case 'R':
+    case 'r':
+        return Rook;
+    case 'Q':
+    case 'q':
+        return Queen;
+    case 'K':
+    case 'k':
+        return King;
+    default:
+        return std::nullopt;
+    }
 }
 
 constexpr bool is_slider(PieceType ptype) {
