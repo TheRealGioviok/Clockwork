@@ -68,9 +68,25 @@ usize sample_positions(const std::vector<GameRecord>& games,
                        std::vector<f64>&              results,
                        u64                            seed,
                        u32                            thread_count) {
-    const usize        capacity = positions.size();
+    constexpr u32 MAX_PER_GAME = 10;
+
+    const usize capacity = positions.size();
+
+    // Shuffle game traversal order so that, if the buffer fills before every
+    // game is scanned, the skipped games are a random subset rather than
+    // always the tail of the concatenated input files.
+    std::vector<usize> order(games.size());
+    std::iota(order.begin(), order.end(), 0);
+    {
+        std::mt19937_64 order_rng(seed ^ 0xD1B54A32D192ED03ULL);
+        std::shuffle(order.begin(), order.end(), order_rng);
+    }
+
     std::atomic<usize> cursor{0};
     std::atomic<usize> out{0};
+    std::atomic<usize> games_used{0};         // games that wrote >=1 position
+    std::atomic<usize> games_reservoired{0};  // games that exceeded MAX_PER_GAME and were thinned
+    std::atomic<usize> games_truncated{0};    // games cut short (partially or fully) by capacity
 
     std::vector<std::thread> threads;
     threads.reserve(thread_count);
@@ -81,10 +97,11 @@ usize sample_positions(const std::vector<GameRecord>& games,
             std::vector<u32>                    accepted;
 
             for (;;) {
-                usize g = cursor.fetch_add(1, std::memory_order_relaxed);
-                if (g >= games.size()) {
+                usize slot = cursor.fetch_add(1, std::memory_order_relaxed);
+                if (slot >= order.size()) {
                     return;
                 }
+                usize             g    = order[slot];
                 const GameRecord& game = games[g];
 
                 // Pre-roll acceptance so games with no accepted positions are skipped
@@ -100,11 +117,32 @@ usize sample_positions(const std::vector<GameRecord>& games,
                     continue;
                 }
 
+                // Thin to at most MAX_PER_GAME via reservoir sampling, preserving ply
+                // order for the replay loop below.
+                if (accepted.size() > MAX_PER_GAME) {
+                    for (u32 k = MAX_PER_GAME; k < accepted.size(); ++k) {
+                        std::uniform_int_distribution<u32> pick(0, k);
+                        u32                                j = pick(rng);
+                        if (j < MAX_PER_GAME) {
+                            accepted[j] = accepted[k];
+                        }
+                    }
+                    accepted.resize(MAX_PER_GAME);
+                    std::sort(accepted.begin(), accepted.end());
+                    games_reservoired.fetch_add(1, std::memory_order_relaxed);
+                }
+
                 usize idx = out.fetch_add(accepted.size(), std::memory_order_relaxed);
                 if (idx >= capacity) {
+                    games_truncated.fetch_add(1, std::memory_order_relaxed);
                     return;
                 }
                 usize writable = std::min(accepted.size(), capacity - idx);
+
+                games_used.fetch_add(1, std::memory_order_relaxed);
+                if (writable < accepted.size()) {
+                    games_truncated.fetch_add(1, std::memory_order_relaxed);
+                }
 
                 Position pos = game.start;
                 usize    k   = 0;
@@ -124,6 +162,18 @@ usize sample_positions(const std::vector<GameRecord>& games,
     for (auto& th : threads) {
         th.join();
     }
+
+    const usize scanned = std::min(cursor.load(), games.size());
+    std::cout << "Games scanned: " << scanned << " / " << games.size();
+    if (scanned < games.size()) {
+        std::cout << "  [WARNING: buffer filled early, " << (games.size() - scanned)
+                  << " games never inspected]";
+    }
+    std::cout << "\n";
+    std::cout << "Games used: " << games_used.load() << " / " << games.size() << " ("
+              << games_reservoired.load() << " reservoir-thinned to " << MAX_PER_GAME << ", "
+              << games_truncated.load() << " truncated by capacity)\n";
+
     return std::min(out.load(), capacity);
 }
 
@@ -233,7 +283,7 @@ static int run_tune(int argc, char* argv[]) {
     const size_t micro_batch_size = 160;
 
     std::vector<std::string> files;
-    u64                      target  = 77 * (16384 * 16);
+    u64                      target  = 78 * (16384 * 16);
     i32                      epochs  = 450;
     i32                      refresh = 1;
     u64                      seed    = std::random_device{}();
