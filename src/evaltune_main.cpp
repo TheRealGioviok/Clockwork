@@ -233,7 +233,7 @@ static int run_tune(int argc, char* argv[]) {
     const size_t micro_batch_size = 160;
 
     std::vector<std::string> files;
-    u64                      target  = 20'000'000;
+    u64                      target  = 77 * (16384 * 16);
     i32                      epochs  = 450;
     i32                      refresh = 1;
     u64                      seed    = std::random_device{}();
