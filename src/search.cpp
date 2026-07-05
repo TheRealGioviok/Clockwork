@@ -976,11 +976,18 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         }
     }
 
-    // Stand pat
-    if (static_eval >= beta) {
-        return static_eval;
+    // Reuse TT score as a better positional evaluation
+    auto tt_adjusted_eval = static_eval;
+    if (tt_data && tt_data->bound() != Bound::None && !is_mate_score(tt_data->score)
+        && tt_data->bound() != (tt_data->score > static_eval ? Bound::Upper : Bound::Lower)) {
+        tt_adjusted_eval = tt_data->score;
     }
-    alpha = std::max(alpha, static_eval);
+
+    // Stand pat
+    if (tt_adjusted_eval >= beta) {
+        return tt_adjusted_eval;
+    }
+    alpha = std::max(alpha, tt_adjusted_eval);
 
     MovePicker moves{pos, m_td.history, Move::none(), ply, ss};
     if (!is_in_check) {
@@ -988,7 +995,7 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
     }
 
     Move  best_move      = Move::none();
-    Value best_value     = static_eval;
+    Value best_value     = tt_adjusted_eval;
     u32   moves_searched = 0;
 
     // Iterate over the move list
