@@ -68,7 +68,7 @@ usize sample_positions(const std::vector<GameRecord>& games,
                        std::vector<f64>&              results,
                        u64                            seed,
                        u32                            thread_count) {
-    constexpr u32 MAX_PER_GAME = 10;
+    constexpr u32 MAX_PER_GAME = 3;
 
     const usize capacity = positions.size();
 
@@ -138,7 +138,9 @@ usize sample_positions(const std::vector<GameRecord>& games,
                     return;
                 }
                 usize writable = std::min(accepted.size(), capacity - idx);
-
+                if (writable == 0) {
+                    return;
+                }
                 games_used.fetch_add(1, std::memory_order_relaxed);
                 if (writable < accepted.size()) {
                     games_truncated.fetch_add(1, std::memory_order_relaxed);
@@ -283,9 +285,9 @@ static int run_tune(int argc, char* argv[]) {
     const size_t micro_batch_size = 160;
 
     std::vector<std::string> files;
-    u64                      target  = 78 * (16384 * 16);
-    i32                      epochs  = 450;
-    i32                      refresh = 1;
+    u64                      target  = 128 * batch_size;
+    i32                      epochs  = 2048;
+    i32                      refresh = 4;
     u64                      seed    = std::random_device{}();
 
     bool cli_ok = true;
@@ -615,8 +617,14 @@ static int run_tune(int argc, char* argv[]) {
             optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
         } else if (epoch < 72) {
             optim.set_lr(2 * std::pow(0.0667, double(epoch - 24) / 28.0));
-        } else {
+        } else if (epoch < 200) {
             optim.set_lr(std::pow(0.1, double(epoch - 72) / 128.0));
+        } else if (epoch < 400) {
+            optim.set_lr(std::pow(0.1, double(epoch - 200) / 128.0));
+        } else if (epoch < 800) {
+            optim.set_lr(std::pow(0.1, double(epoch - 400) / 192.0));
+        } else {
+            optim.set_lr(std::pow(0.1, double(epoch - 800) / 256.0));
         }
 
         std::cout << "Epoch " << epoch + 1 << "/" << epochs << "\n";
