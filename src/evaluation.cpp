@@ -99,6 +99,12 @@ Bitboard static_pawn_attacks(const Bitboard pawns) {
     return attacks;
 }
 
+Bitboard static_pawn_attacks(const Color color, const Bitboard pawns) {
+    Bitboard attacks = pawns.shift_relative(color, Direction::NorthEast)
+                     | pawns.shift_relative(color, Direction::NorthWest);
+    return attacks;
+}
+
 template<Color color>
 Bitboard pawn_spans(const Bitboard pawns, Bitboard blockers) {
     Bitboard res = pawns;
@@ -656,6 +662,7 @@ PScore apply_eg_scale(const Position& pos,
                       EvalData&       eval_data) {
     // Strong pawn scaling
     const Color strong_side = eval.eg() > 0 ? Color::White : Color::Black;
+    const Color weak_side   = ~strong_side;
 
     // Swap phases if we're in the weak side's perspective
     if (strong_side == Color::Black) {
@@ -664,7 +671,7 @@ PScore apply_eg_scale(const Position& pos,
     }
 
     const i32 strong_pawn_count = eval_data.piece_count(strong_side, PieceType::Pawn);
-    const i32 weak_pawn_count   = eval_data.piece_count(~strong_side, PieceType::Pawn);
+    const i32 weak_pawn_count   = eval_data.piece_count(weak_side, PieceType::Pawn);
 
     // Pawnless position scaling: if our material advantage is very thin and we have no pawns, scale down the eval significantly, as trading can lead to KBK or KNK draws
     if (strong_pawn_count == 0) {
@@ -678,6 +685,104 @@ PScore apply_eg_scale(const Position& pos,
                                       + 8 * (strong_pawn_count >= weak_pawn_count + 2));
         } else {
             return eval.scale_eg<128>(44 + 3 * pos.piece_count(strong_side));
+        }
+    } else if (strong_phase == 4 && weak_phase == 2
+               && eval_data.piece_count(strong_side, PieceType::Queen) == 1
+               && eval_data.piece_count(weak_side, PieceType::Rook) == 1) {
+        // Queen vs Rook: check for fortress
+
+        // Classic fortress KQ vs KRP+
+        if (weak_pawn_count >= 1) {
+            if (strong_pawn_count == 0) {
+                Square wr = pos.bitboard_for(weak_side, PieceType::Rook).lsb();
+                Square wk = pos.king_sq(weak_side);
+                Square sk = pos.king_sq(strong_side);
+
+                if (wk.relative_rank(weak_side) <= 1 && sk.relative_rank(weak_side) >= 3
+                    && wr.relative_rank(weak_side) == 3) {
+                    if ((pos.bitboard_for(weak_side, PieceType::Pawn)
+                         & eval_data.attacked_by(weak_side, PieceType::King)
+                         & static_pawn_attacks(strong_side, Bitboard::from_square(wr)))
+                          .any()) {
+                        return eval.scale_eg<128>(0);
+                    }
+                }
+            } else {
+                if (strong_pawn_count >= weak_pawn_count) {
+                    return eval.scale_eg<128>(96 + strong_pawn_count * 4);
+                } else {
+
+                    Square wr = pos.bitboard_for(weak_side, PieceType::Rook).lsb();
+                    Square wk = pos.king_sq(weak_side);
+
+                    // Use only safe pawns when considering how many pawns the defending side has, since usually weak side won't usually be able to defend more pieces than it does statically
+                    Bitboard safe_pawns = pos.bitboard_for(weak_side, PieceType::Pawn)
+                                        & eval_data.attacked_by(weak_side, PieceType::King);
+                    safe_pawns |= pos.bitboard_for(weak_side, PieceType::Pawn)
+                                & static_pawn_attacks(weak_side, safe_pawns);
+
+                    bool safe_rook =
+                      (safe_pawns & static_pawn_attacks(strong_side, Bitboard::from_square(wr)))
+                        .any();
+
+                    i32 wk_lure = wk.relative_rank(weak_side);
+
+                    i32 blocked_sp = (pos.bitboard_for(strong_side, PieceType::Pawn)
+                                        .shift_relative(strong_side, Direction::North)
+                                      & safe_pawns)
+                                       .ipopcount();
+
+                    Bitboard strong_files =
+                      Bitboard::fill_verticals(pos.bitboard_for(strong_side, PieceType::Pawn));
+                    Bitboard weak_files = Bitboard::fill_verticals(safe_pawns);
+
+                    // Final formula:
+                    // More pawns generally means more winning chances. The greater the pawn advantage weak side has, the drawish-er it is.
+                    // if we can build a fortress like for the 1v0 above, we can scale down as well
+                    // if weak side has pawns on each strong side file, we can scale down as well
+                    // if defended (by king) weak side pawns are at least 1+strong pawns, we can scale down as well
+                    // if strong side only has a, b, f, g pawns, we can scale down as well
+                    // if strong side only has pawns on one of the a/b or f/g files, we can scale down as well
+
+                    i32 matched_files   = (strong_files & weak_files).ipopcount();
+                    i32 unmatched_files = (strong_files & ~weak_files).ipopcount();
+
+                    i32 base = 60;
+                    if (safe_pawns.ipopcount() >= strong_pawn_count + 1) {
+                        base -= 8 * (safe_pawns.ipopcount() - strong_pawn_count)
+                              * (safe_pawns.ipopcount() - strong_pawn_count);
+                    } else {
+                        base += 8 * (strong_pawn_count - safe_pawns.ipopcount())
+                              * (strong_pawn_count - safe_pawns.ipopcount());
+                    }
+
+                    base -= 6 * blocked_sp;
+                    base -= matched_files;
+                    base -= 16 * safe_rook;
+
+                    base += 3 * wk_lure * wk_lure;
+                    base += unmatched_files;
+                    base += 32 * (strong_passers != 0);
+
+                    constexpr Bitboard ab_mask   = Bitboard::file_mask(0) | Bitboard::file_mask(1);
+                    constexpr Bitboard fg_mask   = Bitboard::file_mask(6) | Bitboard::file_mask(7);
+                    constexpr Bitboard abfg_mask = ab_mask | fg_mask;
+
+                    if ((pos.bitboard_for(strong_side, PieceType::Pawn) & ab_mask).empty()
+                        || (pos.bitboard_for(strong_side, PieceType::Pawn) & fg_mask).empty()) {
+                        base -= 8;
+                    }
+
+                    if ((pos.bitboard_for(strong_side, PieceType::Pawn) & ~abfg_mask).empty()) {
+                        base -= 8 + 32 * (strong_passers == 0);
+                    }
+
+                    return eval.scale_eg<128>(std::clamp(base, 0, 128));
+                }
+            }
+        } else {
+            return eval.scale_eg<128>(
+              128);  // QP*vR is always winning except for captures in 1 or 2 moves, which is handled by the search
         }
     }
 
