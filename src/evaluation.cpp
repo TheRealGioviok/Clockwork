@@ -365,10 +365,20 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        usize mob = pos.mobility_of(color, id, ~bb);
+        eval += KNIGHT_MOBILITY[mob];
+        if (mob <= 2) {
+            eval += IMPEDED_MOB * (3u - mob)
+                  * pos.attack_table(color).read(pos.piece_list_sq(color)[id]).ipopcount();
+        }
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
-        eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        usize mob = pos.mobility_of(color, id, ~bb);
+        eval += BISHOP_MOBILITY[mob];
+        if (mob <= 2) {
+            eval += IMPEDED_MOB * (3u - mob)
+                  * pos.attack_table(color).read(pos.piece_list_sq(color)[id]).ipopcount();
+        }
         Square sq = pos.piece_list_sq(color)[id];
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
@@ -384,7 +394,12 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
         eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        usize mob = pos.mobility_of(color, id, ~bb2);
+        eval += ROOK_MOBILITY[mob];
+        if (mob <= 2) {
+            eval += IMPEDED_MOB * (3u - mob)
+                  * pos.attack_table(color).read(pos.piece_list_sq(color)[id]).ipopcount();
+        }
         // Rook lineups
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
@@ -396,7 +411,12 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     bb2 |= data.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
         eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        usize mob = pos.mobility_of(color, id, ~bb2);
+        eval += QUEEN_MOBILITY[mob];
+        if (mob <= 2) {
+            eval += IMPEDED_MOB * (3u - mob)
+                  * pos.attack_table(color).read(pos.piece_list_sq(color)[id]).ipopcount();
+        }
     }
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;

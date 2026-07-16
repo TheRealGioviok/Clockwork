@@ -74,6 +74,8 @@ inline const std::array<PParam, 28> QUEEN_MOBILITY = {
     S(-206, -162), S(-52, 7), S(-28, 134), S(-6, 259), S(10, 298), S(17, 351), S(23, 384), S(30, 399), S(34, 424), S(37, 441), S(43, 449), S(47, 457), S(50, 463), S(52, 469), S(53, 470), S(52, 474), S(48, 475), S(53, 465), S(54, 463), S(58, 453), S(55, 436), S(61, 415), S(31, 439), S(-16, 429), S(-43, 426), S(-75, 446), S(-119, 455), S(-90, 396),
 };
 
+inline const PParam IMPEDED_MOB = S(-13, -3);
+
 inline const PParam PAWN_THREAT_KNIGHT = S(193, 149);
 inline const PParam PAWN_THREAT_BISHOP = S(169, 215);
 inline const PParam PAWN_THREAT_ROOK   = S(189, 151);

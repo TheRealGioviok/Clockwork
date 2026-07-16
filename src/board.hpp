@@ -54,6 +54,10 @@ public:
         return static_cast<usize>(std::popcount(m_raw));
     }
 
+    [[nodiscard]] i32 ipopcount() const {
+        return static_cast<i32>(std::popcount(m_raw));
+    }
+
     [[nodiscard]] PieceId msb() const {
         return PieceId{static_cast<u8>(std::bit_width(m_raw) - 1)};
     }

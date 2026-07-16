@@ -496,6 +496,9 @@ void print_params() {
     print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
     std::cout << std::endl;
 
+    std::cout << "inline const PParam IMPEDED_MOB = " << IMPEDED_MOB << ";" << std::endl;
+    std::cout << std::endl;
+
     std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
               << std::endl;
     std::cout << "inline const PParam PAWN_THREAT_BISHOP = " << PAWN_THREAT_BISHOP << ";"
