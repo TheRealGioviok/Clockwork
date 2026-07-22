@@ -282,7 +282,7 @@ int main() {
                         }
 
                         // Backward pass
-                        ValueHandle loss = cross_entropy<f64, Reduction::Sum>(outputs, targets);
+                        ValueHandle loss = cross_entropy<f64, Reduction::Sum>(outputs, targets, .1);
 
                         local_batch_loss += loss.get_value();
 
