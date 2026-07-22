@@ -277,12 +277,12 @@ int main() {
                         for (size_t j = mb_start; j < mb_end; ++j) {
 
                             size_t idx = indices[j];
-                            outputs.push_back((evaluate_white_pov(positions[idx]) * K).sigmoid());
+                            outputs.push_back(evaluate_white_pov(positions[idx]) * K);
                             targets.push_back(results[idx]);
                         }
 
                         // Backward pass
-                        ValueHandle loss = mse<f64, Reduction::Sum>(outputs, targets);
+                        ValueHandle loss = cross_entropy<f64, Reduction::Sum>(outputs, targets);
 
                         local_batch_loss += loss.get_value();
 

@@ -31,6 +31,8 @@ struct ValueHandle {
     ValueHandle pow(ValueHandle exponent) const;
     ValueHandle pow(f64 exponent) const;
 
+    ValueHandle bce_with_logits(f64 target) const;
+
     void add_gradient(f64 rhs) const;
     f64  get_value() const;
     f64  get_gradient() const;

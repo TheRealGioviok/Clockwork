@@ -112,6 +112,13 @@ ValueHandle Graph::record_op(OpType op, ValueHandle lhs, f64 scalar) {
     case OpType::ValDivScalar:
         res = l / scalar;
         break;
+    case OpType::BCEWithLogits: {
+        f64 z     = l;
+        f64 y     = scalar;
+        f64 abs_z = std::abs(z);
+        res       = std::max(z, 0.0) - z * y + std::log1p(std::exp(-abs_z));
+        break;
+    }
     default:
         break;
     }
@@ -406,6 +413,14 @@ void Graph::backward() {
         case OpType::ValDivScalar: {
             const f64 grad_out = grads[out_idx];
             grads[node.lhs()] += grad_out / node.scalar();
+            break;
+        }
+        case OpType::BCEWithLogits: {
+            const f64 grad_out = grads[out_idx];
+            f64       z        = vals[node.lhs()];
+            f64       y        = node.scalar();
+            f64       s        = 1.0 / (1.0 + std::exp(-z));
+            grads[node.lhs()] += (s - y) * grad_out;
             break;
         }
         case OpType::DivScalarVal: {

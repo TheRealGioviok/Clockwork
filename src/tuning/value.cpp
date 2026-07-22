@@ -38,6 +38,9 @@ ValueHandle ValueHandle::pow(ValueHandle exponent) const {
 ValueHandle ValueHandle::pow(f64 exponent) const {
     return Graph::get().record_op(OpType::PowConst, *this, exponent);
 }
+ValueHandle ValueHandle::bce_with_logits(f64 target) const {
+    return Graph::get().record_op(OpType::BCEWithLogits, *this, target);
+}
 
 void ValueHandle::add_gradient(f64 rhs) const {
     if (is_valid()) {

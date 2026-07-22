@@ -33,6 +33,9 @@ enum class OpType : u32 {
     DivScalarVal,  // scalar / x
     ValDivScalar,  // x / scalar
 
+    // bce
+    BCEWithLogits,
+
     // Pair Ops
     PairCreate,
     PairAdd,
