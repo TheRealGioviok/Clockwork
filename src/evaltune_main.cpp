@@ -29,6 +29,66 @@ using namespace Clockwork::Autograd;
 
 void print_params();
 
+f64 find_optimal_k(const std::vector<Position>& positions, const std::vector<f64>& targets) {
+    constexpr f64 left0  = 0.001;
+    constexpr f64 right0 = 0.010;
+    constexpr int zooms  = 22;
+    constexpr f64 phi    = 0.6180339887498948482;
+
+    auto evaluate_loss = [&](f64 K) -> f64 {
+        f64 loss = 0.0;
+
+        for (size_t i = 0; i < positions.size(); ++i) {
+            // TODO: this can absolutely be optimized by just caching the eval results and just multiplying by K and then doing the sigmoid after.
+            // Definitely implement this if we try the K tuning every time, not just when we modify the dataset.
+            ValueHandle output = (evaluate_white_pov(positions[i]) * K).sigmoid();
+
+            const f64 p = output.get_value();
+            const f64 e = p - targets[i];
+            loss += e * e;
+
+            Graph::get().cleanup(); 
+        }
+
+        return loss / positions.size();
+    };
+
+    f64 left  = left0;
+    f64 right = right0;
+
+    f64 c = right - phi * (right - left);
+    f64 d = left + phi * (right - left);
+
+    f64 fc = evaluate_loss(c);
+    f64 fd = evaluate_loss(d);
+
+    for (int i = 0; i < zooms; ++i) {
+        std::cout << "Zoom " << i + 1 << "/" << zooms << ": left=" << left << ", right=" << right
+                  << ", c=" << c << ", d=" << d << ", fc=" << fc << ", fd=" << fd << "\n";
+        if (fc < fd) {
+            right = d;
+            d     = c;
+            fd    = fc;
+
+            c  = right - phi * (right - left);
+            fc = evaluate_loss(c);
+        } else {
+            left = c;
+            c    = d;
+            fc   = fd;
+
+            d  = left + phi * (right - left);
+            fd = evaluate_loss(d);
+        }
+    }
+
+    const f64 best_k = 0.5 * (left + right);
+
+    std::cout << "Best K = " << best_k << " (1/K = " << (1.0 / best_k) << ")\n";
+
+    return best_k;
+}
+
 int main() {
 
     // Todo: make these CLI-specifiable
@@ -39,8 +99,8 @@ int main() {
     std::vector<f64>      results;
 
     const std::vector<std::string> fenFiles = {
-      "data/v5_25knpm.txt",  "data/v4_8knpm.txt",    "data/v4_16knpm.txt",
-      "data/v4.1_8knpm.txt", "data/v4.1_16knpm.txt", "data/dfrcv2.txt",
+      "data/v5_25knpm.txt",   "data/v4_8knpm.txt", "data/v4_16knpm.txt", "data/v4.1_8knpm.txt",
+      "data/v4.1_16knpm.txt", "data/dfrcv2.txt",   "data/dfrcv3.txt",
     };
 
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
@@ -191,7 +251,9 @@ int main() {
     const i32 epochs = 450;
 #endif
 
-    const f64 K = 1.0 / 400;
+    const f64 K = find_optimal_k(positions, results);
+
+    std::cout << "K = " << K << "\n";
 
     std::mt19937        rng(std::random_device{}());
     std::vector<size_t> indices(positions.size());
