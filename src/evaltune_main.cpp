@@ -31,60 +31,91 @@ void print_params();
 
 f64 find_optimal_k(const std::vector<Position>& positions, const std::vector<f64>& targets) {
     constexpr f64 left0  = 0.001;
-    constexpr f64 right0 = 0.010;
-    constexpr int zooms  = 22;
-    constexpr f64 phi    = 0.6180339887498948482;
+    constexpr f64 right0 = 0.01;
+
+    constexpr int samples_per_zoom = 11;
+    constexpr int keep_points      = 3;
+    constexpr f64 tolerance        = 1e-7;
 
     auto evaluate_loss = [&](f64 K) -> f64 {
         f64 loss = 0.0;
 
         for (size_t i = 0; i < positions.size(); ++i) {
-            // TODO: this can absolutely be optimized by just caching the eval results and just multiplying by K and then doing the sigmoid after.
-            // Definitely implement this if we try the K tuning every time, not just when we modify the dataset.
             ValueHandle output = (evaluate_white_pov(positions[i]) * K).sigmoid();
 
             const f64 p = output.get_value();
             const f64 e = p - targets[i];
+
             loss += e * e;
 
-            Graph::get().cleanup(); 
+            Graph::get().cleanup();
         }
 
         return loss / positions.size();
     };
 
+
     f64 left  = left0;
     f64 right = right0;
 
-    f64 c = right - phi * (right - left);
-    f64 d = left + phi * (right - left);
+    f64 best_k    = left;
+    f64 best_loss = std::numeric_limits<f64>::infinity();
 
-    f64 fc = evaluate_loss(c);
-    f64 fd = evaluate_loss(d);
+    int zoom = 0;
 
-    for (int i = 0; i < zooms; ++i) {
-        std::cout << "Zoom " << i + 1 << "/" << zooms << ": left=" << left << ", right=" << right
-                  << ", c=" << c << ", d=" << d << ", fc=" << fc << ", fd=" << fd << "\n";
-        if (fc < fd) {
-            right = d;
-            d     = c;
-            fd    = fc;
+    while ((right - left) > tolerance) {
+        struct Sample {
+            f64 k;
+            f64 loss;
+        };
 
-            c  = right - phi * (right - left);
-            fc = evaluate_loss(c);
-        } else {
-            left = c;
-            c    = d;
-            fc   = fd;
+        std::vector<Sample> samples;
+        samples.reserve(samples_per_zoom);
 
-            d  = left + phi * (right - left);
-            fd = evaluate_loss(d);
+        for (int i = 0; i < samples_per_zoom; ++i) {
+            const f64 t = static_cast<f64>(i) / static_cast<f64>(samples_per_zoom - 1);
+
+            const f64 k    = left + t * (right - left);
+            const f64 loss = evaluate_loss(k);
+
+            samples.push_back({k, loss});
+
+            if (loss < best_loss) {
+                best_loss = loss;
+                best_k    = k;
+            }
         }
+
+        // Find the best sample index
+        int best_idx = 0;
+        for (int i = 1; i < samples_per_zoom; ++i) {
+            if (samples[i].loss < samples[best_idx].loss) {
+                best_idx = i;
+            }
+        }
+
+        // Expand around the best few samples
+        int half_keep = keep_points / 2;
+
+        int new_left_idx  = std::max(0, best_idx - half_keep);
+        int new_right_idx = std::min(samples_per_zoom - 1, best_idx + half_keep);
+
+        if (new_left_idx == 0) {
+            new_right_idx = std::min(samples_per_zoom - 1, keep_points);
+        }
+        if (new_right_idx == samples_per_zoom - 1) {
+            new_left_idx = std::max(0, samples_per_zoom - 1 - keep_points);
+        }
+
+        left  = samples[new_left_idx].k;
+        right = samples[new_right_idx].k;
+
+        std::cout << "Zoom " << ++zoom << ": range=[" << left << ", " << right << "]"
+                  << " best=" << best_k << " loss=" << best_loss << "\n";
     }
 
-    const f64 best_k = 0.5 * (left + right);
-
-    std::cout << "Best K = " << best_k << " (1/K = " << (1.0 / best_k) << ")\n";
+    std::cout << "Best K = " << best_k << " (1/K = " << (1.0 / best_k) << ")"
+              << "\n";
 
     return best_k;
 }
