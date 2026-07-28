@@ -30,63 +30,156 @@ using namespace Clockwork::Autograd;
 void print_params();
 
 f64 find_optimal_k(const std::vector<Position>& positions, const std::vector<f64>& targets) {
-    constexpr f64 left0  = 0.001;
-    constexpr f64 right0 = 0.010;
-    constexpr int zooms  = 22;
-    constexpr f64 phi    = 0.6180339887498948482;
+    constexpr f64 K_MIN = 0.0015;
+    constexpr f64 K_MAX = 0.0035;
+
+    constexpr int COARSE_SAMPLES = 256;
+    constexpr int KEEP_BEST      = 3;
+    constexpr int LOCAL_SAMPLES  = 64;
+    constexpr int REFINEMENTS    = 3;
+
+    // Adjust this to your fixed point representation
+    constexpr f64 VALUE_SCALE = 1.0;
+
+
+    // ------------------------------------------------------------
+    // Fast sigmoid
+    // ------------------------------------------------------------
+
+    auto sigmoid = [](f64 x) -> f64 {
+        return 1.0 / (1.0 + std::exp(-x));
+    };
+
+
+    // ------------------------------------------------------------
+    // Build cache
+    // ------------------------------------------------------------
+
+    std::vector<f64> white_pov_cache;
+    white_pov_cache.reserve(positions.size());
+
+    for (const auto& pos : positions) {
+
+        Score output = evaluate_white_pov(pos);
+
+        // Force evaluation before graph destruction
+        i32 raw = output.get_value();
+
+        white_pov_cache.push_back(static_cast<f64>(raw) * VALUE_SCALE);
+
+        Graph::get().cleanup();
+    }
+
+
+    // ------------------------------------------------------------
+    // Cheap evaluator
+    // ------------------------------------------------------------
 
     auto evaluate_loss = [&](f64 K) -> f64 {
         f64 loss = 0.0;
 
-        for (size_t i = 0; i < positions.size(); ++i) {
-            // TODO: this can absolutely be optimized by just caching the eval results and just multiplying by K and then doing the sigmoid after.
-            // Definitely implement this if we try the K tuning every time, not just when we modify the dataset.
-            ValueHandle output = (evaluate_white_pov(positions[i]) * K).sigmoid();
+        for (size_t i = 0; i < white_pov_cache.size(); ++i) {
 
-            const f64 p = output.get_value();
-            const f64 e = p - targets[i];
+            f64 p = sigmoid(white_pov_cache[i] * K);
+
+            f64 e = p - targets[i];
+
             loss += e * e;
-
-            Graph::get().cleanup(); 
         }
 
-        return loss / positions.size();
+        return loss / white_pov_cache.size();
     };
 
-    f64 left  = left0;
-    f64 right = right0;
 
-    f64 c = right - phi * (right - left);
-    f64 d = left + phi * (right - left);
+    struct Sample {
+        f64 k;
+        f64 loss;
+    };
 
-    f64 fc = evaluate_loss(c);
-    f64 fd = evaluate_loss(d);
 
-    for (int i = 0; i < zooms; ++i) {
-        std::cout << "Zoom " << i + 1 << "/" << zooms << ": left=" << left << ", right=" << right
-                  << ", c=" << c << ", d=" << d << ", fc=" << fc << ", fd=" << fd << "\n";
-        if (fc < fd) {
-            right = d;
-            d     = c;
-            fd    = fc;
+    auto sample_grid = [&](f64 left, f64 right, int count) {
+        std::vector<Sample> samples;
+        samples.reserve(count);
 
-            c  = right - phi * (right - left);
-            fc = evaluate_loss(c);
-        } else {
-            left = c;
-            c    = d;
-            fc   = fd;
+        for (int i = 0; i < count; i++) {
 
-            d  = left + phi * (right - left);
-            fd = evaluate_loss(d);
+            f64 t = static_cast<f64>(i) / (count - 1);
+
+            f64 k = left + t * (right - left);
+
+            samples.push_back({k, evaluate_loss(k)});
         }
+
+        std::sort(samples.begin(), samples.end(), [](const Sample& a, const Sample& b) {
+            return a.loss < b.loss;
+        });
+
+        return samples;
+    };
+
+
+    struct Region {
+        f64 center;
+        f64 radius;
+    };
+
+
+    // ------------------------------------------------------------
+    // Initial search
+    // ------------------------------------------------------------
+
+    auto initial = sample_grid(K_MIN, K_MAX, COARSE_SAMPLES);
+
+
+    std::vector<Region> regions;
+
+    f64 initial_radius = (K_MAX - K_MIN) / (COARSE_SAMPLES - 1);
+
+
+    for (int i = 0; i < KEEP_BEST; i++) {
+        regions.push_back({initial[i].k, initial_radius});
     }
 
-    const f64 best_k = 0.5 * (left + right);
 
-    std::cout << "Best K = " << best_k << " (1/K = " << (1.0 / best_k) << ")\n";
+    // ------------------------------------------------------------
+    // Refinement
+    // ------------------------------------------------------------
 
-    return best_k;
+    for (int r = 0; r < REFINEMENTS; r++) {
+
+        std::vector<Sample> candidates;
+
+        for (const auto& region : regions) {
+
+            auto local = sample_grid(region.center - region.radius, region.center + region.radius,
+                                     LOCAL_SAMPLES);
+
+            candidates.insert(candidates.end(), local.begin(), local.end());
+        }
+
+
+        std::sort(candidates.begin(), candidates.end(), [](const Sample& a, const Sample& b) {
+            return a.loss < b.loss;
+        });
+
+
+        f64 spacing = std::abs(candidates[1].k - candidates[0].k);
+
+
+        regions.clear();
+
+        for (int i = 0; i < KEEP_BEST; i++) {
+
+            regions.push_back({candidates[i].k, spacing * 2.0});
+        }
+
+
+        std::cout << "refinement " << r + 1 << ": K=" << candidates[0].k
+                  << " loss=" << candidates[0].loss << "\n";
+    }
+
+
+    return regions[0].center;
 }
 
 int main() {
@@ -386,7 +479,7 @@ int main() {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
-              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
+              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2 + 2));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
@@ -614,6 +707,8 @@ void print_params() {
     print_table("BLOCKED_SHELTER_STORM", BLOCKED_SHELTER_STORM);
     print_2d_array("SHELTER_STORM", SHELTER_STORM);
 
+    print_table("SHELTER_RAM_PUSHES", SHELTER_RAM_PUSHES);
+    print_2d_array("SHELTER_RAMMABLE", SHELTER_RAMMABLE);
 
     print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
     std::cout << std::endl;

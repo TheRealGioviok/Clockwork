@@ -226,27 +226,56 @@ PScore king_shelter(const Position& pos, const EvalData& eval_data) {
 
     i32 shelter_center = std::clamp(king_square.file(), 1, 6);
 
+    Bitboard ramming_pawns = Bitboard{0};
+    Bitboard shelter_pawns = Bitboard{0};
+
     for (i32 offset = -1; offset <= 1; offset++) {
-        i32      file    = shelter_center + offset;
-        Bitboard file_bb = Bitboard::file_mask(file);
+        i32      file     = shelter_center + offset;
+        Bitboard file_bb  = Bitboard::file_mask(file);
+        i32      edge_idx = std::min(file, 7 - file);
 
         // Our pawns
         b            = our_pawns & file_bb;
-        i32 our_rank = b.any() ? b.frontmost_square(opp).relative_rank(color) : 0;
+        i32 our_rank = 0;
+        if (b.any()) {
+            Square sq = b.frontmost_square(opp);
+            our_rank  = sq.relative_rank(color);
+            shelter_pawns |= Bitboard::from_square(sq);
+        }
+        score += KING_SHELTER[static_cast<usize>(edge_idx)][static_cast<usize>(our_rank)];
 
         // Opponent pawns
         b              = their_pawns & file_bb;
-        i32 their_rank = b.any() ? b.frontmost_square(opp).relative_rank(color) : 0;
+        i32 their_rank = 0;
+        if (b.any()) {
+            Square sq  = b.frontmost_square(opp);
+            their_rank = sq.relative_rank(color);
+            ramming_pawns |= Bitboard::from_square(sq);
+        }
 
-        i32 edge_idx = std::min(file, 7 - file);
-
-        score += KING_SHELTER[static_cast<usize>(edge_idx)][static_cast<usize>(our_rank)];
-        if (our_rank && (our_rank == their_rank - 1)) {
+        if (our_rank && our_rank == their_rank - 1) {
             score += BLOCKED_SHELTER_STORM[static_cast<usize>(their_rank)];
         } else {
             score += SHELTER_STORM[static_cast<usize>(edge_idx)][static_cast<usize>(their_rank)];
         }
     }
+
+    // Extra shelter / rams TODO:use later
+
+    // Bitboard extra_shelter = our_pawns ^ shelter_pawns;
+    //Bitboard extra_rams = their_pawns ^ ramming_pawns;
+
+    // If ram pawns are all blocked, malus
+    Bitboard empty      = pos.board().get_empty_bitboard();
+    Bitboard ram_pushes = ramming_pawns.shift_relative(opp, Direction::North) & empty;
+    score += SHELTER_RAM_PUSHES[ram_pushes.popcount()];
+
+    // ram pawns span
+    Bitboard ram_span = static_pawn_attacks<opp>(pawn_spans<opp>(ramming_pawns, ~empty));
+    // number of rammable enemy shelter pawns vs all pawns
+    usize shelter = shelter_pawns.popcount();
+    score += SHELTER_RAMMABLE[shelter_pawns.popcount()][(ram_span & shelter_pawns).popcount()];
+
 
     return score;
 }
