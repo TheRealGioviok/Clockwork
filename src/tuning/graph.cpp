@@ -123,62 +123,6 @@ ValueHandle Graph::record_op(OpType op, ValueHandle lhs, f64 scalar) {
     return out;
 }
 
-PairHandle Graph::record_pair_op(OpType op, PairHandle lhs, PairHandle rhs) {
-    PairHandle out = m_pairs.next_handle();
-    f64x2      l   = m_pairs.val(lhs.index);
-    f64x2      r   = m_pairs.val(rhs.index);
-    f64x2      res = f64x2::zero();
-
-    switch (op) {
-    case OpType::PairAdd:
-        res = f64x2::add(l, r);
-        break;
-    case OpType::PairSub:
-        res = f64x2::sub(l, r);
-        break;
-    default:
-        break;
-    }
-
-    m_pairs.alloc(res, f64x2::zero());
-
-    m_tape.push_back(Node::make_binary(op, out.index, lhs.index, rhs.index));
-
-    return out;
-}
-
-PairHandle Graph::record_pair_scalar(OpType op, PairHandle lhs, f64 scalar) {
-    PairHandle out = m_pairs.next_handle();
-    f64x2      l   = m_pairs.val(lhs.index);
-    f64x2      res = f64x2::zero();
-
-    switch (op) {
-    case OpType::PairNeg:
-        res = f64x2::neg(l);
-        break;
-    case OpType::PairMulScalar:
-        res = f64x2::mul_scalar(l, scalar);
-        break;
-    case OpType::PairDivScalar:
-        res = f64x2::div_scalar(l, scalar);
-        break;
-    case OpType::ScalarDivPair:
-        res = f64x2::scalar_div(scalar, l);
-        break;
-    case OpType::ScaleEg:
-        res = f64x2::make(l.first(), l.second() * scalar);
-        break;
-    default:
-        break;
-    }
-
-    m_pairs.alloc(res, f64x2::zero());
-
-    m_tape.push_back(Node::make_scalar(op, out.index, lhs.index, scalar));
-
-    return out;
-}
-
 PairHandle Graph::record_pair_value(OpType op, PairHandle lhs, ValueHandle rhs) {
     PairHandle out      = m_pairs.next_handle();
     f64x2      pair_val = m_pairs.val(lhs.index);

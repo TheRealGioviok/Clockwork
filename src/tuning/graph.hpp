@@ -53,11 +53,51 @@ public:
     // Operation recording
     ValueHandle record_op(OpType op, ValueHandle lhs, ValueHandle rhs);
     ValueHandle record_op(OpType op, ValueHandle input, f64 scalar = 0.0);
-    PairHandle  record_pair_op(OpType op, PairHandle lhs, PairHandle rhs);
-    PairHandle  record_pair_scalar(OpType op, PairHandle input, f64 scalar);
     PairHandle  record_pair_value(OpType op, PairHandle pair, ValueHandle val);
     PairHandle  record_pair_value(OpType op, PairHandle lhs, PairHandle rhs);
     PairHandle  record_pair_unary(OpType op, PairHandle input);
+
+    template<OpType op>
+    PairHandle record_pair_op(PairHandle lhs, PairHandle rhs) {
+        const f64x2* values = m_pairs.values_data();
+        const f64x2  l      = values[lhs.index];
+        const f64x2  r      = values[rhs.index];
+
+        f64x2 res;
+        if constexpr (op == OpType::PairAdd) {
+            res = f64x2::add(l, r);
+        } else {
+            static_assert(op == OpType::PairSub, "unsupported pair op");
+            res = f64x2::sub(l, r);
+        }
+
+        const u32 out = m_pairs.alloc(res, f64x2::zero());
+        m_tape.push_back(Node::make_binary(op, out, lhs.index, rhs.index));
+        return PairHandle(out);
+    }
+
+    template<OpType op>
+    PairHandle record_pair_scalar(PairHandle lhs, f64 scalar) {
+        const f64x2 l = m_pairs.values_data()[lhs.index];
+
+        f64x2 res;
+        if constexpr (op == OpType::PairNeg) {
+            res = f64x2::neg(l);
+        } else if constexpr (op == OpType::PairMulScalar) {
+            res = f64x2::mul_scalar(l, scalar);
+        } else if constexpr (op == OpType::PairDivScalar) {
+            res = f64x2::div_scalar(l, scalar);
+        } else if constexpr (op == OpType::ScalarDivPair) {
+            res = f64x2::scalar_div(scalar, l);
+        } else {
+            static_assert(op == OpType::ScaleEg, "unsupported pair-scalar op");
+            res = f64x2::make(l.first(), l.second() * scalar);
+        }
+
+        const u32 out = m_pairs.alloc(res, f64x2::zero());
+        m_tape.push_back(Node::make_scalar(op, out, lhs.index, scalar));
+        return PairHandle(out);
+    }
 
     // Special sum
     ValueHandle record_sum(const std::vector<ValueHandle>& inputs);

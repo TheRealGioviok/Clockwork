@@ -220,92 +220,94 @@ int main() {
         return lines;
     };
 
-    struct RawEntry {
-        std::string line;
-        std::string filename;
-    };
-
-    std::vector<RawEntry> raw_lines;
-
     std::cout << "Counting positions..." << std::endl;
     for (const auto& filename : fenFiles) {
         total_positions_estimate += count_lines(filename);
     }
     std::cout << "Estimated positions: " << total_positions_estimate << "\n";
 
-    raw_lines.reserve(total_positions_estimate);
-
-    for (const auto& filename : fenFiles) {
-        std::ifstream fenFile(filename);
-        if (!fenFile) {
-            std::cerr << "Error opening " << filename << "\n";
-            return 1;
-        }
-        std::string line;
-        while (std::getline(fenFile, line)) {
-            raw_lines.push_back({std::move(line), filename});
-        }
-    }
-
-    std::cout << "Read " << raw_lines.size() << " raw lines. Parsing...\n";
-
-    const size_t N = raw_lines.size();
-
-    positions.resize(N);
-    results.resize(N, -1.0);
-
-    advise_huge_pages(positions.data(), positions.capacity() * sizeof(Position));
-    advise_huge_pages(results.data(), results.capacity() * sizeof(f64));
-
     {
-        std::vector<std::thread> parse_threads;
-        parse_threads.reserve(thread_count);
+        std::vector<std::string> raw_lines;
+        raw_lines.reserve(total_positions_estimate);
 
-        for (u32 t = 0; t < thread_count; ++t) {
-            parse_threads.emplace_back([&, t]() {
-                for (size_t i = t; i < N; i += thread_count) {
-                    const auto& [line, filename] = raw_lines[i];
+        std::vector<size_t> file_starts;
+        file_starts.reserve(fenFiles.size());
 
-                    size_t sep = line.find(';');
-                    if (sep == std::string::npos) {
-                        std::cerr << "Bad line in " << filename << ": " << line << "\n";
-                        continue;
-                    }
-
-                    auto parsed = Position::parse(line.substr(0, sep));
-                    if (!parsed) {
-                        std::cerr << "Failed to parse FEN in " << filename << ": "
-                                  << line.substr(0, sep) << "\n";
-                        continue;
-                    }
-
-                    std::string result = line.substr(sep + 1);
-                    result.erase(std::remove_if(result.begin(), result.end(), ::isspace),
-                                 result.end());
-
-                    f64 r;
-                    if (result == "w") {
-                        r = 1.0;
-                    } else if (result == "d") {
-                        r = 0.5;
-                    } else if (result == "b") {
-                        r = 0.0;
-                    } else {
-                        std::cerr << "Invalid result in " << filename << ": " << line << "\n";
-                        continue;
-                    }
-
-                    positions[i] = *parsed;
-                    results[i]   = r;
-                }
-            });
+        for (const auto& filename : fenFiles) {
+            std::ifstream fenFile(filename);
+            if (!fenFile) {
+                std::cerr << "Error opening " << filename << "\n";
+                return 1;
+            }
+            file_starts.push_back(raw_lines.size());
+            std::string line;
+            while (std::getline(fenFile, line)) {
+                raw_lines.push_back(std::move(line));
+            }
         }
-        for (auto& th : parse_threads) {
-            th.join();
-        }
-    }
 
-    {
+        const auto file_of = [&](size_t i) -> const std::string& {
+            auto it = std::upper_bound(file_starts.begin(), file_starts.end(), i);
+            return fenFiles[static_cast<usize>(it - file_starts.begin()) - 1];
+        };
+
+        std::cout << "Read " << raw_lines.size() << " raw lines. Parsing...\n";
+
+        const size_t N = raw_lines.size();
+
+        positions.resize(N);
+        results.resize(N, -1.0);
+
+        advise_huge_pages(positions.data(), positions.capacity() * sizeof(Position));
+        advise_huge_pages(results.data(), results.capacity() * sizeof(f64));
+
+        {
+            std::vector<std::thread> parse_threads;
+            parse_threads.reserve(thread_count);
+
+            for (u32 t = 0; t < thread_count; ++t) {
+                parse_threads.emplace_back([&, t]() {
+                    for (size_t i = t; i < N; i += thread_count) {
+                        const std::string& line = raw_lines[i];
+
+                        size_t sep = line.find(';');
+                        if (sep == std::string::npos) {
+                            std::cerr << "Bad line in " << file_of(i) << ": " << line << "\n";
+                            continue;
+                        }
+
+                        auto parsed = Position::parse(line.substr(0, sep));
+                        if (!parsed) {
+                            std::cerr << "Failed to parse FEN in " << file_of(i) << ": "
+                                      << line.substr(0, sep) << "\n";
+                            continue;
+                        }
+
+                        std::string result = line.substr(sep + 1);
+                        result.erase(std::remove_if(result.begin(), result.end(), ::isspace),
+                                     result.end());
+
+                        f64 r;
+                        if (result == "w") {
+                            r = 1.0;
+                        } else if (result == "d") {
+                            r = 0.5;
+                        } else if (result == "b") {
+                            r = 0.0;
+                        } else {
+                            std::cerr << "Invalid result in " << file_of(i) << ": " << line << "\n";
+                            continue;
+                        }
+
+                        positions[i] = *parsed;
+                        results[i]   = r;
+                    }
+                });
+            }
+            for (auto& th : parse_threads) {
+                th.join();
+            }
+        }
         size_t write = 0;
         for (size_t read = 0; read < N; ++read) {
             if (results[read] >= 0.0) {

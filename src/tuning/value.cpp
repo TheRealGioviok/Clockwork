@@ -198,34 +198,39 @@ bool operator>(ValueHandle a, ValueHandle b) {
 
 // PairHandle Operators
 PairHandle operator+(PairHandle a, PairHandle b) {
-    if (a.index == Graph::get().get_zero_pair().index) {
+    Graph&    graph = Graph::get();
+    const u32 zero  = graph.get_zero_pair().index;
+    if (a.index == zero) {
         return b;
     }
-    if (b.index == Graph::get().get_zero_pair().index) {
+    if (b.index == zero) {
         return a;
     }
-    return Graph::get().record_pair_op(OpType::PairAdd, a, b);
+    return graph.record_pair_op<OpType::PairAdd>(a, b);
 }
 
 PairHandle operator-(PairHandle a, PairHandle b) {
-    if (b.index == Graph::get().get_zero_pair().index) {
+    Graph&    graph = Graph::get();
+    const u32 zero  = graph.get_zero_pair().index;
+    if (b.index == zero) {
         return a;
     }
-    if (a.index == Graph::get().get_zero_pair().index) {
+    if (a.index == zero) {
         return -b;
     }
-    return Graph::get().record_pair_op(OpType::PairSub, a, b);
+    return graph.record_pair_op<OpType::PairSub>(a, b);
 }
 
 PairHandle operator-(PairHandle a) {
-    return Graph::get().record_pair_scalar(OpType::PairNeg, a, 0.0);
+    return Graph::get().record_pair_scalar<OpType::PairNeg>(a, 0.0);
 }
 
 PairHandle operator*(PairHandle a, f64 scalar) {
+    Graph& graph = Graph::get();
     if (scalar == 0.0) {
-        return Graph::get().get_zero_pair();
+        return graph.get_zero_pair();
     }
-    return Graph::get().record_pair_scalar(OpType::PairMulScalar, a, scalar);
+    return graph.record_pair_scalar<OpType::PairMulScalar>(a, scalar);
 }
 
 PairHandle operator*(f64 scalar, PairHandle a) {
@@ -235,10 +240,10 @@ PairHandle operator*(PairHandle a, PairHandle b) {
     return Graph::get().record_pair_value(OpType::PairMulPair, a, b);
 }
 PairHandle operator/(PairHandle a, f64 scalar) {
-    return Graph::get().record_pair_scalar(OpType::PairDivScalar, a, scalar);
+    return Graph::get().record_pair_scalar<OpType::PairDivScalar>(a, scalar);
 }
 PairHandle operator/(f64 scalar, PairHandle a) {
-    return Graph::get().record_pair_scalar(OpType::ScalarDivPair, a, scalar);
+    return Graph::get().record_pair_scalar<OpType::ScalarDivPair>(a, scalar);
 }
 
 PairHandle operator*(PairHandle a, ValueHandle v) {
@@ -332,7 +337,7 @@ PairHandle PairHandle::complexity_add(ValueHandle value) const {
 }
 
 PairHandle PairHandle::scale_eg_impl(f64 ratio) const {
-    return Graph::get().record_pair_scalar(OpType::ScaleEg, *this, ratio);
+    return Graph::get().record_pair_scalar<OpType::ScaleEg>(*this, ratio);
 }
 
 }  // namespace Clockwork::Autograd
