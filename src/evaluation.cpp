@@ -17,7 +17,8 @@ struct EvalData {
     Bitboard any_attacks_by[2];
     Bitboard any2_attacks_by[2];
     Bitboard attacks_by_pt[2][7];
-
+    Bitboard open_files[2];
+    Bitboard semi_open_files[2];
     Bitboard mobility_area[2];
 
     i32 m_piece_count[2][6];
@@ -592,11 +593,34 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
         eval += ROOK_ON_QUEEN[queen_imbalance] * b.ipopcount();
     }
 
+    // Pressured pawn chain bases
+    Bitboard opp_pawns = pos.bitboard_for(opp, PieceType::Pawn);
+    Bitboard chain_bases =
+      opp_pawns & ~pos.attacked_by(opp, PieceType::Pawn)
+      & static_pawn_attacks<color>(
+        opp_pawns);  // enemy pawns that are not defended by other pawns and are defending a pawn
+
+    // Pressured pawn chain bases that are attacked by our pieces
+    Bitboard attacked_chain_bases = chain_bases & data.attacked_by(color);
+    eval += PRESSURED_PAWN_CHAIN_BASE * attacked_chain_bases.ipopcount();
+
+    // Pressured pawn chain bases that are also weak
+    Bitboard weak_chain_bases = attacked_chain_bases & ~strongly_protected;
+    eval += PRESSURED_WEAK_PAWN_CHAIN_BASE * weak_chain_bases.ipopcount();
+
+    // chain bases that are strongly protected
+    Bitboard strongly_protected_chain_bases = chain_bases & strongly_protected;
+    eval += STRONGLY_PROTECTED_PAWN_CHAIN_BASE * strongly_protected_chain_bases.ipopcount();
+
+    // chain bases that stand on a semiopen file
+    Bitboard semiopen_chain_bases = chain_bases & data.semi_open_files[static_cast<usize>(color)];
+    eval += SEMIOPEN_PAWN_CHAIN_BASE * semiopen_chain_bases.ipopcount();
+
     return eval;
 }
 
 template<Color color>
-PScore evaluate_space(const Position& pos, const EvalData& data) {
+PScore evaluate_space(const Position& pos, EvalData& data) {
     PScore          eval       = PSCORE_ZERO;
     constexpr Color them       = color == Color::White ? Color::Black : Color::White;
     Bitboard        ourfiles   = Bitboard::fill_verticals(pos.bitboard_for(color, PieceType::Pawn));
@@ -614,6 +638,9 @@ PScore evaluate_space(const Position& pos, const EvalData& data) {
           * (ourminors.shift_relative(color, Direction::North)
              & (pos.bitboard_for(them, PieceType::Pawn) | pos.bitboard_for(color, PieceType::Pawn)))
               .ipopcount();
+
+    data.open_files[static_cast<usize>(color)]      = openfiles;
+    data.semi_open_files[static_cast<usize>(color)] = half_open_files;
 
     return eval;
 }

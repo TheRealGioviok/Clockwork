@@ -656,6 +656,16 @@ void print_params() {
     print_table("ROOK_ON_QUEEN", ROOK_ON_QUEEN);
     std::cout << std::endl;
 
+    std::cout << "inline const PParam SEMIOPEN_PAWN_CHAIN_BASE = " << SEMIOPEN_PAWN_CHAIN_BASE
+              << ";" << std::endl;
+    std::cout << "inline const PParam STRONGLY_PROTECTED_PAWN_CHAIN_BASE = "
+              << STRONGLY_PROTECTED_PAWN_CHAIN_BASE << ";" << std::endl;
+    std::cout << "inline const PParam PRESSURED_PAWN_CHAIN_BASE = " << PRESSURED_PAWN_CHAIN_BASE
+              << ";" << std::endl;
+    std::cout << "inline const PParam PRESSURED_WEAK_PAWN_CHAIN_BASE = "
+              << PRESSURED_WEAK_PAWN_CHAIN_BASE << ";" << std::endl;
+    std::cout << std::endl;
+
     print_table("BISHOP_PAWNS", BISHOP_PAWNS);
     std::cout << std::endl;
     std::cout << "inline const PParam ROOK_LINEUP = " << ROOK_LINEUP << ";" << std::endl;
