@@ -47,7 +47,7 @@ f64 find_optimal_k(const std::vector<Position>& positions, const std::vector<f64
             const f64 e = p - targets[i];
             loss += e * e;
 
-            Graph::get().cleanup(); 
+            Graph::get().cleanup();
         }
 
         return loss / positions.size();
