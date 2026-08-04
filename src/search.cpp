@@ -757,8 +757,10 @@ Value Worker::search(
 
         if (!ROOT_NODE && !is_loss_score(best_value)) {
             // Late Move Pruning (LMP)
-            if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - improving)) {
-                break;
+            if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - improving)
+                                  + move_history / 12288) {
+                moves.skip_quiets();
+                continue;
             }
 
             // Forward Futility Pruning (FFP)
