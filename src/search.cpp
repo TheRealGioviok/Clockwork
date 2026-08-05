@@ -119,9 +119,9 @@ void Searcher::initialize(size_t thread_count) {
     started_barrier = std::make_unique<std::barrier<>>(1 + thread_count);
 
     if (thread_count > 0) {
-        m_workers.push_back(make_unique_huge_page<Worker>(*this, ThreadType::MAIN));
+        m_workers.push_back(make_unique_huge_page<Worker>(*this, ThreadType::MAIN, 0));
         for (size_t i = 1; i < thread_count; i++) {
-            m_workers.push_back(make_unique_huge_page<Worker>(*this, ThreadType::SECONDARY));
+            m_workers.push_back(make_unique_huge_page<Worker>(*this, ThreadType::SECONDARY, i));
         }
     }
 }
@@ -146,9 +146,10 @@ u64 Searcher::node_count() {
     return nodes;
 }
 
-Worker::Worker(Searcher& searcher, ThreadType thread_type) :
+Worker::Worker(Searcher& searcher, ThreadType thread_type, u64 id) :
     m_searcher(searcher),
-    m_thread_type(thread_type) {
+    m_thread_type(thread_type),
+    m_id(id) {
     m_stopped = false;
     m_exiting = false;
     m_thread  = std::thread(&Worker::thread_main, this);
@@ -759,16 +760,12 @@ Value Worker::search(
             }
 
             reduction -= tuned::lmr_pv_node_red * PV_NODE;
-
             reduction += alpha_raises * tuned::lmr_alpha_raise_red;
-
             reduction += (tuned::lmr_not_improving_red * !improving);
-
             reduction -= tuned::lmr_in_check_red * pos_after.is_in_check();
 
             if (cutnode) {
                 reduction += tuned::lmr_cutnode_red;
-                // If there is no available tt move, increase reduction
                 if (!tt_data || tt_move == Move::none()) {
                     reduction += tuned::lmr_no_tt_red;
                 }
@@ -803,9 +800,12 @@ Value Worker::search(
                 reduction = std::min(reduction, tuned::lmr_max_red);
             }
 
+            reduction += static_cast<i32>((search_nodes() + m_id * 23) % 356) - 178;
+
             reduction /= 1024;
 
             Depth reduced_depth = std::clamp<Depth>(new_depth - reduction, 1, new_depth);
+
             value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha, reduced_depth,
                                             ply + 1, true);
             if (value > alpha) {
@@ -826,8 +826,14 @@ Value Worker::search(
                 }
             }
         } else if (!PV_NODE || moves_played > 1) {
-            value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha, new_depth,
-                                            ply + 1, !cutnode);
+            i32 nonpv_depth = new_depth * 1024;
+
+            nonpv_depth += static_cast<i32>((search_nodes() + m_id * 23) % 1078) - 27;
+
+            nonpv_depth /= 1024;
+
+            value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha,
+                                            static_cast<Depth>(nonpv_depth), ply + 1, !cutnode);
         }
 
         if (PV_NODE && (moves_played == 1 || value > alpha)) {

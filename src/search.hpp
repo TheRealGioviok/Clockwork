@@ -172,7 +172,7 @@ public:
     Position       root_position;
     RepetitionInfo repetition_info;
 
-    Worker(Searcher& searcher, ThreadType thread_type);
+    Worker(Searcher& searcher, ThreadType thread_type, u64 id);
     ~Worker();
 
     void exit();
@@ -192,6 +192,9 @@ public:
     }
     [[nodiscard]] u64 search_nodes() const {
         return m_search_nodes.load(std::memory_order_relaxed);
+    }
+    [[nodiscard]] u64 id() const {
+        return m_id;
     }
 
     [[nodiscard]] const ThreadData& get_thread_data() const {
@@ -215,6 +218,7 @@ private:
     Searcher&                m_searcher;
     std::thread              m_thread;
     ThreadType               m_thread_type;
+    u64                      m_id;
     SearchLimits             m_search_limits;
     usize                    m_multipv;
     ThreadData               m_td;
