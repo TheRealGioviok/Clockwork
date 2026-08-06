@@ -7,6 +7,7 @@
 #include "movegen.hpp"
 #include "movepick.hpp"
 #include "see.hpp"
+#include "tb.hpp"
 #include "tm.hpp"
 #include "tuned.hpp"
 #include "uci.hpp"
@@ -18,6 +19,7 @@
 #include <atomic>
 #include <cmath>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <mutex>
 #include <numeric>
@@ -26,6 +28,14 @@ namespace Clockwork {
 namespace Search {
 static Value mated_in(i32 ply) {
     return -VALUE_MATED + ply;
+}
+
+static Value tb_win_in(i32 ply) {
+    return VALUE_TB_WIN - ply;
+}
+
+static Value tb_loss_in(i32 ply) {
+    return -VALUE_TB_WIN + ply;
 }
 
 static i32 stat_bonus(Depth bonus_depth) {
@@ -40,16 +50,8 @@ static i32 stat_malus(Depth malus_depth) {
                                              - tuned::stat_malus_sub);
 }
 
-std::ostream& operator<<(std::ostream& os, const PV& pv) {
-    for (Move m : pv.m_pv) {
-        os << m << ' ';
-    }
-    return os;
-}
-
-Searcher::Searcher() :
-    idle_barrier(std::make_unique<std::barrier<>>(1)),
-    started_barrier(std::make_unique<std::barrier<>>(1)) {
+Searcher::Searcher() {
+    initialize(1);
 }
 
 Searcher::~Searcher() {
@@ -71,6 +73,8 @@ void Searcher::launch_search(SearchSettings settings_) {
 
         settings = settings_;
         tt.increment_age();
+
+        init_root_moves(m_workers[0]->root_position, m_workers[0]->repetition_info);
 
         for (auto& worker : m_workers) {
             worker->prepare();
@@ -106,8 +110,10 @@ void Searcher::initialize(size_t thread_count) {
     if (m_workers.size() == thread_count) {
         return;
     }
-    {
-        std::unique_lock lock_guard{mutex};
+
+    std::unique_lock lock_guard{mutex};
+
+    if (!m_workers.empty()) {
         for (auto& worker : m_workers) {
             worker->exit();
         }
@@ -144,6 +150,52 @@ u64 Searcher::node_count() {
         nodes += worker->search_nodes();
     }
     return nodes;
+}
+
+u64 Searcher::tb_hit_count() {
+    u64 tb_hits = 0;
+    tb_hits += tb_root;
+    for (auto& worker : m_workers) {
+        tb_hits += worker->tb_hits();
+    }
+    return tb_hits;
+}
+
+void Searcher::init_root_moves(const Position& root_position, RepetitionInfo& repetition_info) {
+    root_moves.clear();
+    root_moves.reserve(256);
+
+    MoveGen movegen{root_position};
+
+    MoveList noisy{};
+    MoveList quiet{};
+
+    movegen.generate_moves(noisy, quiet);
+
+    const auto insert_root_moves = [&](const MoveList& moves) {
+        for (const auto move : moves) {
+            root_moves.emplace_back(move);
+        }
+    };
+
+    insert_root_moves(noisy);
+    insert_root_moves(quiet);
+
+    multipv   = std::min(settings.multipv, root_moves.size());
+    probe_wdl = settings.tb_enabled;
+
+    if (!settings.tb_enabled || root_moves.empty()
+        || root_position.board().get_piece_count() > tb::max_pieces()) {
+        return;
+    }
+
+    const auto dtz_succeeded = tb::probe_root(root_position, repetition_info, root_moves);
+    const auto root_wdl      = root_moves[0].tb_wdl;
+
+    tb_root = root_wdl != WDL::None;
+
+    // Avoid probing WDL when a successful DTZ probe says we're winning, to help matefinding.
+    probe_wdl = !dtz_succeeded || root_wdl != WDL::Win;
 }
 
 Worker::Worker(Searcher& searcher, ThreadType thread_type) :
@@ -196,6 +248,11 @@ void Worker::thread_main() {
 void Worker::prepare() {
     m_stopped      = false;
     m_search_nodes = 0;
+    m_tb_hits      = 0;
+
+    m_td.root_moves.clear();
+    m_td.root_moves.reserve(256);
+    std::ranges::copy(m_searcher.root_moves, std::back_inserter(m_td.root_moves));
 }
 
 void Worker::start_searching() {
@@ -238,11 +295,6 @@ Move Worker::iterative_deepening(const Position& root_position) {
 
     Value base_search_score = -VALUE_INF;
 
-    init_root_moves(root_position);
-
-    m_pv_start = 0;
-    m_pv_end   = m_td.root_moves.size();
-
     m_node_counts.fill(0);
 
     for (Depth search_depth = 1; search_depth < MAX_PLY; search_depth++) {
@@ -253,7 +305,28 @@ Move Worker::iterative_deepening(const Position& root_position) {
             root_move.previous_score = root_move.score;
         }
 
-        for (m_pv_idx = 0; m_pv_idx < m_multipv; ++m_pv_idx) {
+        m_pv_start = 0;
+        m_pv_end   = 0;
+
+        for (m_pv_idx = 0; m_pv_idx < m_searcher.multipv; ++m_pv_idx) {
+            if (m_pv_idx == m_pv_end) {
+                // We've reached the end of this block of root moves (or this is the first PV).
+                // Find the end of the next block by scanning to the next root move with a lower
+                // TB rank, or the end of the list.
+                // When multipv == 1, this has the effect of filtering out all suboptimal root moves
+                // from being searched.
+
+                m_pv_start = m_pv_idx;
+
+                const auto& first_root_move = m_td.root_moves[m_pv_idx];
+                for (m_pv_end = m_pv_idx + 1; m_pv_end < m_td.root_moves.size(); m_pv_end++) {
+                    const auto& curr_root_move = m_td.root_moves[m_pv_end];
+                    if (curr_root_move.tb_rank < first_root_move.tb_rank) {
+                        break;
+                    }
+                }
+            }
+
             m_seldepth = 0;
 
             const auto& root_move = m_td.root_moves[m_pv_idx];
@@ -361,7 +434,7 @@ Move Worker::iterative_deepening(const Position& root_position) {
         // We don't do it for too shallow depths because the node distribution is not stable enough
         if (IS_MAIN && search_depth >= 6) {
             f64 complexity = 0;
-            if (!is_mate_score(score)) {
+            if (!is_decisive_score(score)) {
                 complexity = 0.6 * abs(base_search_score - score) * std::log(search_depth);
             }
             m_search_limits.soft_time_limit = TM::compute_soft_limit<true>(
@@ -472,6 +545,56 @@ Value Worker::search(
         ttpv |= tt_data->ttpv();
     }
 
+    auto syzygy_min = -VALUE_INF;
+    auto syzygy_max = VALUE_INF;
+
+    // TB Probing
+    if (!ROOT_NODE && !excluded && m_searcher.settings.tb_enabled && m_searcher.probe_wdl
+        && pos.board().get_piece_count() <= tb::max_pieces() && pos.get_50mr_counter() == 0
+        && pos.rook_info(Color::White).is_clear() && pos.rook_info(Color::Black).is_clear()) {
+        const auto wdl = tb::probe_wdl(pos);
+        if (wdl != WDL::None) {
+            increment_tb_hits();
+
+            Value score;
+            Bound bound;
+
+            switch (wdl) {
+            case WDL::Win:
+                score = tb_win_in(ply);
+                bound = Bound::Lower;
+                break;
+            case WDL::Draw:
+                score = 0;
+                bound = Bound::Exact;
+                break;
+            case WDL::Loss:
+                score = tb_loss_in(ply);
+                bound = Bound::Upper;
+                break;
+            default:
+                unreachable();
+            }
+
+            if (bound == Bound::Exact || (bound == Bound::Upper && score <= alpha)
+                || (bound == Bound::Lower && score >= beta)) {
+                m_searcher.tt.store(pos, ply, -VALUE_INF, Move::none(), score, depth, ttpv, bound);
+                return score;
+            }
+
+            if (PV_NODE) {
+                if (bound == Bound::Upper) {
+                    syzygy_max = score;
+                } else {  // lower
+                    if (score > alpha) {
+                        alpha = score;
+                    }
+                    syzygy_min = score;
+                }
+            }
+        }
+    }
+
     // Ensure the correct move is searched first if pv_idx > 0.
     const auto tt_move = ROOT_NODE && m_root_depth > 1 ? m_td.root_moves[m_pv_idx].pv.first_move()
                        : tt_data                       ? tt_data->move
@@ -483,8 +606,8 @@ Value Worker::search(
     Value raw_eval    = -VALUE_INF;
     ss->static_eval   = -VALUE_INF;
     if (!is_in_check) {
-        correction      = excluded ? 0 : m_td.history.get_correction(pos);
-        raw_eval        = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
+        correction = excluded ? 0 : m_td.history.get_correction(pos);
+        raw_eval   = tt_data && !is_decisive_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         ss->static_eval = adj_shuffle(pos, raw_eval) + correction;
         improving =
           is_valid_score((ss - 2)->static_eval) && ss->static_eval > (ss - 2)->static_eval;
@@ -501,7 +624,7 @@ Value Worker::search(
 
     // Reuse TT score as a better positional evaluation
     auto tt_adjusted_eval = ss->static_eval;
-    if (tt_data && tt_data->bound() != Bound::None && !is_mate_score(tt_data->score)
+    if (tt_data && tt_data->bound() != Bound::None && !is_decisive_score(tt_data->score)
         && tt_data->bound() != (tt_data->score > ss->static_eval ? Bound::Upper : Bound::Lower)) {
         tt_adjusted_eval = tt_data->score;
     }
@@ -512,8 +635,8 @@ Value Worker::search(
     }
 
     if (cutnode && !PV_NODE && !is_in_check && !pos.is_kp_endgame() && depth >= tuned::nmp_depth
-        && !excluded && tt_adjusted_eval >= beta + tuned::nmp_beta_margin
-        && !is_being_mated_score(beta) && !m_in_nmp_verification) {
+        && !excluded && tt_adjusted_eval >= beta + tuned::nmp_beta_margin && !is_loss_score(beta)
+        && !m_in_nmp_verification) {
 
         i32 R = tuned::nmp_base_r + depth * tuned::nmp_depth_r
               + std::min(3 * 64, (tt_adjusted_eval - beta) * 64 / tuned::nmp_beta_diff)
@@ -530,7 +653,7 @@ Value Worker::search(
         repetition_info.pop();
 
         if (null_score >= beta) {
-            if (is_mate_score(null_score)) {
+            if (is_decisive_score(null_score)) {
                 null_score = beta;
             }
 
@@ -568,7 +691,7 @@ Value Worker::search(
     // returning the cutoff score immediately. This saves time by not searching
     // moves in positions that are likely to be cutoffs anyway.
     if (!PV_NODE && !is_in_check && depth >= tuned::probcut_min_depth && !excluded
-        && !is_mate_score(beta)) {
+        && !is_decisive_score(beta)) {
         const Value probcut_beta  = beta + tuned::probcut_margin;
         const Depth probcut_depth = std::clamp<Depth>(depth - 4, 1, depth - 1);
 
@@ -632,7 +755,7 @@ Value Worker::search(
 
         auto move_history = quiet ? m_td.history.get_quiet_stats(pos, m, ply, ss) : 0;
 
-        if (!ROOT_NODE && !is_being_mated_score(best_value)) {
+        if (!ROOT_NODE && !is_loss_score(best_value)) {
             // Late Move Pruning (LMP)
             if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - improving)) {
                 break;
@@ -663,7 +786,7 @@ Value Worker::search(
         // Singular extensions
         int extension = 0;
         if (!ROOT_NODE && tt_data && m == tt_move && !excluded && depth >= tuned::sing_min_depth
-            && is_valid_score(tt_data->score) && !is_mate_score(tt_data->score)
+            && is_valid_score(tt_data->score) && !is_decisive_score(tt_data->score)
             && tt_data->depth >= depth - tuned::sing_depth_margin
             && tt_data->bound() != Bound::Upper) {
             Value singular_beta  = tt_data->score - depth * tuned::sing_beta_margin / 64;
@@ -936,6 +1059,8 @@ Value Worker::search(
         }
     }
 
+    best_value = std::clamp(best_value, syzygy_min, syzygy_max);
+
     if (!excluded) {
         Bound bound = best_value >= beta        ? Bound::Lower
                     : best_move != Move::none() ? Bound::Exact
@@ -1022,7 +1147,7 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
     Value static_eval = -VALUE_INF;
     if (!is_in_check) {
         correction  = m_td.history.get_correction(pos);
-        raw_eval    = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
+        raw_eval    = tt_data && !is_decisive_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         static_eval = adj_shuffle(pos, raw_eval) + correction;
 
         if (!tt_data) {
@@ -1048,12 +1173,12 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
     // Iterate over the move list
     for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
         // Bad noisies pruning
-        if (!is_being_mated_score(best_value) && moves.stage() == MovePicker::Stage::EmitBadNoisy) {
+        if (!is_loss_score(best_value) && moves.stage() == MovePicker::Stage::EmitBadNoisy) {
             break;
         }
 
         // QS SEE Pruning
-        if (!is_being_mated_score(best_value) && !SEE::see(pos, m, tuned::quiesce_see_threshold)) {
+        if (!is_loss_score(best_value) && !SEE::see(pos, m, tuned::quiesce_see_threshold)) {
             continue;
         }
 
@@ -1131,29 +1256,6 @@ Value Worker::adj_shuffle(const Position& pos, Value value) {
     return value;
 }
 
-void Worker::init_root_moves(const Position& root_position) {
-    m_td.root_moves.clear();
-    m_td.root_moves.reserve(256);
-
-    MoveGen movegen{root_position};
-
-    MoveList noisy{};
-    MoveList quiet{};
-
-    movegen.generate_moves(noisy, quiet);
-
-    const auto insert_root_moves = [&](const MoveList& moves) {
-        for (const auto move : moves) {
-            m_td.root_moves.emplace_back(move);
-        }
-    };
-
-    insert_root_moves(noisy);
-    insert_root_moves(quiet);
-
-    m_multipv = std::min(m_searcher.settings.multipv, m_td.root_moves.size());
-}
-
 void Worker::print_info_line(usize pv_idx) {
     const auto& root_move = m_td.root_moves[pv_idx];
 
@@ -1169,13 +1271,28 @@ void Worker::print_info_line(usize pv_idx) {
         lowerbound = false;
     }
 
+    if (score < root_move.tb_min_score || score > root_move.tb_max_score) {
+        score = std::clamp(score, root_move.tb_min_score, root_move.tb_max_score);
+
+        // root TB scores are exact
+        upperbound = false;
+        lowerbound = false;
+    }
+
     // Lambda to convert internal units score to uci score. TODO: add eval rescaling here once we get one
     auto format_score = [](Value score) {
-        if (score < -VALUE_WIN && score > -VALUE_MATED) {
+        static constexpr Value TB_DISPLAY_BASE = 30000;
+        if (is_mating_score(score)) {
+            return "mate " + std::to_string((VALUE_MATED + 1 - score) / 2);
+        }
+        if (is_being_mated_score(score)) {
             return "mate " + std::to_string(-(VALUE_MATED + score + 1) / 2);
         }
-        if (score > VALUE_WIN && score < VALUE_MATED) {
-            return "mate " + std::to_string((VALUE_MATED + 1 - score) / 2);
+        if (is_tb_win_score(score)) {
+            return "cp " + std::to_string(TB_DISPLAY_BASE + score - VALUE_TB_WIN);
+        }
+        if (is_tb_loss_score(score)) {
+            return "cp " + std::to_string(-TB_DISPLAY_BASE + score + VALUE_TB_WIN);
         }
         return "cp " + std::to_string(score / 4);
     };
@@ -1202,12 +1319,15 @@ void Worker::print_info_line(usize pv_idx) {
     if (root_move.searched_depth >= 16) {
         std::cout << " hashfull " << m_searcher.tt.hashfull();
     }
-    std::cout << " time " << time::cast<time::Milliseconds>(curr_time - m_search_start).count()
-              << " pv " << root_move.pv << std::endl;
+    std::cout << " time " << time::cast<time::Milliseconds>(curr_time - m_search_start).count();
+    if (m_searcher.settings.tb_enabled) {
+        std::cout << " tbhits " << m_searcher.tb_hit_count();
+    }
+    std::cout << " pv " << root_move.pv << std::endl;
 }
 
 void Worker::print_info_lines() {
-    for (usize pv_idx = 0; pv_idx < m_multipv; ++pv_idx) {
+    for (usize pv_idx = 0; pv_idx < m_searcher.multipv; ++pv_idx) {
         print_info_line(pv_idx);
     }
 }
