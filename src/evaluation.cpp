@@ -524,14 +524,16 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
              | data.attacked_by(color, PieceType::Bishop));
         for (Square sq : b) {
             PieceType pt = pos.piece_at(sq);
-            eval += MINOR_THREAT[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
+            eval += MINOR_THREAT[pos.active_color() == color]
+                                [static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
         }
 
         // Rook threats
         b = weak & data.attacked_by(color, PieceType::Rook);
         for (Square sq : b) {
             PieceType pt = pos.piece_at(sq);
-            eval += ROOK_THREAT[static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
+            eval += ROOK_THREAT[pos.active_color() == color]
+                               [static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
         }
 
         // King threats
