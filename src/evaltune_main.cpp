@@ -344,7 +344,7 @@ int main() {
     const i32 epochs = 450;
 #endif
 
-    const f64 K = 0.00248284; //find_optimal_k(positions, results);
+    const f64 K = 0.00248284;  //find_optimal_k(positions, results);
 
     std::cout << "K = " << K << "\n";
 

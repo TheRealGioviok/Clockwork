@@ -510,7 +510,7 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
     const usize stm = pos.active_color() == color;
 
     Bitboard b, weak, defended, opp_pawn, opp_non_pawn, strongly_protected;
-    
+
     opp_pawn     = pos.bitboard_for(opp, PieceType::Pawn);
     opp_non_pawn = pos.board().get_color_bitboard(opp) & ~opp_pawn;
 
@@ -528,16 +528,14 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
              | data.attacked_by(color, PieceType::Bishop));
         for (Square sq : b) {
             PieceType pt = pos.piece_at(sq);
-            eval +=
-              MINOR_THREAT[stm][static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
+            eval += MINOR_THREAT[stm][static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
         }
 
         // Rook threats
         b = weak & data.attacked_by(color, PieceType::Rook);
         for (Square sq : b) {
             PieceType pt = pos.piece_at(sq);
-            eval +=
-              ROOK_THREAT[stm][static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
+            eval += ROOK_THREAT[stm][static_cast<usize>(pt) - static_cast<usize>(PieceType::Pawn)];
         }
 
         // King threats
@@ -550,12 +548,12 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
         i32 hanging_pawns     = (b & opp_pawn).ipopcount();
         i32 hanging_non_pawns = (b & opp_non_pawn).ipopcount();
 
-        if (!stm) { // If it's not our turn, the opponent can move out the most significant threatened piece
+        if (
+          !stm) {  // If it's not our turn, the opponent can move out the most significant threatened piece
             if (hanging_non_pawns > 0) {
                 eval += HANGING_NON_PAWN * (hanging_non_pawns - 1);
                 eval += HANGING_PAWN * hanging_pawns;
-            }
-            else if (hanging_pawns > 0) {
+            } else if (hanging_pawns > 0) {
                 eval += HANGING_PAWN * (hanging_pawns - 1);
             }
         } else {
