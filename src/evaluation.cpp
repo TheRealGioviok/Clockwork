@@ -17,6 +17,7 @@ struct EvalData {
     Bitboard any_attacks_by[2];
     Bitboard any2_attacks_by[2];
     Bitboard attacks_by_pt[2][7];
+    Bitboard span_attacks[2];
 
     Bitboard mobility_area[2];
 
@@ -365,11 +366,22 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        Square   sq            = pos.piece_list_sq(color)[id];
+        Bitboard mob           = pos.attacked_by(color, id) & ~bb;
+        Bitboard backward_span = Bitboard::forward_ranks(opp, sq);
+        eval += KNIGHT_MOBILITY[mob.popcount()];
+        // Piece with no backward mobility
+        if ((mob & backward_span).empty()) {
+            eval += KNIGHT_NO_BACKWARD_MOBILITY[(Bitboard::from_square(sq)
+                                                 & data.span_attacks[static_cast<usize>(opp)])
+                                                  .any()][static_cast<usize>(sq.relative_rank(color) / 2)];
+        }
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
-        eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        Square sq = pos.piece_list_sq(color)[id];
+        Square   sq            = pos.piece_list_sq(color)[id];
+        Bitboard mob           = pos.attacked_by(color, id) & ~bb;
+        Bitboard backward_span = Bitboard::forward_ranks(opp, sq);
+        eval += BISHOP_MOBILITY[mob.popcount()];
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
                   (own_pawns & Bitboard::squares_of_color(sq.color()))
@@ -380,6 +392,12 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
+        // Piece with no backward mobility
+        if ((mob & backward_span).empty()) {
+            eval += BISHOP_NO_BACKWARD_MOBILITY[(Bitboard::from_square(sq)
+                                                 & data.span_attacks[static_cast<usize>(opp)])
+                                                  .any()][static_cast<usize>(sq.relative_rank(color) / 2)];
+        }
     }
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
@@ -406,7 +424,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 }
 
 template<Color color>
-PScore evaluate_outposts(const Position& pos, const EvalData& data) {
+PScore evaluate_outposts(const Position& pos, EvalData& data) {
     // First calculate all the viable outpost squares
     // A viable outpost square is one that is not attackable by enemy pawns and is:
     // - on ranks 4,5,6 for white (5,4,3 for black)
@@ -418,13 +436,13 @@ PScore evaluate_outposts(const Position& pos, const EvalData& data) {
         ? Bitboard::rank_mask(3) | Bitboard::rank_mask(4) | Bitboard::rank_mask(5)
         : Bitboard::rank_mask(2) | Bitboard::rank_mask(3) | Bitboard::rank_mask(4);
     // Get enemy pawns to calculate the attacks and attack spans
-    Bitboard opp_pawns             = pos.bitboard_for(opp, PieceType::Pawn);
-    Bitboard opp_pawn_span         = pawn_spans<opp>(opp_pawns);
-    Bitboard opp_pawn_span_attacks = static_pawn_attacks<opp>(
+    Bitboard opp_pawns                         = pos.bitboard_for(opp, PieceType::Pawn);
+    Bitboard opp_pawn_span                     = pawn_spans<opp>(opp_pawns);
+    data.span_attacks[static_cast<usize>(opp)] = static_pawn_attacks<opp>(
       opp_pawn_span);  // Note, this does NOT consider pins! Might need to test this more thoroughly.
     Bitboard pawn_defended_squares = data.attacked_by(color, PieceType::Pawn);
     Bitboard viable_outposts =
-      viable_outposts_ranks & pawn_defended_squares & ~opp_pawn_span_attacks;
+      viable_outposts_ranks & pawn_defended_squares & ~data.span_attacks[static_cast<usize>(opp)];
     // Check for minor pieces on outposts
     PScore eval = PSCORE_ZERO;
     eval += OUTPOST_KNIGHT_VAL
@@ -714,10 +732,10 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += white_pawn_eval - black_pawn_eval;
 
     // pieces & space
-    eval +=
-      evaluate_pieces<Color::White>(pos, eval_data) - evaluate_pieces<Color::Black>(pos, eval_data);
     eval += evaluate_outposts<Color::White>(pos, eval_data)
           - evaluate_outposts<Color::Black>(pos, eval_data);
+    eval +=
+      evaluate_pieces<Color::White>(pos, eval_data) - evaluate_pieces<Color::Black>(pos, eval_data);
     eval +=
       evaluate_space<Color::White>(pos, eval_data) - evaluate_space<Color::Black>(pos, eval_data);
 

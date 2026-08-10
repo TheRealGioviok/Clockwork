@@ -217,6 +217,10 @@ public:
         return attack_table(color).count_matching_mask(id.to_piece_mask());
     }
 
+    [[nodiscard]] Bitboard attacked_by(Color color, PieceId id) const {
+        return attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+    }
+
     [[nodiscard]] usize mobility_of(Color color, PieceId id, Bitboard mask) const {
         return (attack_table(color).get_piece_mask_bitboard(id.to_piece_mask()) & mask).popcount();
     }
