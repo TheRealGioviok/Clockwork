@@ -83,8 +83,14 @@ struct PairHandle {
         return scale_eg_impl(alpha / static_cast<f64>(max));
     }
 
+    template<i32 div>
+    PairHandle scaled_mul(const PairHandle& other) const {
+        return scaled_mul_impl(other, div);
+    }
+
 private:
     PairHandle scale_eg_impl(f64 ratio) const;
+    PairHandle scaled_mul_impl(const PairHandle other, f64 div) const;
 };
 
 // Operation decls

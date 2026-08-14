@@ -479,7 +479,7 @@ int main() {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
-              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
+              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2 + 1));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
@@ -709,6 +709,9 @@ void print_params() {
 
 
     print_sigmoid("KING_SAFETY_ACTIVATION", KING_SAFETY_ACTIVATION, 32);
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam KS_MOBILITY = " << KS_MOBILITY << ";" << std::endl;
     std::cout << std::endl;
 
     std::cout << "inline VParam WINNABLE_PAWNS = " << WINNABLE_PAWNS << ";\n";

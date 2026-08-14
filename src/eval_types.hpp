@@ -120,6 +120,14 @@ public:
           mg(), static_cast<Score>((e > 0) ? std::max(sum, Score{0}) : std::min(sum, Score{0}))};
     }
 
+    // scaled_mul
+    template<i32 div>
+    PScore scaled_mul(const PScore& other) const {
+        return PScore{
+          static_cast<Score>(static_cast<i32>(mg()) * static_cast<i32>(other.mg()) / div),
+          static_cast<Score>(static_cast<i32>(eg()) * static_cast<i32>(other.eg()) / div)};
+    }
+
 
     friend std::ostream& operator<<(std::ostream& stream, const PScore& score) {
         stream << "(" << score.mg() << "\t" << score.eg() << ")";

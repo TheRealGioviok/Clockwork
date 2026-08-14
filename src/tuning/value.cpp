@@ -326,7 +326,6 @@ PairHandle& operator/=(PairHandle& a, ValueHandle v) {
     return a;
 }
 
-
 PairHandle PairHandle::complexity_add(ValueHandle value) const {
     return Graph::get().record_pair_value(OpType::PairAddClampedSecond, *this, value);
 }
@@ -334,5 +333,12 @@ PairHandle PairHandle::complexity_add(ValueHandle value) const {
 PairHandle PairHandle::scale_eg_impl(f64 ratio) const {
     return Graph::get().record_pair_scalar(OpType::ScaleEg, *this, ratio);
 }
+
+PairHandle PairHandle::scaled_mul_impl(const PairHandle other, f64 div) const {
+    PairHandle mul = Graph::get().record_pair_value(OpType::PairMulPair, *this, other);
+    // Div by constant
+    return Graph::get().record_pair_scalar(OpType::PairDivScalar, mul, div);
+}
+
 
 }  // namespace Clockwork::Autograd

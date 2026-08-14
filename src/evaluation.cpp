@@ -351,9 +351,10 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_pieces(const Position& pos, EvalData& data) {
+std::pair<PScore, PScore> evaluate_pieces(const Position& pos, EvalData& data) {
     constexpr Color opp       = ~color;
-    PScore          eval      = PSCORE_ZERO;
+    PScore          mobility  = PSCORE_ZERO;
+    PScore          pieces    = PSCORE_ZERO;
     Bitboard        own_pawns = pos.bitboard_for(color, PieceType::Pawn);
     Bitboard        blocked_pawns =
       own_pawns & pos.board().get_occupied_bitboard().shift_relative(color, Direction::South);
@@ -365,44 +366,44 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        mobility += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
-        eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        mobility += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
         Square sq = pos.piece_list_sq(color)[id];
-        eval += BISHOP_PAWNS[std::min(
-                  static_cast<usize>(8),
-                  (own_pawns & Bitboard::squares_of_color(sq.color()))
-                    .popcount())  // Weird non standard positions which can have more than 8 pawns
+        pieces += BISHOP_PAWNS[std::min(
+                    static_cast<usize>(8),
+                    (own_pawns & Bitboard::squares_of_color(sq.color()))
+                      .popcount())  // Weird non standard positions which can have more than 8 pawns
         ]
-              * (!pos.is_square_attacked_by(sq, color, PieceType::Pawn)
-                 + (blocked_pawns & Bitboard::central_files()).ipopcount());
+                * (!pos.is_square_attacked_by(sq, color, PieceType::Pawn)
+                   + (blocked_pawns & Bitboard::central_files()).ipopcount());
 
         Bitboard xray = diagonal_squares_table[sq.raw];
-        eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
+        pieces += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
     }
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        mobility += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        mobility += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
         // Rook lineups
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
-        eval += ROOK_LINEUP
-              * (rook_file
-                 & (pos.bitboard_for(~color, PieceType::Queen)
-                    | pos.bitboard_for(color, PieceType::Queen)))
-                  .ipopcount();
+        pieces += ROOK_LINEUP
+                * (rook_file
+                   & (pos.bitboard_for(~color, PieceType::Queen)
+                      | pos.bitboard_for(color, PieceType::Queen)))
+                    .ipopcount();
     }
     bb2 |= data.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        mobility += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        mobility += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb2)];
     }
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
-        eval += BISHOP_PAIR_VAL;
+        pieces += BISHOP_PAIR_VAL;
     }
 
-    return eval;
+    return std::make_pair(mobility, pieces);
 }
 
 template<Color color>
@@ -457,7 +458,10 @@ PScore evaluate_potential_checkers(const Position& pos) {
 }
 
 template<Color color>
-PScore evaluate_king_safety(const Position& pos, const EvalData& data) {
+PScore evaluate_king_safety(const Position& pos,
+                            PScore          our_mobility,
+                            PScore          their_mobility,
+                            const EvalData& data) {
     constexpr Color opp = ~color;
 
     // Iterate over the opponent's attack bbs
@@ -497,6 +501,8 @@ PScore evaluate_king_safety(const Position& pos, const EvalData& data) {
     eval += king_shelter<color>(pos, data);
 
     eval += KS_NO_QUEEN * (pos.bitboard_for(opp, PieceType::Queen).empty());
+
+    eval += KS_MOBILITY.scaled_mul<32>(their_mobility - our_mobility);
 
     return eval;
 }
@@ -714,8 +720,12 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     eval += white_pawn_eval - black_pawn_eval;
 
     // pieces & space
-    eval +=
-      evaluate_pieces<Color::White>(pos, eval_data) - evaluate_pieces<Color::Black>(pos, eval_data);
+    auto [white_mobility, white_piece_eval] = evaluate_pieces<Color::White>(pos, eval_data);
+    auto [black_mobility, black_piece_eval] = evaluate_pieces<Color::Black>(pos, eval_data);
+    PScore mobility                         = white_mobility - black_mobility;
+    PScore piece_eval                       = white_piece_eval - black_piece_eval;
+    eval += mobility + piece_eval;
+
     eval += evaluate_outposts<Color::White>(pos, eval_data)
           - evaluate_outposts<Color::Black>(pos, eval_data);
     eval +=
@@ -732,8 +742,10 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
           - evaluate_potential_checkers<Color::Black>(pos);
 
     // Nonlinear king safety components
-    PScore white_king_attack_total = evaluate_king_safety<Color::Black>(pos, eval_data);
-    PScore black_king_attack_total = evaluate_king_safety<Color::White>(pos, eval_data);
+    PScore white_king_attack_total =
+      evaluate_king_safety<Color::Black>(pos, white_mobility, black_mobility, eval_data);
+    PScore black_king_attack_total =
+      evaluate_king_safety<Color::White>(pos, black_mobility, white_mobility, eval_data);
 
     // Nonlinear adjustment
     eval += king_safety_activation<Color::White>(white_king_attack_total)

@@ -142,6 +142,11 @@ public:
         return Graph::get().get_pair_parameter(m_index);
     }
 
+    template<i32 div>
+    PairHandle scaled_mul(const PairHandle& other) const {
+        return static_cast<PairHandle>(*this).scaled_mul<div>(other);
+    }
+
     usize index() const {
         return m_index;
     }
