@@ -20,8 +20,13 @@ inline const PParam ROOK_SEMIOPEN_VAL = S(44, 12);
 inline const PParam MINOR_BEHIND_PAWN = S(15, 42);
 inline const PParam RESTRICTED_SQUARES = S(19, 7);
 
-inline const PParam DOUBLED_PAWN_VAL = S(-22, -81);
-inline const PParam ISOLATED_PAWN_VAL = S(-13, -39);
+
+inline const std::array<PParam, 4> DOUBLED_PAWN_VAL = {
+    S(-22, -81), S(-22, -81),S(-22, -81),S(-22, -81)
+};
+inline const std::array<PParam, 4> ISOLATED_PAWN_VAL = {
+    S(-13, -39), S(-13, -39),S(-13, -39),S(-13, -39)
+};
 
 inline const PParam POTENTIAL_CHECKER_VAL = S(-45, -42);
 inline const PParam OUTPOST_KNIGHT_VAL    = S(49, 43);

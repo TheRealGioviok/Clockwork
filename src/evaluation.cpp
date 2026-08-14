@@ -267,57 +267,72 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data
     Bitboard opp_pawns = pos.board().bitboard_for(~color, PieceType::Pawn);
 
     Bitboard pawn_files = Bitboard::fill_verticals(pawns);
-    Bitboard doubled    = pawns & pawns.shift(Direction::North);
-    Bitboard isolated =
+    Bitboard doubled_all    = pawns & pawns.shift(Direction::North);
+    Bitboard isolated_all =
       pawns & ~(pawn_files.shift(Direction::East) | pawn_files.shift(Direction::West));
-    eval += DOUBLED_PAWN_VAL * doubled.ipopcount();
-    eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
+
+    Bitboard phalanx_all  = pawns & pawns.shift(Direction::East);
+    Bitboard defended_all = pawns & data.attacked_by(color, PieceType::Pawn);
 
     for (Square sq : pawns) {
         Square   push     = sq.push<color>();
+        Bitboard sqb       = Bitboard::from_square(sq);
+
+        bool isolated = (sqb & isolated_all).any();
+        bool doubled   = (sqb & doubled_all).any();
+        bool defended   = (sqb & defended_all).any();
+        bool phalanx     = (sqb & phalanx_all).any();
+
         Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
+
+        i32 rrank = sq.relative_rank(color);
+        i32 ffile = std::min(sq.file(), 7 - sq.file());
+
         if (stoppers.empty()) {
             ++passers;
-
-            eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-
+            eval += PASSED_PAWN[static_cast<usize>(rrank - RANK_2)];
             if ((passed_pawn_spans[static_cast<usize>(color)][sq.raw] & data.attacked_by(them))
                   .empty()) {
                 eval +=
-                  PASSED_CLEAR_STOPPERS[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                  PASSED_CLEAR_STOPPERS[static_cast<usize>(rrank - RANK_2)];
             } else if ((Bitboard::forward_ranks(color, sq) & Bitboard::file_mask(sq.file())
                         & data.attacked_by(them))
                          .empty()) {
                 eval +=
-                  PASSED_CLEAR_FORWARD[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                  PASSED_CLEAR_FORWARD[static_cast<usize>(rrank - RANK_2)];
             } else if (pos.attack_table(color).read(push).popcount()
                        > pos.attack_table(them).read(push).popcount()) {
                 eval +=
-                  DEFENDED_PASSED_PUSH[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                  DEFENDED_PASSED_PUSH[static_cast<usize>(rrank - RANK_2)];
             }
 
             if (pos.piece_at(push) != PieceType::None) {
                 eval +=
-                  BLOCKED_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                  BLOCKED_PASSED_PAWN[static_cast<usize>(rrank - RANK_2)];
             }
-
             i32 our_king_dist   = chebyshev_distance(our_king, sq);
             i32 their_king_dist = chebyshev_distance(their_king, sq);
 
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
         }
-    }
 
+        if (isolated) {
+            eval += ISOLATED_PAWN_VAL[static_cast<usize>(ffile)];
+        }
 
-    Bitboard phalanx = pawns & pawns.shift(Direction::East);
-    for (Square sq : phalanx) {
-        eval += PAWN_PHALANX[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
-    }
+        if (doubled) {
+            eval += DOUBLED_PAWN_VAL[static_cast<usize>(ffile)];
+        }
 
-    Bitboard defended = pawns & data.attacked_by(color, PieceType::Pawn);
-    for (Square sq : defended) {
-        eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
+        if (defended) {
+            eval += DEFENDED_PAWN[static_cast<usize>(rrank - RANK_3)];
+        }
+
+        if (phalanx) {
+            eval += PAWN_PHALANX[static_cast<usize>(rrank - RANK_2)];
+        }
+
     }
 
     return {eval, passers};
@@ -679,7 +694,7 @@ PScore apply_eg_scale(const Position& pos,
             return eval.scale_eg<128>(28 + 8 * strong_passers
                                       + 8 * (strong_pawn_count >= weak_pawn_count + 2));
         } else {
-            return eval.scale_eg<128>(44 + 3 * pos.piece_count(strong_side));
+            return eval.scale_eg<128>(44 + 6 * pos.piece_count(strong_side));
         }
     }
 
