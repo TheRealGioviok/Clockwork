@@ -11,6 +11,41 @@
 
 namespace Clockwork {
 
+std::array<Bitboard, 64> king_ring_table = []() {
+    std::array<Bitboard, 64> king_ring_table{};
+    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Bitboard sq_bb     = Bitboard::from_square(Square{sq_idx});
+        Bitboard king_ring = sq_bb;
+        king_ring |= sq_bb.shift(Direction::North);
+        king_ring |= sq_bb.shift(Direction::South);
+        king_ring |= sq_bb.shift(Direction::East);
+        king_ring |= sq_bb.shift(Direction::West);
+        king_ring |= sq_bb.shift(Direction::NorthEast);
+        king_ring |= sq_bb.shift(Direction::SouthEast);
+        king_ring |= sq_bb.shift(Direction::NorthWest);
+        king_ring |= sq_bb.shift(Direction::SouthWest);
+        king_ring_table[sq_idx] = king_ring;
+    }
+    return king_ring_table;
+}();
+
+std::array<Bitboard, 64> extended_ring_table = []() {
+    std::array<Bitboard, 64> extended_ring_table{};
+    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Bitboard sq_bb         = king_ring_table[sq_idx];
+        Bitboard extended_ring = sq_bb;
+        extended_ring |= sq_bb.shift(Direction::North);
+        extended_ring |= sq_bb.shift(Direction::South);
+        extended_ring |= sq_bb.shift(Direction::East);
+        extended_ring |= sq_bb.shift(Direction::West);
+        extended_ring |= sq_bb.shift(Direction::NorthEast);
+        extended_ring |= sq_bb.shift(Direction::SouthEast);
+        extended_ring |= sq_bb.shift(Direction::NorthWest);
+        extended_ring |= sq_bb.shift(Direction::SouthWest);
+        extended_ring_table[sq_idx] = extended_ring;
+    }
+    return extended_ring_table;
+}();
 
 struct EvalData {
 
@@ -19,10 +54,15 @@ struct EvalData {
     Bitboard attacks_by_pt[2][7];
 
     Bitboard mobility_area[2];
+    Bitboard inner_ring[2];
+    Bitboard extended_ring[2];
 
     i32 m_piece_count[2][6];
     i32 wcount = 0;
     i32 bcount = 0;
+
+    PScore attack_weight[2] = {PSCORE_ZERO, PSCORE_ZERO};
+    i32    attack_count[2];
 
     void init(const Position& pos) {
         any_attacks_by[0]  = pos.attack_table(Color::White).get_attacked_bitboard();
@@ -50,6 +90,23 @@ struct EvalData {
           pos.attacked_by(Color::White, PieceType::King);
         attacks_by_pt[static_cast<usize>(Color::Black)][static_cast<usize>(PieceType::King)] =
           pos.attacked_by(Color::Black, PieceType::King);
+
+        inner_ring[static_cast<usize>(Color::White)] =
+          king_ring_table[pos.king_sq(Color::White).raw];
+        inner_ring[static_cast<usize>(Color::Black)] =
+          king_ring_table[pos.king_sq(Color::Black).raw];
+        extended_ring[static_cast<usize>(Color::White)] =
+          extended_ring_table[pos.king_sq(Color::White).raw];
+        extended_ring[static_cast<usize>(Color::Black)] =
+          extended_ring_table[pos.king_sq(Color::Black).raw];
+        attack_count[static_cast<usize>(Color::White)] =
+          (inner_ring[static_cast<usize>(Color::Black)]
+           & attacks_by_pt[static_cast<usize>(Color::White)][static_cast<usize>(PieceType::Pawn)])
+            .ipopcount();
+        attack_count[static_cast<usize>(Color::Black)] =
+          (inner_ring[static_cast<usize>(Color::White)]
+           & attacks_by_pt[static_cast<usize>(Color::Black)][static_cast<usize>(PieceType::Pawn)])
+            .ipopcount();
     }
 
     inline i32 piece_count(const Color color, const PieceType pt) const {
@@ -113,43 +170,6 @@ Bitboard pawn_spans(const Bitboard pawns, Bitboard blockers) {
 
     return res;
 }
-
-std::array<Bitboard, 64> king_ring_table = []() {
-    std::array<Bitboard, 64> king_ring_table{};
-    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
-        Bitboard sq_bb     = Bitboard::from_square(Square{sq_idx});
-        Bitboard king_ring = sq_bb;
-        king_ring |= sq_bb.shift(Direction::North);
-        king_ring |= sq_bb.shift(Direction::South);
-        king_ring |= sq_bb.shift(Direction::East);
-        king_ring |= sq_bb.shift(Direction::West);
-        king_ring |= sq_bb.shift(Direction::NorthEast);
-        king_ring |= sq_bb.shift(Direction::SouthEast);
-        king_ring |= sq_bb.shift(Direction::NorthWest);
-        king_ring |= sq_bb.shift(Direction::SouthWest);
-        king_ring_table[sq_idx] = king_ring;
-    }
-    return king_ring_table;
-}();
-
-std::array<Bitboard, 64> extended_ring_table = []() {
-    std::array<Bitboard, 64> extended_ring_table{};
-    for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
-        Bitboard sq_bb         = king_ring_table[sq_idx];
-        Bitboard extended_ring = sq_bb;
-        extended_ring |= sq_bb.shift(Direction::North);
-        extended_ring |= sq_bb.shift(Direction::South);
-        extended_ring |= sq_bb.shift(Direction::East);
-        extended_ring |= sq_bb.shift(Direction::West);
-        extended_ring |= sq_bb.shift(Direction::NorthEast);
-        extended_ring |= sq_bb.shift(Direction::SouthEast);
-        extended_ring |= sq_bb.shift(Direction::NorthWest);
-        extended_ring |= sq_bb.shift(Direction::SouthWest);
-        extended_ring_table[sq_idx] = extended_ring;
-    }
-    return extended_ring_table;
-}();
-
 
 std::array<Bitboard, 64> orthogonal_squares_table = []() {
     std::array<Bitboard, 64> orthogonal_squares_table{};
@@ -365,10 +385,16 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        Bitboard moves = pos.attacks_of(color, id);
+        eval += KNIGHT_MOBILITY[(moves & ~bb).popcount()];
+        if ((moves & data.inner_ring[static_cast<usize>(opp)]).any()) {
+            ++data.attack_count[static_cast<usize>(color)];
+            data.attack_weight[static_cast<usize>(color)] += KS_KNIGHT_ATTACK_WEIGHT;
+        }
     }
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
-        eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        Bitboard moves = pos.attacks_of(color, id);
+        eval += BISHOP_MOBILITY[(moves & ~bb).popcount()];
         Square sq = pos.piece_list_sq(color)[id];
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
@@ -380,11 +406,16 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
+        if ((moves & data.inner_ring[static_cast<usize>(opp)]).any()) {
+            ++data.attack_count[static_cast<usize>(color)];
+            data.attack_weight[static_cast<usize>(color)] += KS_BISHOP_ATTACK_WEIGHT;
+        }
     }
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        Bitboard moves = pos.attacks_of(color, id);
+        eval += ROOK_MOBILITY[(moves & ~bb).popcount()];
+        eval += ROOK_MOBILITY[(moves & ~bb2).popcount()];
         // Rook lineups
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
@@ -392,11 +423,20 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
                  & (pos.bitboard_for(~color, PieceType::Queen)
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
+        if ((moves & data.inner_ring[static_cast<usize>(opp)]).any()) {
+            ++data.attack_count[static_cast<usize>(color)];
+            data.attack_weight[static_cast<usize>(color)] += KS_ROOK_ATTACK_WEIGHT;
+        }
     }
     bb2 |= data.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        Bitboard moves = pos.attacks_of(color, id);
+        eval += QUEEN_MOBILITY[(moves & ~bb).popcount()];
+        eval += QUEEN_MOBILITY[(moves & ~bb2).popcount()];
+        if ((moves & data.inner_ring[static_cast<usize>(opp)]).any()) {
+            ++data.attack_count[static_cast<usize>(color)];
+            data.attack_weight[static_cast<usize>(color)] += KS_QUEEN_ATTACK_WEIGHT;
+        }
     }
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;
@@ -463,11 +503,16 @@ PScore evaluate_king_safety(const Position& pos, const EvalData& data) {
     // Iterate over the opponent's attack bbs
     PScore eval = PSCORE_ZERO;
 
-    Bitboard king_ring     = king_ring_table[pos.king_sq(color).raw];
+    Bitboard king_ring     = data.inner_ring[static_cast<usize>(color)];
     Bitboard extended_ring = extended_ring_table[pos.king_sq(color).raw];
 
     Bitboard flank =
       king_flank[static_cast<usize>(color)][static_cast<usize>(pos.king_sq(color).file())];
+
+    // Add attacker_weight * attacker_count
+    eval +=
+      (data.attack_weight[static_cast<usize>(opp)] * data.attack_count[static_cast<usize>(opp)])
+      / 32;
 
     // Piece attacks in inner/outer ring
     for (PieceType pt : {PieceType::Pawn, PieceType::Knight, PieceType::Bishop, PieceType::Rook,

@@ -79,6 +79,10 @@ public:
         return PScore{m_score * v};
     }
 
+    [[nodiscard]] constexpr auto operator/(i32 v) const {
+        return PScore{static_cast<i16>(mg() / v), static_cast<i16>(eg() / v)};
+    }
+
     constexpr auto operator*=(i32 v) -> auto& {
         m_score *= v;
         return *this;
