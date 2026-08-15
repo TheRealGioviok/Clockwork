@@ -608,7 +608,7 @@ void print_params() {
 
     std::cout << std::endl;
     print_table("DOUBLED_PAWN_VAL", DOUBLED_PAWN_VAL);
-    print_table("ISOLATED_PAWN_VAL", ISOLATED_PAWN_VAL
+    print_table("ISOLATED_PAWN_VAL", ISOLATED_PAWN_VAL);
     std::cout << std::endl;
 
     std::cout << "inline const PParam POTENTIAL_CHECKER_VAL = " << POTENTIAL_CHECKER_VAL << ";"
