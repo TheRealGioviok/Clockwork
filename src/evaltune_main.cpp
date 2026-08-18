@@ -192,8 +192,8 @@ int main() {
     std::vector<f64>      results;
 
     const std::vector<std::string> fenFiles = {
-      "data/v5_25knpm.txt",   "data/v4_8knpm.txt", "data/v4_16knpm.txt", "data/v4.1_8knpm.txt",
-      "data/v4.1_16knpm.txt", "data/dfrcv2.txt",   "data/dfrcv3.txt",
+      "data/v5_25knpm.txt",
+      "data/dfrcv3.txt",
     };
 
     const u32 thread_count = std::max<u32>(1, std::thread::hardware_concurrency());
@@ -344,7 +344,7 @@ int main() {
     const i32 epochs = 450;
 #endif
 
-    const f64 K = find_optimal_k(positions, results);
+    const f64 K = 1.0/400.0; //find_optimal_k(positions, results);
 
     std::cout << "K = " << K << "\n";
 
@@ -528,7 +528,7 @@ int main() {
         const auto end = time::Clock::now();
 
         std::cout << "// Epoch duration: " << time::cast<time::FloatSeconds>(end - start).count()
-                  << "s\n";
+                  << "s - K: " << K << "\n";
     }
 
     return 0;
