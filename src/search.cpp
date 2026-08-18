@@ -502,6 +502,8 @@ Value Worker::search(
         return 0;
     }
 
+    bool is_in_check = pos.is_in_check();
+
     // Draw checks
     if (!ROOT_NODE) {
         // Repetition check
@@ -519,6 +521,12 @@ Value Worker::search(
         // Upcoming repetition detection
         if (alpha < 0 && repetition_info.has_game_cycle(pos, static_cast<usize>(ply))) {
             alpha = 0;
+            if (!is_in_check) {
+                Value static_eval = evaluate(pos);
+                Value correction  = m_td.history.get_correction(pos);
+                // Update correction history
+                m_td.history.update_correction_history(pos, 0, -(static_eval + correction));
+            }
             if (alpha >= beta) {
                 return alpha;
             }
@@ -600,11 +608,10 @@ Value Worker::search(
                        : tt_data                       ? tt_data->move
                                                        : Move::none();
 
-    bool  is_in_check = pos.is_in_check();
-    bool  improving   = false;
-    Value correction  = 0;
-    Value raw_eval    = -VALUE_INF;
-    ss->static_eval   = -VALUE_INF;
+    bool  improving  = false;
+    Value correction = 0;
+    Value raw_eval   = -VALUE_INF;
+    ss->static_eval  = -VALUE_INF;
     if (!is_in_check) {
         correction = excluded ? 0 : m_td.history.get_correction(pos);
         raw_eval   = tt_data && !is_decisive_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
@@ -1051,7 +1058,7 @@ Value Worker::search(
         if (excluded) {
             return alpha;
         } else {
-            if (pos.is_in_check()) {
+            if (is_in_check) {
                 return mated_in(ply);
             } else {
                 return get_draw_score();
@@ -1118,9 +1125,17 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         return get_draw_score();
     }
 
+    bool is_in_check = pos.is_in_check();
+
     // Upcoming repetition detection
     if (alpha < 0 && repetition_info.has_game_cycle(pos, static_cast<usize>(ply))) {
         alpha = 0;
+        if (!is_in_check) {
+            Value static_eval = evaluate(pos);
+            Value correction  = m_td.history.get_correction(pos);
+            // Update correction history
+            m_td.history.update_correction_history(pos, 0, -(static_eval + correction));
+        }
         if (alpha >= beta) {
             return alpha;
         }
@@ -1139,8 +1154,6 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
             || (tt_data->bound() == Bound::Upper && tt_data->score <= alpha))) {
         return tt_data->score;
     }
-
-    bool  is_in_check = pos.is_in_check();
     bool  ttpv        = PV_NODE || (tt_data && tt_data->ttpv());
     Value correction  = 0;
     Value raw_eval    = -VALUE_INF;
