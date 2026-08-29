@@ -27,6 +27,7 @@ struct EvalData {
     i32 bcount = 0;
 
     Bitboard reach[2][16];
+    Bitboard reach_all[2] = {};
 
     void init(const Position& pos) {
         any_attacks_by[0]  = pos.attack_table(Color::White).get_attacked_bitboard();
@@ -383,6 +384,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard mobility                             = moves & ~bb;
         Bitboard reach                                = knights_setwise(mobility & empty) & ~own;
         data.reach[static_cast<usize>(color)][id.raw] = reach;
+        data.reach_all[static_cast<usize>(color)] |= reach;
 
         eval += KNIGHT_MOBILITY[mobility.popcount()];
         eval += reach_score(KNIGHT_REACH, reach & ~bb & ~moves);
@@ -393,6 +395,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard mobility = moves & ~bb;
         Bitboard reach    = bishops_setwise(mobility & empty, all_pieces) & ~own;
         data.reach[static_cast<usize>(color)][id.raw] = reach;
+        data.reach_all[static_cast<usize>(color)] |= reach;
 
         eval += BISHOP_MOBILITY[mobility.popcount()];
         eval += reach_score(BISHOP_REACH, reach & ~bb & ~moves);
@@ -415,6 +418,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard mobility_b = moves & ~bb2;
         Bitboard reach      = rooks_setwise(mobility_b & empty, all_pieces) & ~own;
         data.reach[static_cast<usize>(color)][id.raw] = reach;
+        data.reach_all[static_cast<usize>(color)] |= reach;
 
         eval += ROOK_MOBILITY[mobility_a.popcount()];
         eval += ROOK_MOBILITY[mobility_b.popcount()];
@@ -435,6 +439,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard mobility_b = moves & ~bb2;
         Bitboard reach      = queens_setwise(mobility_b & empty, all_pieces) & ~own;
         data.reach[static_cast<usize>(color)][id.raw] = reach;
+        data.reach_all[static_cast<usize>(color)] |= reach;
 
         eval += QUEEN_MOBILITY[mobility_a.popcount()];
         eval += QUEEN_MOBILITY[mobility_b.popcount()];
@@ -653,6 +658,14 @@ PScore evaluate_space(const Position& pos, const EvalData& data) {
     eval += MINOR_BEHIND_PAWN
           * (ourminors.shift_relative(color, Direction::North)
              & (pos.bitboard_for(them, PieceType::Pawn) | pos.bitboard_for(color, PieceType::Pawn)))
+              .ipopcount();
+
+    // Uncontested squares we can attack in one move
+    constexpr Bitboard opp_half = color == Color::White ? Bitboard{0xFFFFFFFF00000000ULL}
+                                                        : Bitboard{0x00000000FFFFFFFFULL};
+    eval += REACH_TERRITORY
+          * (data.reach_all[static_cast<usize>(color)] & opp_half & ~data.attacked_by(color)
+             & ~data.attacked_by(them))
               .ipopcount();
 
     return eval;

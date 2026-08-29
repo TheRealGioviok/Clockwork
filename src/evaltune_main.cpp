@@ -601,6 +601,8 @@ void print_params() {
     std::cout << "inline const PParam ROOK_OPEN_VAL     = " << ROOK_OPEN_VAL << ";" << std::endl;
     std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
               << std::endl;
+    std::cout << "inline const PParam REACH_TERRITORY = " << REACH_TERRITORY << ";"
+              << std::endl;
     std::cout << "inline const PParam MINOR_BEHIND_PAWN = " << MINOR_BEHIND_PAWN << ";"
               << std::endl;
     std::cout << "inline const PParam RESTRICTED_SQUARES = " << RESTRICTED_SQUARES << ";"
