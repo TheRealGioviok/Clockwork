@@ -1,5 +1,6 @@
 #include "dbg_tools.hpp"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cassert>
@@ -40,6 +41,8 @@ std::array<DebugInfo<2>, MAX_DEBUG_SLOTS>  mean;
 std::array<DebugInfo<3>, MAX_DEBUG_SLOTS>  stdev;
 std::array<DebugInfo<6>, MAX_DEBUG_SLOTS>  correl;
 std::array<DebugExtremes, MAX_DEBUG_SLOTS> extremes;
+std::array<DebugInfo<64>, MAX_DEBUG_SLOTS> hist;
+
 
 }  // namespace
 
@@ -84,6 +87,10 @@ void dbg_correl_of(int64_t value1, int64_t value2, size_t slot) {
     correl.at(slot)[3] += value2;
     correl.at(slot)[4] += value2 * value2;
     correl.at(slot)[5] += value1 * value2;
+}
+
+void dbg_hist_of(int64_t value, size_t slot) {
+    ++hist.at(slot)[static_cast<size_t>(std::clamp<int64_t>(value, 0, 63))];
 }
 
 void dbg_print() {
@@ -131,6 +138,25 @@ void dbg_print() {
             std::cerr << "Correl. #" << i << ": Total " << n << " Coefficient " << r << std::endl;
         }
     }
+    for (size_t i = 0; i < MAX_DEBUG_SLOTS; ++i) {
+        int64_t total = 0;
+        for (auto& v : hist[i].data) {
+            total += v;
+        }
+        if (!total) {
+            continue;
+        }
+        std::cerr << "Hist #" << i << ": Total " << total << "\n";
+        int64_t cum = 0;
+        for (size_t b = 0; b < 64; ++b) {
+            if (!hist[i][b]) {
+                continue;
+            }
+            cum += hist[i][b];
+            std::cerr << "  " << b << ": " << hist[i][b] << " (" << 100.0 * hist[i][b] / total
+                      << "%, cum " << 100.0 * cum / total << "%)\n";
+        }
+    }
 }
 
 void dbg_clear() {
@@ -139,4 +165,5 @@ void dbg_clear() {
     stdev.fill({});
     correl.fill({});
     extremes.fill({});
+    hist.fill({});
 }
