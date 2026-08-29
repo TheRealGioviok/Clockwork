@@ -75,10 +75,23 @@ inline const std::array<PParam, 28> QUEEN_MOBILITY = {
     S(437, 499), S(560, 761), S(586, 912), S(604, 1063), S(624, 1105), S(632, 1156), S(636, 1206), S(638, 1234), S(641, 1264), S(643, 1281), S(647, 1296), S(653, 1300), S(655, 1308), S(661, 1307), S(661, 1313), S(664, 1310), S(659, 1316), S(661, 1303), S(660, 1302), S(670, 1288), S(652, 1288), S(673, 1248), S(634, 1284), S(588, 1283), S(552, 1275), S(513, 1298), S(442, 1359), S(482, 1269),
 };
 
-inline const PParam PAWN_THREAT_KNIGHT = S(205, 167);
-inline const PParam PAWN_THREAT_BISHOP = S(167, 248);
-inline const PParam PAWN_THREAT_ROOK   = S(196, 148);
-inline const PParam PAWN_THREAT_QUEEN  = S(160, 25);
+inline const std::array<PParam, 21> KNIGHT_REACH = {
+    S(-26, -14), S(4, 1), S(15, 19), S(26, 24), S(33, 35), S(37, 48), S(42, 54), S(44, 54), S(47, 56), S(51, 53), S(55, 49), S(58, 47), S(59, 42), S(64, 32), S(69, 17), S(69, 6), S(76, -14), S(82, -33), S(89, -47), S(87, -67), S(59, -113),
+};
+inline const std::array<PParam, 18> BISHOP_REACH = {
+    S(43, -32), S(42, -33), S(46, -22), S(50, -3), S(48, 11), S(49, 15), S(48, 25), S(47, 33), S(45, 41), S(46, 47), S(45, 54), S(48, 57), S(50, 62), S(56, 62), S(63, 63), S(71, 58), S(73, 60), S(50, 61),
+};
+inline const std::array<PParam, 20> ROOK_REACH = {
+    S(53, -11), S(51, 6), S(53, 15), S(57, 24), S(62, 25), S(66, 31), S(70, 36), S(73, 44), S(74, 55), S(77, 60), S(76, 71), S(78, 79), S(76, 90), S(77, 98), S(78, 102), S(75, 110), S(73, 119), S(70, 129), S(70, 130), S(75, 135),
+};
+inline const std::array<PParam, 23> QUEEN_REACH = {
+    S(-16, 84), S(-20, 131), S(-11, 178), S(-5, 204), S(-0, 214), S(4, 231), S(5, 242), S(9, 256), S(9, 263), S(15, 261), S(14, 274), S(12, 289), S(17, 289), S(20, 290), S(24, 292), S(28, 292), S(32, 285), S(40, 285), S(49, 267), S(53, 274), S(80, 233), S(93, 217), S(118, 180),
+};
+
+inline const PParam PAWN_THREAT_KNIGHT = S(202, 160);
+inline const PParam PAWN_THREAT_BISHOP = S(170, 231);
+inline const PParam PAWN_THREAT_ROOK   = S(194, 147);
+inline const PParam PAWN_THREAT_QUEEN  = S(159, 23);
 
 inline const std::array<std::array<PParam, 5>, 2> MINOR_THREAT = {{
   {{ S(9, 57), S(98, 101), S(102, 130), S(182, 92), S(170, 25), }},
