@@ -284,11 +284,11 @@ int main() {
                                  result.end());
 
                     f64 r;
-                    if (result == "w") {
+                    if (result[0] == 'w') {
                         r = 1.0;
-                    } else if (result == "d") {
+                    } else if (result[0] == 'd') {
                         r = 0.5;
-                    } else if (result == "b") {
+                    } else if (result[0] == 'b') {
                         r = 0.0;
                     } else {
                         std::cerr << "Invalid result in " << filename << ": " << line << "\n";
@@ -649,6 +649,12 @@ void print_params() {
     print_table("BISHOP_MOBILITY", BISHOP_MOBILITY);
     print_table("ROOK_MOBILITY", ROOK_MOBILITY);
     print_table("QUEEN_MOBILITY", QUEEN_MOBILITY);
+    std::cout << std::endl;
+
+    print_table("KNIGHT_REACH", KNIGHT_REACH);
+    print_table("BISHOP_REACH", BISHOP_REACH);
+    print_table("ROOK_REACH", ROOK_REACH);
+    print_table("QUEEN_REACH", QUEEN_REACH);
     std::cout << std::endl;
 
     std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
