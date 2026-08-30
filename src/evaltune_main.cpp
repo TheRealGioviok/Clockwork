@@ -670,6 +670,9 @@ void print_params() {
     print_2d_array("MINOR_THREAT", MINOR_THREAT);
     print_2d_array("ROOK_THREAT", ROOK_THREAT);
     std::cout << "inline const PParam KING_THREAT  = " << KING_THREAT << ";" << std::endl;
+    std::cout << "inline const PParam REACH_THREAT = " << REACH_THREAT << ";" << std::endl;
+    std::cout << "inline const PParam REACH_THREAT_LOOSE = " << REACH_THREAT_LOOSE << ";"
+              << std::endl;
     std::cout << "inline const PParam HANGING_PAWN  = " << HANGING_PAWN << ";" << std::endl;
     std::cout << "inline const PParam HANGING_NON_PAWN  = " << HANGING_NON_PAWN << ";" << std::endl
               << std::endl;
