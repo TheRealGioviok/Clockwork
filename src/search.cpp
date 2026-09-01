@@ -920,9 +920,10 @@ Value Worker::search(
                      <= alpha
                    && !is_in_check)
                   * tuned::lmr_fut_red;
-                // Reduce less the further this node is from the last speculative search
-                reduction -= 128 * std::min<i32>(ply - last_critical_ply, 8);
             }
+
+            // Reduce less the further this node is from the last speculative search
+            reduction += 384 - 128 * std::min<i32>(ply - last_critical_ply, 8);
 
             if (!quiet) {
                 reduction = std::min(reduction, tuned::lmr_max_red);
