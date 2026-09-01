@@ -348,7 +348,7 @@ Move Worker::iterative_deepening(const Position& root_position) {
                 alpha = std::max(-VALUE_INF, alpha);
                 beta  = std::min(VALUE_INF, beta);
                 score = search<IS_MAIN, true>(root_position, &ss[SS_PADDING], alpha, beta,
-                                              asp_window_depth, 0, false);
+                                              asp_window_depth, 0, 0, false);
 
                 // Sort the PVs searched so far. Effectively, find the current best PV and move it to the front.
                 std::stable_sort(m_td.root_moves.begin() + static_cast<isize>(m_pv_idx),
@@ -463,7 +463,7 @@ Move Worker::iterative_deepening(const Position& root_position) {
 
 template<bool IS_MAIN, bool PV_NODE>
 Value Worker::search(
-  const Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, i32 ply, bool cutnode) {
+  const Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, i32 ply, i32 last_critical_ply, bool cutnode) {
     ss->pv.clear();
 
     if (m_stopped) {
@@ -648,7 +648,7 @@ Value Worker::search(
         repetition_info.push(pos_after.get_hash_key(), true);
 
         Value null_score = -search<IS_MAIN, false>(pos_after, ss + 1, -beta, -beta + 1, depth - R,
-                                                   ply + 1, !cutnode);
+                                                   ply + 1, ply + 1, !cutnode);
 
         repetition_info.pop();
 
@@ -663,7 +663,7 @@ Value Worker::search(
 
             m_in_nmp_verification = true;
             Value verification =
-              search<IS_MAIN, false>(pos, ss, beta - 1, beta, depth - R, ply, false);
+              search<IS_MAIN, false>(pos, ss, beta - 1, beta, depth - R, ply, last_critical_ply, false);
             m_in_nmp_verification = false;
 
             if (verification >= beta) {
@@ -710,7 +710,7 @@ Value Worker::search(
                 if (probcut_value >= probcut_beta) {
                     probcut_value =
                       -search<IS_MAIN, false>(pos_after, ss + 1, -probcut_beta, -probcut_beta + 1,
-                                              probcut_depth, ply + 1, !cutnode);
+                                              probcut_depth, ply + 1, last_critical_ply, !cutnode);
                 }
 
                 repetition_info.pop();
@@ -794,7 +794,7 @@ Value Worker::search(
 
             ss->excluded_move    = m;
             Value singular_value = search<IS_MAIN, false>(pos, ss, singular_beta - 1, singular_beta,
-                                                          singular_depth, ply, cutnode);
+                                                          singular_depth, ply, ply, cutnode);
             ss->excluded_move    = Move::none();
 
             if (singular_value < singular_beta) {
@@ -920,6 +920,8 @@ Value Worker::search(
                      <= alpha
                    && !is_in_check)
                   * tuned::lmr_fut_red;
+                // Reduce less the further this node is from the last speculative search
+                reduction -= 128 * std::min<i32>(ply - last_critical_ply, 8);
             }
 
             if (!quiet) {
@@ -930,7 +932,7 @@ Value Worker::search(
 
             Depth reduced_depth = std::clamp<Depth>(new_depth - reduction, 1, new_depth);
             value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha, reduced_depth,
-                                            ply + 1, true);
+                                            ply + 1, ply + 1, true);
             if (value > alpha) {
                 const bool do_deeper = reduced_depth < new_depth && value > best_value + 94;
                 const bool do_shallower =
@@ -940,7 +942,8 @@ Value Worker::search(
 
                 if (reduced_depth < new_depth) {
                     value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha,
-                                                    new_depth, ply + 1, !cutnode);
+                                                    new_depth, ply + 1, last_critical_ply,
+                                                    !cutnode);
                     if (quiet && (value <= alpha || value >= beta)) {
                         m_td.history.update_cont_hist(pos, m, ply, ss,
                                                       value <= alpha ? -stat_malus(new_depth)
@@ -949,13 +952,15 @@ Value Worker::search(
                 }
             }
         } else if (!PV_NODE || moves_played > 1) {
+            // Only zws of non-first moves are speculative
             value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha, new_depth,
-                                            ply + 1, !cutnode);
+                                            ply + 1, moves_played > 1 ? ply + 1 : last_critical_ply,
+                                            !cutnode);
         }
 
         if (PV_NODE && (moves_played == 1 || value > alpha)) {
-            value =
-              -search<IS_MAIN, true>(pos_after, ss + 1, -beta, -alpha, new_depth, ply + 1, false);
+            value = -search<IS_MAIN, true>(pos_after, ss + 1, -beta, -alpha, new_depth, ply + 1,
+                                           last_critical_ply, false);
         }
         const auto nodes_after = m_search_nodes.load(std::memory_order::relaxed);
         if (ROOT_NODE) {
