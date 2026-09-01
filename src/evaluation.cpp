@@ -6,6 +6,7 @@
 #include "position.hpp"
 #include "psqt_state.hpp"
 #include "square.hpp"
+#include "structure.hpp"
 #include <array>
 #include <ranges>
 
@@ -19,6 +20,8 @@ struct EvalData {
     Bitboard attacks_by_pt[2][7];
 
     Bitboard mobility_area[2];
+
+    StructInfo struct_info[2];
 
     i32 m_piece_count[2][6];
     i32 wcount = 0;
@@ -50,6 +53,17 @@ struct EvalData {
           pos.attacked_by(Color::White, PieceType::King);
         attacks_by_pt[static_cast<usize>(Color::Black)][static_cast<usize>(PieceType::King)] =
           pos.attacked_by(Color::Black, PieceType::King);
+
+        const Bitboard wp = pos.bitboard_for(Color::White, PieceType::Pawn);
+        const Bitboard bp = pos.bitboard_for(Color::Black, PieceType::Pawn);
+        struct_info[static_cast<usize>(Color::White)] =
+          classify_structure(wp, bp, pos.king_side(Color::White) != 0);
+        struct_info[static_cast<usize>(Color::Black)] = classify_structure(
+          flip_vertical(bp), flip_vertical(wp), pos.king_side(Color::Black) != 0);
+    }
+
+    inline StructInfo structure(const Color color) const {
+        return struct_info[static_cast<usize>(color)];
     }
 
     inline i32 piece_count(const Color color, const PieceType pt) const {
@@ -252,6 +266,15 @@ PScore king_shelter(const Position& pos, const EvalData& eval_data) {
 }
 
 template<Color color>
+usize struct_sq_index(Square sq, bool flip) {
+    Square rel = sq.relative_sq(color);
+    if (flip) {
+        rel = rel.flip_horizontal();
+    }
+    return static_cast<usize>(rel.raw);
+}
+
+template<Color color>
 std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data) {
     constexpr i32   RANK_2 = 1;
     constexpr i32   RANK_3 = 2;
@@ -320,6 +343,13 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data
         eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
     }
 
+    const StructInfo si = data.structure(color);
+    if (si.bucket != StructBucket::None) {
+        const auto& table = STRUCT_PAWN_PSQT[static_cast<usize>(si.bucket)];
+        for (Square sq : pawns) {
+            eval += table[struct_sq_index<color>(sq, si.flip) - 8];
+        }
+    }
     return {eval, passers};
 }
 
@@ -402,8 +432,38 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         eval += BISHOP_PAIR_VAL;
     }
 
+    const StructInfo si = data.structure(color);
+    if (si.bucket != StructBucket::None) {
+        const auto& knight_table = STRUCT_KNIGHT_PSQT[static_cast<usize>(si.bucket)];
+        for (Square sq : pos.bitboard_for(color, PieceType::Knight)) {
+            eval += knight_table[struct_sq_index<color>(sq, si.flip)];
+        }
+        const auto& bishop_table = STRUCT_BISHOP_PSQT[static_cast<usize>(si.bucket)];
+        for (Square sq : pos.bitboard_for(color, PieceType::Bishop)) {
+            eval += bishop_table[struct_sq_index<color>(sq, si.flip)];
+        }
+    }
+    const auto apply_fianchetto = [&](bool shelter, Square home) {
+        const usize type = shelter ? 0 : 1;
+        eval += FIANCHETTO_BASE[type];
+        eval += FIANCHETTO_KNIGHT[type] * pos.piece_count(color, PieceType::Knight);
+        for (Square sq : pos.bitboard_for(color, PieceType::Bishop)) {
+            const Square rel = sq.relative_sq(color);
+            eval += FIANCHETTO_BISHOP_COLOR[type][rel.color() != home.color()];
+            if (rel == home) {
+                eval += FIANCHETTO_BISHOP_HOME[type];
+            }
+        }
+    };
+    if (si.fian_g3) {
+        apply_fianchetto(si.king_side, Square::from_file_and_rank(6, 1));
+    }
+    if (si.fian_b3) {
+        apply_fianchetto(!si.king_side, Square::from_file_and_rank(1, 1));
+    }
+
     return eval;
-}
+} 
 
 template<Color color>
 PScore evaluate_outposts(const Position& pos, const EvalData& data) {

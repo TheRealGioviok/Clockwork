@@ -21,6 +21,7 @@
 #include <numeric>
 #include <random>
 #include <sstream>
+#include <string_view>
 #include <thread>
 #include <tuple>
 
@@ -182,7 +183,19 @@ f64 find_optimal_k(const std::vector<Position>& positions, const std::vector<f64
     return regions[0].center;
 }
 
-int main() {
+int main(int argc, char** argv) {
+
+    // Residual mode to iterate structures quickly, might be useful to leave the machinery here for other patches
+    const bool residual_mode   = argc > 1 && std::string_view(argv[1]) == "residual";
+    const int  residual_bucket = residual_mode && argc > 2 ? std::atoi(argv[2]) : -1;
+
+    if (residual_mode) {
+        std::cout << "Residual mode: tuning only STRUCT_*_PSQT tables";
+        if (residual_bucket >= 0) {
+            std::cout << " (bucket " << residual_bucket << " only)";
+        }
+        std::cout << "\n";
+    }
 
     // Todo: make these CLI-specifiable
     const size_t batch_size       = 16 * 16384;
@@ -280,6 +293,10 @@ int main() {
                     }
 
                     std::string result = line.substr(sep + 1);
+                    // Accept both "fen;result" and "fen;result;eval" formats.
+                    if (size_t sep2 = result.find(';'); sep2 != std::string::npos) {
+                        result.resize(sep2);
+                    }
                     result.erase(std::remove_if(result.begin(), result.end(), ::isspace),
                                  result.end());
 
@@ -326,6 +343,37 @@ int main() {
         return 1;
     }
 
+    if (residual_mode) {
+        // Bucket firing rates over the dataset, per side, so sample-starved buckets are visible.
+        constexpr const char* bucket_names[5] = {"LockedChain", "CenterDefOwn", "CenterDefOpp",
+                                                 "OpenCenter", "None"};
+        std::array<u64, 5>    hist{};
+        u64                   fian_shelter = 0, fian_scheme = 0;
+        for (const auto& pos : positions) {
+            const Bitboard   wp = pos.bitboard_for(Color::White, PieceType::Pawn);
+            const Bitboard   bp = pos.bitboard_for(Color::Black, PieceType::Pawn);
+            const StructInfo w  = classify_structure(wp, bp, pos.king_side(Color::White) != 0);
+            const StructInfo b  = classify_structure(flip_vertical(bp), flip_vertical(wp),
+                                                     pos.king_side(Color::Black) != 0);
+            hist[static_cast<usize>(w.bucket)]++;
+            hist[static_cast<usize>(b.bucket)]++;
+            fian_shelter += (w.fian_g3 && w.king_side) + (w.fian_b3 && !w.king_side)
+                          + (b.fian_g3 && b.king_side) + (b.fian_b3 && !b.king_side);
+            fian_scheme += (w.fian_g3 && !w.king_side) + (w.fian_b3 && w.king_side)
+                         + (b.fian_g3 && !b.king_side) + (b.fian_b3 && b.king_side);
+        }
+        const f64 total = static_cast<f64>(2 * positions.size());
+        std::cout << "Structure bucket histogram (per side):\n";
+        for (usize i = 0; i < 5; ++i) {
+            std::cout << "  " << std::left << std::setw(13) << bucket_names[i] << " " << hist[i]
+                      << " (" << 100.0 * static_cast<f64>(hist[i]) / total << "%)\n";
+        }
+        std::cout << "  " << std::left << std::setw(13) << "FianShelter" << " " << fian_shelter
+                  << " (" << 100.0 * static_cast<f64>(fian_shelter) / total << "%)\n";
+        std::cout << "  " << std::left << std::setw(13) << "FianScheme" << " " << fian_scheme
+                  << " (" << 100.0 * static_cast<f64>(fian_scheme) / total << "%)\n";
+    }
+
     // Setup tuning
     const ParameterCountInfo parameter_count = Globals::get().get_parameter_counts();
 
@@ -333,7 +381,9 @@ int main() {
     Parameters current_parameter_values = Graph::get().get_all_parameter_values();
 
     // Uncomment for zero tune: Overwrite them all with zeros.
-    current_parameter_values = Parameters::rand_init(parameter_count);
+    if (!residual_mode) {
+        current_parameter_values = Parameters::rand_init(parameter_count);
+    }
 
     // The optimizer will now start with all-zero parameters
     AdamW optim(parameter_count, 1, 0.9, 0.999, 1e-8, 0.0);
@@ -341,7 +391,7 @@ int main() {
 #ifdef PROFILE_RUN
     const i32 epochs = 8;
 #else
-    const i32 epochs = 450;
+    const i32 epochs = residual_mode ? 30 : 450;
 #endif
 
     const f64 K = find_optimal_k(positions, results);
@@ -469,26 +519,53 @@ int main() {
     // Freeze all value
     Globals::get().freeze_value_range(0, counts.parameter_count);
 
-    // Freeze all pair, except first 5 (material parameters)
-    Globals::get().freeze_pair_range(5, counts.pair_parameter_count);
+    if (residual_mode) {
+        // Freeze everything at the header values; tune only the aux structure tables.
+        Globals::get().freeze_pair_range(0, counts.pair_parameter_count);
+        if (residual_bucket >= 0 && residual_bucket < static_cast<int>(NUM_STRUCT_BUCKETS)) {
+            const usize b = static_cast<usize>(residual_bucket);
+            Globals::get().unfreeze_pair_range(STRUCT_PAWN_PSQT[b][0].index(),
+                                               STRUCT_PAWN_PSQT[b].back().index() + 1);
+            Globals::get().unfreeze_pair_range(STRUCT_KNIGHT_PSQT[b][0].index(),
+                                               STRUCT_KNIGHT_PSQT[b].back().index() + 1);
+            Globals::get().unfreeze_pair_range(STRUCT_BISHOP_PSQT[b][0].index(),
+                                               STRUCT_BISHOP_PSQT[b].back().index() + 1);
+            std::cout << "Residual mode: tuning only bucket " << residual_bucket << " tables\n";
+        } else if (residual_bucket == static_cast<int>(NUM_STRUCT_BUCKETS)) {
+            Globals::get().unfreeze_pair_range(FIANCHETTO_BASE[0].index(),
+                                               FIANCHETTO_BISHOP_HOME.back().index() + 1);
+            std::cout << "Residual mode: tuning only fianchetto params\n";
+        } else {
+            const usize struct_first = STRUCT_PAWN_PSQT[0][0].index();
+            const usize struct_last  = FIANCHETTO_BISHOP_HOME.back().index() + 1;
+            Globals::get().unfreeze_pair_range(struct_first, struct_last);
+            std::cout << "Residual mode: tuning pair params [" << struct_first << ", "
+                      << struct_last << ") of " << counts.pair_parameter_count << "\n";
+        }
+    } else { 
+        // Freeze all pair, except first 5 (material parameters)
+        Globals::get().freeze_pair_range(5, counts.pair_parameter_count);
+    }
 
     // Epoch loop
     for (int epoch = 0; epoch < epochs; ++epoch) {
 
-        if (epoch == 24) {
+        if (!residual_mode && epoch == 24) {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
               0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
             optim.set_lr(.1);
         }
-        if (epoch == 96) {
+        if (!residual_mode && epoch == 96) {
             // Unfreeze king safety parameters after 96 epochs
             Globals::get().unfreeze_pair_range(0, counts.pair_parameter_count);
         }
 
 
-        if (epoch < 24) {
+        if (residual_mode) {
+            optim.set_lr(std::pow(0.05, double(epoch) / double(std::max(epochs - 1, 1))));
+        } else if (epoch < 24) {
             optim.set_lr(20.0 * std::pow(0.0333, double(epoch) / 24.0));
         } else if (epoch < 72) {
             optim.set_lr(2 * std::pow(0.0667, double(epoch - 24) / 28.0));
@@ -684,6 +761,36 @@ void print_params() {
     printPsqtArray("ROOK_PSQT", ROOK_PSQT);
     printPsqtArray("QUEEN_PSQT", QUEEN_PSQT);
     printPsqtArray("KING_PSQT", KING_PSQT);
+    std::cout << std::endl;
+
+    auto printPsqt2d = [](const std::string& name, const auto& arr) {
+        std::cout << "inline const std::array<std::array<PParam, " << arr[0].size()
+                  << ">, NUM_STRUCT_BUCKETS> " << name << " = {{" << std::endl;
+        for (const auto& subarr : arr) {
+            std::cout << "  {{" << std::endl;
+            for (std::size_t i = 0; i < subarr.size(); ++i) {
+                if ((i & 7) == 0) {
+                    std::cout << "    ";
+                }
+                std::stringstream ss;
+                ss << subarr[i] << ",";
+                std::cout << std::left << std::setw(16) << ss.str();
+                if ((i & 7) == 7) {
+                    std::cout << "//" << std::endl;
+                }
+            }
+            std::cout << "  }}," << std::endl;
+        }
+        std::cout << "}};" << std::endl;
+    };
+
+    printPsqt2d("STRUCT_PAWN_PSQT", STRUCT_PAWN_PSQT);
+    printPsqt2d("STRUCT_KNIGHT_PSQT", STRUCT_KNIGHT_PSQT);
+    printPsqt2d("STRUCT_BISHOP_PSQT", STRUCT_BISHOP_PSQT);
+    print_table("FIANCHETTO_BASE", FIANCHETTO_BASE);
+    print_table("FIANCHETTO_KNIGHT", FIANCHETTO_KNIGHT);
+    print_2d_array("FIANCHETTO_BISHOP_COLOR", FIANCHETTO_BISHOP_COLOR);
+    print_table("FIANCHETTO_BISHOP_HOME", FIANCHETTO_BISHOP_HOME);
     std::cout << std::endl;
 
 
