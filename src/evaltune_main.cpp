@@ -695,6 +695,13 @@ void print_params() {
     print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
     std::cout << std::endl;
 
+    std::cout << "inline const PParam REACH_INNER_RING = " << REACH_INNER_RING << ";" << std::endl;
+    std::cout << "inline const PParam REACH_OUTER_RING = " << REACH_OUTER_RING << ";" << std::endl;
+    std::cout << "inline const PParam REACH_RING_DEFENSE = " << REACH_RING_DEFENSE << ";"
+              << std::endl;
+    std::cout << "inline const PParam REACH_RING_TWICE = " << REACH_RING_TWICE << ";" << std::endl;
+    std::cout << std::endl;
+
 
     std::cout << "inline const PParam KS_FLANK_ATTACK = " << KS_FLANK_ATTACK << ";" << std::endl;
     std::cout << "inline const PParam KS_FLANK_DEFENSE = " << KS_FLANK_DEFENSE << ";" << std::endl;
