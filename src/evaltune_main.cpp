@@ -483,7 +483,9 @@ int main() {
             // Unfreeze all parameters after 24 epochs. Dont unfreeze king safety just yet
             Globals::get().unfreeze_value_range(0, counts.parameter_count);
             Globals::get().unfreeze_pair_range(
-              0, counts.pair_parameter_count - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2));
+              0, counts.pair_parameter_count
+                   - (28 + 7 + 28 + 5 + 5 + 1 + 1 + 1 + 1 + 1 + 2
+                      + 4));
             optim.set_lr(.1);
         }
         if (epoch == 96) {
@@ -706,6 +708,13 @@ void print_params() {
 
     print_table("PT_INNER_RING_ATTACKS", PT_INNER_RING_ATTACKS);
     print_table("PT_OUTER_RING_ATTACKS", PT_OUTER_RING_ATTACKS);
+    std::cout << std::endl;
+
+    std::cout << "inline const PParam REACH_INNER_RING = " << REACH_INNER_RING << ";" << std::endl;
+    std::cout << "inline const PParam REACH_OUTER_RING = " << REACH_OUTER_RING << ";" << std::endl;
+    std::cout << "inline const PParam REACH_RING_DEFENSE = " << REACH_RING_DEFENSE << ";"
+              << std::endl;
+    std::cout << "inline const PParam REACH_RING_TWICE = " << REACH_RING_TWICE << ";" << std::endl;
     std::cout << std::endl;
 
 
