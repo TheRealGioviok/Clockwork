@@ -657,6 +657,7 @@ void print_params() {
     print_table("BISHOP_REACH", BISHOP_REACH);
     print_table("ROOK_REACH", ROOK_REACH);
     print_table("QUEEN_REACH", QUEEN_REACH);
+    print_table("REACH_CONTEST", REACH_CONTEST);
     std::cout << std::endl;
 
     std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"

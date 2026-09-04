@@ -87,6 +87,10 @@ inline const std::array<PParam, 23> QUEEN_REACH = {
     S(-8, 107), S(-12, 151), S(-4, 199), S(3, 221), S(7, 229), S(10, 248), S(10, 255), S(14, 268), S(14, 273), S(18, 269), S(16, 281), S(16, 290), S(19, 290), S(21, 287), S(25, 288), S(27, 286), S(31, 275), S(43, 262), S(50, 245), S(53, 249), S(76, 210), S(88, 194), S(116, 136),
 };
 
+inline const std::array<PParam, 4> REACH_CONTEST = {
+    S(0, 0), S(0, 0), S(0, 0), S(0, 0),
+};
+
 inline const PParam PAWN_THREAT_KNIGHT = S(198, 171);
 inline const PParam PAWN_THREAT_BISHOP = S(169, 233);
 inline const PParam PAWN_THREAT_ROOK   = S(188, 162);
