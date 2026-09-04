@@ -380,6 +380,11 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     const Bitboard all_pieces = ~empty;
     const Bitboard own        = pos.board().get_color_bitboard(color);
 
+    // Squares contested 1 to 1 by both sides (no pawns) and that we can attack with reach.
+    const Bitboard contested = data.attacked_by(color) & ~data.attacked_by_2(color)
+                             & ~data.attacked_by(color, PieceType::Pawn) & data.attacked_by(opp)
+                             & ~data.attacked_by_2(opp);
+
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves                                = pos.moves_of(color, id);
         Bitboard mobility                             = moves & ~bb;
@@ -391,6 +396,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         eval += KNIGHT_MOBILITY[mobility.popcount()];
         eval += reach_score(KNIGHT_REACH, reach & ~bb & ~moves);
+        eval += REACH_CONTEST[0] * (reach & ~moves & contested).ipopcount();
     }
 
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
@@ -404,6 +410,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         eval += BISHOP_MOBILITY[mobility.popcount()];
         eval += reach_score(BISHOP_REACH, reach & ~bb & ~moves);
+        eval += REACH_CONTEST[1] * (reach & ~moves & contested).ipopcount();
 
         Square sq = pos.piece_list_sq(color)[id.raw];
         eval +=
@@ -430,6 +437,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         eval += ROOK_MOBILITY[mobility_a.popcount()];
         eval += ROOK_MOBILITY[mobility_b.popcount()];
         eval += reach_score(ROOK_REACH, reach & ~bb2 & ~moves);
+        eval += REACH_CONTEST[2] * (reach & ~moves & contested).ipopcount();
 
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
@@ -453,6 +461,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         eval += QUEEN_MOBILITY[mobility_a.popcount()];
         eval += QUEEN_MOBILITY[mobility_b.popcount()];
         eval += reach_score(QUEEN_REACH, reach & ~bb2 & ~moves);
+        eval += REACH_CONTEST[3] * (reach & ~moves & contested).ipopcount();
     }
 
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
