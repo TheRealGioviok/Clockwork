@@ -676,6 +676,8 @@ void print_params() {
     std::cout << "inline const PParam REACH_THREAT = " << REACH_THREAT << ";" << std::endl;
     std::cout << "inline const PParam REACH_THREAT_LOOSE = " << REACH_THREAT_LOOSE << ";"
               << std::endl;
+    std::cout << "inline const PParam REACH_PAWN_THREAT_LOOSE = " << REACH_PAWN_THREAT_LOOSE
+              << ";" << std::endl;
     std::cout << "inline const PParam HANGING_PAWN  = " << HANGING_PAWN << ";" << std::endl;
     std::cout << "inline const PParam HANGING_NON_PAWN  = " << HANGING_NON_PAWN << ";" << std::endl
               << std::endl;

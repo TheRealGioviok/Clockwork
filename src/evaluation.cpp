@@ -625,6 +625,11 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
       data.reach_all[static_cast<usize>(color)] & opp_non_pawn & ~data.attacked_by(color);
     eval += REACH_THREAT * (reach_targets & data.attacked_by(opp)).ipopcount();
     eval += REACH_THREAT_LOOSE * (reach_targets & ~data.attacked_by(opp)).ipopcount();
+    // Two-move threats on enemy pawns that nobody defends and we do not attack yet
+    eval += REACH_PAWN_THREAT_LOOSE
+          * (data.reach_all[static_cast<usize>(color)] & opp_pawn & ~data.attacked_by(color)
+             & ~data.attacked_by(opp))
+              .ipopcount();
 
     eval += RESTRICTED_SQUARES
           * (data.attacked_by(color) & ~strongly_protected & data.attacked_by(opp)).ipopcount();
