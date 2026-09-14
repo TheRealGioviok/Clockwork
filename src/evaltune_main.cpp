@@ -279,7 +279,9 @@ int main() {
                         continue;
                     }
 
-                    std::string result = line.substr(sep + 1);
+                    size_t      sep2   = line.find(';', sep + 1);
+                    std::string result = line.substr(
+                      sep + 1, sep2 == std::string::npos ? std::string::npos : sep2 - sep - 1);
                     result.erase(std::remove_if(result.begin(), result.end(), ::isspace),
                                  result.end());
 
@@ -634,7 +636,8 @@ void print_params() {
 
     print_table("PAWN_PHALANX", PAWN_PHALANX);
     print_table("DEFENDED_PAWN", DEFENDED_PAWN);
-    print_table("PASSED_PAWN", PASSED_PAWN);
+    print_2d_array("PASSED_PAWN", PASSED_PAWN);
+    print_2d_array("CANDIDATE_PASSED_PAWN", CANDIDATE_PASSED_PAWN);
     print_table("PASSED_CLEAR_STOPPERS", PASSED_CLEAR_STOPPERS);
     print_table("PASSED_CLEAR_FORWARD", PASSED_CLEAR_FORWARD);
     print_table("DEFENDED_PASSED_PUSH", DEFENDED_PASSED_PUSH);

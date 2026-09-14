@@ -38,9 +38,14 @@ inline const std::array<PParam, 6> PAWN_PHALANX = {
 inline const std::array<PParam, 5> DEFENDED_PAWN = {
     S(48, 33), S(39, 26), S(54, 57), S(91, 181), S(387, 122),
 };
-inline const std::array<PParam, 6> PASSED_PAWN = {
-    S(-94, -263), S(-95, -221), S(-68, -88), S(-23, 38), S(87, 198), S(230, 407),
-};
+inline const std::array<std::array<PParam, 6>, 2> PASSED_PAWN = {{
+  {{ S(-94, -263), S(-95, -221), S(-68, -88), S(-23, 38), S(87, 198), S(230, 407), }},
+  {{ S(-94, -263), S(-95, -221), S(-68, -88), S(-23, 38), S(87, 198), S(230, 407), }},
+}};
+inline const std::array<std::array<PParam, 6>, 2> CANDIDATE_PASSED_PAWN = {{
+  {{ S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), }},
+  {{ S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), }},
+}};
 inline const std::array<PParam, 6> PASSED_CLEAR_STOPPERS = {
     S(-81, 54), S(-92, 36), S(-59, 105), S(-89, 230), S(-54, 341), S(51, 224),
 };

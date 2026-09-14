@@ -273,32 +273,39 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data
     eval += DOUBLED_PAWN_VAL * doubled.ipopcount();
     eval += ISOLATED_PAWN_VAL * isolated.ipopcount();
 
+    Bitboard defended = pawns & data.attacked_by(color, PieceType::Pawn);
+
     for (Square sq : pawns) {
-        Square   push     = sq.push<color>();
-        Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
+        // Only take the most advanced pawn on each file
+        if (sq != (Bitboard::file_mask(sq.file()) & pawns).frontmost_square(color)) {
+            continue;
+        }
+
+        Square   push      = sq.push<color>();
+        Bitboard stoppers  = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
+        Bitboard sqb       = Bitboard::from_square(sq);
+        usize    supported = (defended & sqb).any();
+        usize    rank_idx  = static_cast<usize>(sq.relative_sq(color).rank() - RANK_2);
+
         if (stoppers.empty()) {
             ++passers;
 
-            eval += PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+            eval += PASSED_PAWN[supported][rank_idx];
 
             if ((passed_pawn_spans[static_cast<usize>(color)][sq.raw] & data.attacked_by(them))
                   .empty()) {
-                eval +=
-                  PASSED_CLEAR_STOPPERS[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                eval += PASSED_CLEAR_STOPPERS[rank_idx];
             } else if ((Bitboard::forward_ranks(color, sq) & Bitboard::file_mask(sq.file())
                         & data.attacked_by(them))
                          .empty()) {
-                eval +=
-                  PASSED_CLEAR_FORWARD[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                eval += PASSED_CLEAR_FORWARD[rank_idx];
             } else if (pos.attack_table(color).read(push).popcount()
                        > pos.attack_table(them).read(push).popcount()) {
-                eval +=
-                  DEFENDED_PASSED_PUSH[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                eval += DEFENDED_PASSED_PUSH[rank_idx];
             }
 
             if (pos.piece_at(push) != PieceType::None) {
-                eval +=
-                  BLOCKED_PASSED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
+                eval += BLOCKED_PASSED_PAWN[rank_idx];
             }
 
             i32 our_king_dist   = chebyshev_distance(our_king, sq);
@@ -306,6 +313,18 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data
 
             eval += FRIENDLY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(our_king_dist)];
             eval += ENEMY_KING_PASSED_PAWN_DISTANCE[static_cast<usize>(their_king_dist)];
+        } else {
+            Bitboard push_bb      = Bitboard::from_square(push);
+            Bitboard levers       = static_pawn_attacks<color>(sqb) & stoppers;
+            Bitboard lever_pushes = static_pawn_attacks<color>(push_bb) & stoppers;
+            Bitboard push_support = static_pawn_attacks<them>(push_bb) & pawns;
+            Bitboard support      = static_pawn_attacks<them>(sqb) & pawns;
+
+            if (stoppers == (levers | lever_pushes) 
+                && push_support.popcount() >= lever_pushes.popcount()) {
+                usize levers_covered = support.popcount() >= levers.popcount();
+                eval += CANDIDATE_PASSED_PAWN[levers_covered][rank_idx];
+            }
         }
     }
 
@@ -315,7 +334,6 @@ std::tuple<PScore, i32> evaluate_pawns(const Position& pos, const EvalData& data
         eval += PAWN_PHALANX[static_cast<usize>(sq.relative_sq(color).rank() - RANK_2)];
     }
 
-    Bitboard defended = pawns & data.attacked_by(color, PieceType::Pawn);
     for (Square sq : defended) {
         eval += DEFENDED_PAWN[static_cast<usize>(sq.relative_sq(color).rank() - RANK_3)];
     }
