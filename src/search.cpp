@@ -735,6 +735,8 @@ Value Worker::search(
     i32        alpha_raises      = 0;
     Value      non_pawn_material = -1;
 
+    bool noisy_tt_move = tt_move != Move::none() && !quiet_move(tt_move);
+
     // Clear child's killer move.
     (ss + 1)->killer = Move::none();
     // Clear child's fail high count
@@ -890,6 +892,8 @@ Value Worker::search(
                                              + tuned::lmr_noisy_div * log2i(depth)
                                                  * log2i(moves_played) / (1024 * 1024));
             }
+
+            reduction -= 1024 * noisy_tt_move - 92;
 
             reduction -= tuned::lmr_pv_node_red * PV_NODE;
 
