@@ -831,7 +831,7 @@ Value Worker::search(
             }
 
             // Negative Extensions
-            else if (tt_data->score >= beta) {
+            else if (tt_data->score >= beta || cutnode) {
                 extension = -1 - PV_NODE;
             }
         }
