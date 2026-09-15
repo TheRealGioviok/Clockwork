@@ -1045,8 +1045,10 @@ Value Worker::search(
             ss->killer = best_move;
 
             m_td.history.update_quiet_stats(pos, best_move, ply, ss, bonus);
-            for (Move quiet : quiets_played) {
-                m_td.history.update_quiet_stats(pos, quiet, ply, ss, -malus);
+            for (i32 i = 0; Move quiet : quiets_played) {
+                i32 d = 1024 + 47 * i++;
+                i32 s = 1024 * 1024 / (d * d / 1024);
+                m_td.history.update_quiet_stats(pos, quiet, ply, ss, -malus * s / 1024);
             }
         } else {
             m_td.history.update_noisy_stats(pos, best_move, bonus);
