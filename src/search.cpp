@@ -778,7 +778,7 @@ Value Worker::search(
             Value see_threshold =
               quiet ? tuned::see_pvs_quiet * depth : tuned::see_pvs_noisy_quad * depth * depth;
             // SEE PVS Pruning
-            if (!SEE::see(pos, m, see_threshold - move_history * tuned::see_pvs_hist_mult / 1024)) {
+            if ((!is_in_check || !quiet) && !SEE::see(pos, m, see_threshold - move_history * tuned::see_pvs_hist_mult / 1024)) {
                 continue;
             }
 
