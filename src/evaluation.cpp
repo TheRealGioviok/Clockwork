@@ -625,6 +625,9 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
       data.reach_all[static_cast<usize>(color)] & opp_non_pawn & ~data.attacked_by(color);
     eval += REACH_THREAT * (reach_targets & data.attacked_by(opp)).ipopcount();
     eval += REACH_THREAT_LOOSE * (reach_targets & ~data.attacked_by(opp)).ipopcount();
+    // Enemy non-pawns that two or more of our pieces can each reach in one move
+    eval += REACH_THREAT_TWICE
+          * (data.reach_2[static_cast<usize>(color)] & opp_non_pawn).ipopcount();
 
     eval += RESTRICTED_SQUARES
           * (data.attacked_by(color) & ~strongly_protected & data.attacked_by(opp)).ipopcount();
