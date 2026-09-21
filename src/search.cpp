@@ -891,6 +891,8 @@ Value Worker::search(
                                                  * log2i(moves_played) / (1024 * 1024));
             }
 
+            reduction -= 3072 * (abs(correction) - 80) / 1024;
+
             reduction -= tuned::lmr_pv_node_red * PV_NODE;
 
             reduction += alpha_raises * tuned::lmr_alpha_raise_red;
