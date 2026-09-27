@@ -611,7 +611,18 @@ Value Worker::search(
                        : tt_data                       ? tt_data->move
                                                        : Move::none();
 
-    bool  improving  = false;
+    bool improving = [&]() {
+        if (is_in_check) {
+            return false;
+        }
+        if (ply > 1 && is_valid_score((ss - 2)->static_eval)) {
+            return ss->static_eval > (ss - 2)->static_eval;
+        }
+        if (ply > 3 && is_valid_score((ss - 4)->static_eval)) {
+            return (ss - 4)->static_eval > (ss - 2)->static_eval;
+        }
+        return false;
+    }();
     Value correction = 0;
     Value raw_eval   = -VALUE_INF;
     ss->static_eval  = -VALUE_INF;
@@ -619,9 +630,6 @@ Value Worker::search(
         correction = excluded ? 0 : m_td.history.get_correction(pos);
         raw_eval   = tt_data && !is_decisive_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         ss->static_eval = adj_shuffle(pos, raw_eval) + correction;
-        improving =
-          is_valid_score((ss - 2)->static_eval) && ss->static_eval > (ss - 2)->static_eval;
-
         if (!tt_data) {
             m_searcher.tt.store(pos, ply, raw_eval, Move::none(), -VALUE_INF, 0, ttpv, Bound::None);
         }
