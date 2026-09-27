@@ -767,7 +767,7 @@ Value Worker::search(
 
         if (!ROOT_NODE && !is_loss_score(best_value)) {
             // Late Move Pruning (LMP)
-            if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - improving)) {
+            if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - (improving || correction > 100))) {
                 break;
             }
 
