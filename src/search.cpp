@@ -805,7 +805,7 @@ Value Worker::search(
 
         // Singular extensions
         int extension = 0;
-        if (!ROOT_NODE && tt_data && m == tt_move && !excluded && depth >= tuned::sing_min_depth
+        if (!ROOT_NODE && tt_data && m == tt_move && !excluded && depth >= tuned::sing_min_depth + ttpv
             && is_valid_score(tt_data->score) && !is_decisive_score(tt_data->score)
             && tt_data->depth >= depth - tuned::sing_depth_margin
             && tt_data->bound() != Bound::Upper) {
