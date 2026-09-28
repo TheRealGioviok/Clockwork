@@ -76,25 +76,25 @@ inline const std::array<PParam, 28> QUEEN_MOBILITY = {
 };
 
 inline const std::array<PParam, 21> KNIGHT_REACH = {
-    S(-24, -18), S(6, -2), S(18, 15), S(29, 20), S(36, 32), S(40, 45), S(45, 52), S(47, 51), S(50, 55), S(54, 51), S(58, 46), S(59, 46), S(60, 40), S(65, 30), S(71, 14), S(71, 4), S(76, -15), S(83, -34), S(88, -46), S(82, -62), S(48, -105),
+    S(-34, 6), S(-2, 20), S(6, 52), S(13, 63), S(22, 74), S(25, 88), S(27, 103), S(32, 95), S(37, 97), S(41, 91), S(45, 89), S(46, 92), S(46, 87), S(51, 77), S(59, 59), S(60, 48), S(60, 33), S(66, 15), S(70, 6), S(66, -14), S(30, -53),
 };
 inline const std::array<PParam, 18> BISHOP_REACH = {
-    S(52, -38), S(48, -36), S(52, -25), S(55, -5), S(53, 8), S(54, 13), S(52, 22), S(51, 30), S(48, 38), S(48, 44), S(46, 52), S(48, 55), S(49, 60), S(51, 63), S(59, 61), S(62, 59), S(61, 63), S(28, 72),
+    S(47, 21), S(42, 21), S(44, 30), S(42, 64), S(41, 74), S(43, 76), S(41, 85), S(43, 88), S(42, 100), S(39, 106), S(37, 116), S(38, 118), S(39, 123), S(41, 127), S(51, 126), S(57, 119), S(51, 131), S(21, 134),
 };
 inline const std::array<PParam, 20> ROOK_REACH = {
-    S(63, -12), S(60, 7), S(61, 16), S(64, 23), S(68, 25), S(71, 30), S(73, 35), S(75, 43), S(73, 54), S(74, 59), S(71, 70), S(71, 78), S(67, 90), S(66, 98), S(64, 103), S(59, 110), S(53, 121), S(47, 132), S(43, 134), S(29, 145),
+    S(53, 71), S(49, 94), S(48, 103), S(50, 114), S(54, 117), S(55, 124), S(56, 131), S(58, 137), S(56, 151), S(60, 154), S(57, 166), S(56, 174), S(52, 188), S(53, 191), S(51, 199), S(44, 212), S(45, 213), S(41, 221), S(35, 227), S(14, 249),
 };
 inline const std::array<PParam, 23> QUEEN_REACH = {
-    S(-8, 119), S(-13, 162), S(-4, 206), S(3, 227), S(7, 236), S(10, 252), S(11, 259), S(14, 270), S(14, 275), S(19, 269), S(18, 280), S(17, 287), S(21, 283), S(22, 284), S(26, 281), S(28, 278), S(30, 270), S(42, 256), S(47, 239), S(49, 243), S(69, 207), S(81, 187), S(106, 126),
+    S(35, 150), S(24, 217), S(23, 304), S(30, 313), S(27, 350), S(27, 367), S(28, 375), S(30, 393), S(30, 397), S(35, 398), S(28, 420), S(33, 415), S(37, 414), S(40, 412), S(41, 417), S(46, 411), S(48, 400), S(56, 391), S(62, 377), S(61, 385), S(87, 343), S(90, 339), S(110, 279),
 };
 inline const std::array<PParam, 4> REACH_CONTEST = {
-    S(2, 7), S(4, 5), S(14, 2), S(-0, 22),
+    S(3, 6), S(5, 3), S(15, 2), S(0, 21),
 };
 
-inline const PParam PAWN_THREAT_KNIGHT = S(199, 170);
-inline const PParam PAWN_THREAT_BISHOP = S(170, 231);
-inline const PParam PAWN_THREAT_ROOK   = S(187, 162);
-inline const PParam PAWN_THREAT_QUEEN  = S(162, 25);
+inline const PParam PAWN_THREAT_KNIGHT = S(215, 181);
+inline const PParam PAWN_THREAT_BISHOP = S(176, 254);
+inline const PParam PAWN_THREAT_ROOK   = S(203, 158);
+inline const PParam PAWN_THREAT_QUEEN  = S(168, 35);
 
 inline const std::array<std::array<PParam, 5>, 2> MINOR_THREAT = {{
   {{ S(9, 57), S(98, 101), S(102, 130), S(182, 92), S(170, 25), }},
@@ -104,11 +104,11 @@ inline const std::array<std::array<PParam, 5>, 2> ROOK_THREAT = {{
   {{ S(9, 68), S(46, 117), S(66, 109), S(17, 19), S(162, -74), }},
   {{ S(-1, 57), S(65, 81), S(103, 68), S(16, 10), S(205, 1213), }},
 }};
-inline const PParam KING_THREAT  = S(-1, 151);
-inline const PParam REACH_THREAT = S(-13, 9);
-inline const PParam REACH_THREAT_LOOSE = S(13, 27);
-inline const PParam HANGING_PAWN  = S(30, 94);
-inline const PParam HANGING_NON_PAWN  = S(71, 31);
+inline const PParam KING_THREAT  = S(-20, 141);
+inline const PParam REACH_THREAT = S(-14, 13);
+inline const PParam REACH_THREAT_LOOSE = S(18, 28);
+inline const PParam HANGING_PAWN  = S(39, 96);
+inline const PParam HANGING_NON_PAWN  = S(86, 39);
 
 inline const std::array<PParam, 2> KNIGHT_ON_QUEEN = {
     S(19, -4), S(39, -10),
