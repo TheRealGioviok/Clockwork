@@ -137,6 +137,9 @@ public:
     [[nodiscard]] inline HashKey get_minor_key() const {
         return m_zobrist_info.minor_key();
     }
+    [[nodiscard]] inline const ZobristInfo& get_zobrist_info() const {
+        return m_zobrist_info;
+    }
 
     [[nodiscard]] Square king_sq(Color color) const {
         return piece_list_sq(color)[PieceId{0}];

@@ -736,14 +736,15 @@ Value Worker::search(
         }
     }
 
-    MovePicker moves{pos, m_td.history, tt_move, ply, ss};
-    Move       best_move    = Move::none();
-    Value      best_value   = -VALUE_INF;
-    i32        moves_played = 0;
-    MoveList   quiets_played;
-    MoveList   noisies_played;
-    i32        alpha_raises      = 0;
-    Value      non_pawn_material = -1;
+    MovePicker  moves{pos, m_td.history, tt_move, ply, ss};
+    Move        best_move    = Move::none();
+    Value       best_value   = -VALUE_INF;
+    i32         moves_played = 0;
+    ZobristInfo best_move_keys;
+    MoveList    quiets_played;
+    MoveList    noisies_played;
+    i32         alpha_raises      = 0;
+    Value       non_pawn_material = -1;
 
     // Clear child's killer move.
     (ss + 1)->killer = Move::none();
@@ -1027,8 +1028,9 @@ Value Worker::search(
                 if (PV_NODE) {
                     ss->pv.set(m, (ss + 1)->pv);
                 }
-                alpha     = value;
-                best_move = m;
+                alpha          = value;
+                best_move      = m;
+                best_move_keys = pos_after.get_zobrist_info();
                 alpha_raises++;
 
                 if (value >= beta) {
@@ -1099,7 +1101,9 @@ Value Worker::search(
             && !(best_move != Move::none() && (best_move.is_capture() || best_move.is_promotion()))
             && !((bound == Bound::Lower && best_value <= ss->static_eval)
                  || (bound == Bound::Upper && best_value >= ss->static_eval))) {
-            m_td.history.update_correction_history(pos, depth, best_value - ss->static_eval);
+            m_td.history.update_correction_history(
+              pos, depth, best_value - ss->static_eval,
+              bound == Bound::Lower && best_move != Move::none() ? &best_move_keys : nullptr);
         }
     }
 

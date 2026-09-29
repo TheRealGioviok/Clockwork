@@ -13,11 +13,12 @@ using ContHistory   = std::array<std::array<std::array<ContHistEntry, 64>, 6>, 2
 using CaptHistory       = std::array<std::array<std::array<std::array<i32, 64>, 6>, 6>, 2>;
 using CorrectionHistory = std::array<std::array<i32, 16384>, 2>;
 
-constexpr i32 HISTORY_MAX                     = 16384;
-constexpr u64 CORRECTION_HISTORY_ENTRY_NB     = 16384;
-constexpr i32 CORRECTION_HISTORY_GRAIN        = 256;
-constexpr i32 CORRECTION_HISTORY_WEIGHT_SCALE = 256;
-constexpr i32 CORRECTION_HISTORY_MAX          = CORRECTION_HISTORY_GRAIN * 64;
+constexpr i32 HISTORY_MAX                            = 16384;
+constexpr u64 CORRECTION_HISTORY_ENTRY_NB            = 16384;
+constexpr i32 CORRECTION_HISTORY_GRAIN               = 256;
+constexpr i32 CORRECTION_HISTORY_WEIGHT_SCALE        = 256;
+constexpr i32 CORRECTION_HISTORY_MAX                 = CORRECTION_HISTORY_GRAIN * 64;
+constexpr i32 CORRECTION_HISTORY_MOVE_KEY_WEIGHT_MUL = 2;
 
 namespace Search {
 struct Stack;
@@ -42,7 +43,10 @@ public:
     i32  get_noisy_stats(const Position& pos, Move move) const;
     void update_noisy_stats(const Position& pos, Move move, i32 bonus);
 
-    void update_correction_history(const Position& pos, i32 depth, i32 diff);
+    void update_correction_history(const Position&    pos,
+                                   i32                depth,
+                                   i32                diff,
+                                   const ZobristInfo* keys_after = nullptr);
     i32  get_correction(const Position& pos) const;
 
     void clear();

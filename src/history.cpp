@@ -89,37 +89,43 @@ void History::update_noisy_stats(const Position& pos, Move move, i32 bonus) {
                       bonus);
 }
 
-void History::update_correction_history(const Position& pos, i32 depth, i32 diff) {
-    usize side_index         = static_cast<usize>(pos.active_color());
-    u64   pawn_key           = pos.get_pawn_key();
-    u64   white_non_pawn_key = pos.get_non_pawn_key(Color::White);
-    u64   black_non_pawn_key = pos.get_non_pawn_key(Color::Black);
-    u64   major_key          = pos.get_major_key();
-    u64   minor_key          = pos.get_minor_key();
-    usize pawn_index         = static_cast<usize>(pawn_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize white_non_pawn_index =
-      static_cast<usize>(white_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize black_non_pawn_index =
-      static_cast<usize>(black_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize major_index = static_cast<usize>(major_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize minor_index = static_cast<usize>(minor_key % CORRECTION_HISTORY_ENTRY_NB);
+void History::update_correction_history(const Position&    pos,
+                                        i32                depth,
+                                        i32                diff,
+                                        const ZobristInfo* keys_after) {
+    usize side_index = static_cast<usize>(pos.active_color());
 
     i32 new_weight  = std::min(16, 1 + depth);
     i32 scaled_diff = diff * CORRECTION_HISTORY_GRAIN;
 
-    auto update_entry = [=](i32& entry) {
-        i32 update =
-          entry * (CORRECTION_HISTORY_WEIGHT_SCALE - new_weight) + scaled_diff * new_weight;
+    auto update_entry = [&](CorrectionHistory& table, u64 key, u64 key_after) {
+        i32& entry  = table[side_index][static_cast<usize>(key % CORRECTION_HISTORY_ENTRY_NB)];
+        i32  weight = new_weight;
+
+        if (keys_after != nullptr && key != key_after) {
+            i32 entry_after =
+              -table[side_index ^ 1][static_cast<usize>(key_after % CORRECTION_HISTORY_ENTRY_NB)];
+            if (entry_after > entry) {
+                weight *= CORRECTION_HISTORY_MOVE_KEY_WEIGHT_MUL;
+            }
+        }
+
+        i32 update = entry * (CORRECTION_HISTORY_WEIGHT_SCALE - weight) + scaled_diff * weight;
 
         entry = std::clamp(update / CORRECTION_HISTORY_WEIGHT_SCALE, -CORRECTION_HISTORY_MAX,
                            CORRECTION_HISTORY_MAX);
     };
 
-    update_entry(m_pawn_corr_hist[side_index][pawn_index]);
-    update_entry(m_non_pawn_corr_hist[0][side_index][white_non_pawn_index]);
-    update_entry(m_non_pawn_corr_hist[1][side_index][black_non_pawn_index]);
-    update_entry(m_major_corr_hist[side_index][major_index]);
-    update_entry(m_minor_corr_hist[side_index][minor_index]);
+    const ZobristInfo& keys = pos.get_zobrist_info();
+    const ZobristInfo& next = keys_after != nullptr ? *keys_after : keys;
+
+    update_entry(m_pawn_corr_hist, keys.pawn_key(), next.pawn_key());
+    update_entry(m_non_pawn_corr_hist[0], keys.non_pawn_key(Color::White),
+                 next.non_pawn_key(Color::White));
+    update_entry(m_non_pawn_corr_hist[1], keys.non_pawn_key(Color::Black),
+                 next.non_pawn_key(Color::Black));
+    update_entry(m_major_corr_hist, keys.major_key(), next.major_key());
+    update_entry(m_minor_corr_hist, keys.minor_key(), next.minor_key());
 }
 
 i32 History::get_correction(const Position& pos) const {
