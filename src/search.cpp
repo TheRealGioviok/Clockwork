@@ -878,6 +878,8 @@ Value Worker::search(
 
         // Do move
         ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
+        // Clear child's fail low bonus
+        (ss + 1)->fail_low_bonus = 0;
 
         Position pos_after = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
         moves_played++;
@@ -991,6 +993,12 @@ Value Worker::search(
             return 0;
         }
 
+        // The child node found no move that beats its alpha, so this move
+        // refuted everything it tried.
+        if (quiet && (ss + 1)->fail_low_bonus > 0) {
+            m_td.history.update_quiet_stats(pos, m, ply, ss, (ss + 1)->fail_low_bonus);
+        }
+
         if (ROOT_NODE) {
             auto& root_move = get_root_move(m);
 
@@ -1064,6 +1072,9 @@ Value Worker::search(
         for (Move noisy : noisies_played) {
             m_td.history.update_noisy_stats(pos, noisy, -malus);
         }
+    } else if (best_move == Move::none() && moves_played > 0 && !excluded) {
+        // Hand the bonus for the refutation move to the parent
+        ss->fail_low_bonus += std::max(0, stat_bonus(depth));
     }
 
     // Checkmate / Stalemate check

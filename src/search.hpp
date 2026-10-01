@@ -47,6 +47,7 @@ struct Stack {
     Move           excluded_move;
     ContHistEntry* cont_hist_entry = nullptr;
     i32            fail_high_count = 0;
+    i32            fail_low_bonus  = 0;
     PV             pv;
 };
 
