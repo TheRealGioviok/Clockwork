@@ -13,6 +13,15 @@ using ContHistory   = std::array<std::array<std::array<ContHistEntry, 64>, 6>, 2
 using CaptHistory       = std::array<std::array<std::array<std::array<i32, 64>, 6>, 6>, 2>;
 using CorrectionHistory = std::array<std::array<i32, 16384>, 2>;
 
+constexpr i32   IMBALANCE_PAWN_CLAMP  = 3;
+constexpr i32   IMBALANCE_MINOR_CLAMP = 2;
+constexpr i32   IMBALANCE_ROOK_CLAMP  = 2;
+constexpr i32   IMBALANCE_QUEEN_CLAMP = 1;
+constexpr usize IMBALANCE_ENTRY_NB =
+  (2 * IMBALANCE_PAWN_CLAMP + 1) * (2 * IMBALANCE_MINOR_CLAMP + 1) * (2 * IMBALANCE_MINOR_CLAMP + 1)
+  * (2 * IMBALANCE_ROOK_CLAMP + 1) * (2 * IMBALANCE_QUEEN_CLAMP + 1);
+using ImbalanceCorrectionHistory = std::array<std::array<i32, IMBALANCE_ENTRY_NB>, 2>;
+
 constexpr i32 HISTORY_MAX                     = 16384;
 constexpr u64 CORRECTION_HISTORY_ENTRY_NB     = 16384;
 constexpr i32 CORRECTION_HISTORY_GRAIN        = 256;
@@ -57,13 +66,14 @@ private:
         entry = std::clamp(entry, -2 * HISTORY_MAX, 2 * HISTORY_MAX);
     }
 
-    MainHistory                      m_main_hist          = {};
-    ContHistory                      m_cont_hist          = {};
-    CaptHistory                      m_capt_hist          = {};
-    CorrectionHistory                m_pawn_corr_hist     = {};
-    std::array<CorrectionHistory, 2> m_non_pawn_corr_hist = {};
-    CorrectionHistory                m_major_corr_hist    = {};
-    CorrectionHistory                m_minor_corr_hist    = {};
+    MainHistory                      m_main_hist           = {};
+    ContHistory                      m_cont_hist           = {};
+    CaptHistory                      m_capt_hist           = {};
+    CorrectionHistory                m_pawn_corr_hist      = {};
+    std::array<CorrectionHistory, 2> m_non_pawn_corr_hist  = {};
+    CorrectionHistory                m_major_corr_hist     = {};
+    CorrectionHistory                m_minor_corr_hist     = {};
+    ImbalanceCorrectionHistory       m_imbalance_corr_hist = {};
 };
 
 }  // namespace Clockwork

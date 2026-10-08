@@ -89,6 +89,20 @@ void History::update_noisy_stats(const Position& pos, Move move, i32 bonus) {
                       bonus);
 }
 
+usize imbalance_index(const Position& pos) {
+    auto diff = [&](PieceType pt, i32 clamp) {
+        i32 d = pos.i32piece_count(Color::White, pt) - pos.i32piece_count(Color::Black, pt);
+        return static_cast<usize>(std::clamp(d, -clamp, clamp) + clamp);
+    };
+    usize idx = diff(PieceType::Pawn, IMBALANCE_PAWN_CLAMP);
+    idx = idx * (2 * IMBALANCE_MINOR_CLAMP + 1) + diff(PieceType::Knight, IMBALANCE_MINOR_CLAMP);
+    idx = idx * (2 * IMBALANCE_MINOR_CLAMP + 1) + diff(PieceType::Bishop, IMBALANCE_MINOR_CLAMP);
+    idx = idx * (2 * IMBALANCE_ROOK_CLAMP + 1) + diff(PieceType::Rook, IMBALANCE_ROOK_CLAMP);
+    idx = idx * (2 * IMBALANCE_QUEEN_CLAMP + 1) + diff(PieceType::Queen, IMBALANCE_QUEEN_CLAMP);
+    return idx;
+}
+
+
 void History::update_correction_history(const Position& pos, i32 depth, i32 diff) {
     usize side_index         = static_cast<usize>(pos.active_color());
     u64   pawn_key           = pos.get_pawn_key();
@@ -101,8 +115,9 @@ void History::update_correction_history(const Position& pos, i32 depth, i32 diff
       static_cast<usize>(white_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
     usize black_non_pawn_index =
       static_cast<usize>(black_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize major_index = static_cast<usize>(major_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize minor_index = static_cast<usize>(minor_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize major_index   = static_cast<usize>(major_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize minor_index   = static_cast<usize>(minor_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize imbalance_idx = imbalance_index(pos);
 
     i32 new_weight  = std::min(16, 1 + depth);
     i32 scaled_diff = diff * CORRECTION_HISTORY_GRAIN;
@@ -120,6 +135,7 @@ void History::update_correction_history(const Position& pos, i32 depth, i32 diff
     update_entry(m_non_pawn_corr_hist[1][side_index][black_non_pawn_index]);
     update_entry(m_major_corr_hist[side_index][major_index]);
     update_entry(m_minor_corr_hist[side_index][minor_index]);
+    update_entry(m_imbalance_corr_hist[side_index][imbalance_idx]);
 }
 
 i32 History::get_correction(const Position& pos) const {
@@ -134,8 +150,9 @@ i32 History::get_correction(const Position& pos) const {
       static_cast<usize>(white_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
     usize black_non_pawn_index =
       static_cast<usize>(black_non_pawn_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize major_index = static_cast<usize>(major_key % CORRECTION_HISTORY_ENTRY_NB);
-    usize minor_index = static_cast<usize>(minor_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize major_index   = static_cast<usize>(major_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize minor_index   = static_cast<usize>(minor_key % CORRECTION_HISTORY_ENTRY_NB);
+    usize imbalance_idx = imbalance_index(pos);
 
     i32 correction = 0;
     correction += m_pawn_corr_hist[side_index][pawn_index];
@@ -143,6 +160,7 @@ i32 History::get_correction(const Position& pos) const {
     correction += m_non_pawn_corr_hist[1][side_index][black_non_pawn_index];
     correction += m_major_corr_hist[side_index][major_index];
     correction += m_minor_corr_hist[side_index][minor_index];
+    correction += m_imbalance_corr_hist[side_index][imbalance_idx];
 
     return correction / CORRECTION_HISTORY_GRAIN;
 }
@@ -156,6 +174,7 @@ void History::clear() {
     std::memset(&m_non_pawn_corr_hist[1], 0, sizeof(CorrectionHistory));
     std::memset(&m_major_corr_hist, 0, sizeof(CorrectionHistory));
     std::memset(&m_minor_corr_hist, 0, sizeof(CorrectionHistory));
+    std::memset(&m_imbalance_corr_hist, 0, sizeof(ImbalanceCorrectionHistory));
 }
 
 }  // namespace Clockwork
