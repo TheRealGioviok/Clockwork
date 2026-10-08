@@ -399,7 +399,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb2)];
     }
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
-        eval += BISHOP_PAIR_VAL;
+        eval += BISHOP_PAIR_VAL[data.piece_count(opp, PieceType::Knight) == 0 && data.piece_count(opp, PieceType::Bishop) == 0];
     }
 
     return eval;

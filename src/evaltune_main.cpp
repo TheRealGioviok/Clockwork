@@ -601,7 +601,7 @@ void print_params() {
 
     std::cout << "inline const PParam BISHOP_XRAY_PAWNS   = " << BISHOP_XRAY_PAWNS << ";"
               << std::endl;
-    std::cout << "inline const PParam BISHOP_PAIR_VAL   = " << BISHOP_PAIR_VAL << ";" << std::endl;
+    print_table("BISHOP_PAIR_VAL", BISHOP_PAIR_VAL);
     std::cout << "inline const PParam ROOK_OPEN_VAL     = " << ROOK_OPEN_VAL << ";" << std::endl;
     std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
               << std::endl;
