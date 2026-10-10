@@ -385,24 +385,21 @@ const std::array<PsqtTotal, 4> PSQT_TOTALS = {
 };
 
 struct PsqtMobilityAccumulator {
-    i64 sum_mg = 0;
-    i64 sum_eg = 0;
-    i64 count  = 0;
+    PScore sum   = PSCORE_ZERO; 
+    i32    count = 0;
 
     void add(const std::array<PParam, 64>& table, Bitboard reach, u8 flip) {
-        count += static_cast<i64>(reach.popcount());
         for (Square sq : reach) {
-            const PParam p = table[static_cast<usize>(sq.raw ^ flip)];
-            sum_mg += p.mg();
-            sum_eg += p.eg();
+            sum += table[static_cast<usize>(sq.raw ^ flip)];
         }
+        count += reach.ipopcount();
     }
 
     PScore score(usize blend_index) const {
         const PParam    blend = PSQT_MOBILITY_BLEND[blend_index];
         const PsqtTotal total = PSQT_TOTALS[blend_index];
-        const i64       mg    = blend.mg() * (64 * sum_mg - count * total.mg) / PSQT_BLEND_DENOM;
-        const i64       eg    = blend.eg() * (64 * sum_eg - count * total.eg) / PSQT_BLEND_DENOM;
+        const i64 mg = blend.mg() * (64 * i64{sum.mg()} - count * total.mg) / PSQT_BLEND_DENOM;
+        const i64 eg = blend.eg() * (64 * i64{sum.eg()} - count * total.eg) / PSQT_BLEND_DENOM;
         return PScore(static_cast<Score>(mg), static_cast<Score>(eg));
     }
 };
