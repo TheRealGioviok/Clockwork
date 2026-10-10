@@ -26,6 +26,8 @@ private:
     usize m_global_param_count = 0;
     usize m_global_pair_count  = 0;
 
+    usize m_generation = 0;
+
     // Constant zeros to optimize certain operations (e.g. adding zero)
     ValueHandle m_zero_value;
     PairHandle  m_zero_pair;
@@ -66,7 +68,10 @@ public:
 
     void backward();
 
-    void       cleanup();
+    void  cleanup();
+    usize generation() const {
+        return m_generation;
+    }
     void       zero_grad();
     void       copy_parameter_values(const Parameters& source);
     Parameters get_all_parameter_values() const;

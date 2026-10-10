@@ -691,6 +691,9 @@ void print_params() {
     printPsqtArray("KING_PSQT", KING_PSQT);
     std::cout << std::endl;
 
+    print_table("PSQT_MOBILITY_BLEND", PSQT_MOBILITY_BLEND);
+    std::cout << std::endl;
+
 
     std::cout << "inline const PParam KS_NO_QUEEN = " << KS_NO_QUEEN << ";" << std::endl;
     std::cout << std::endl;

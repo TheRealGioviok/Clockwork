@@ -350,6 +350,111 @@ PScore evaluate_pawn_push_threats(const Position& pos) {
     return eval;
 }
 
+// PSQT-weighted mobility
+// For every square t in the mobility set, the piece receives BLEND * (PSQT[t] - mean(PSQT))
+namespace {
+
+constexpr usize PSQT_BLEND_KNIGHT = 0;
+constexpr usize PSQT_BLEND_BISHOP = 1;
+constexpr usize PSQT_BLEND_ROOK   = 2;
+constexpr usize PSQT_BLEND_QUEEN  = 3;
+
+constexpr i64 PSQT_BLEND_DENOM = 64 * 1024;
+
+#ifndef EVAL_TUNING
+
+struct PsqtTotal {
+    i64 mg;
+    i64 eg;
+};
+
+PsqtTotal psqt_total(const std::array<PParam, 64>& table) {
+    PsqtTotal total{0, 0};
+    for (const PParam& p : table) {
+        total.mg += p.mg();
+        total.eg += p.eg();
+    }
+    return total;
+}
+
+const std::array<PsqtTotal, 4> PSQT_TOTALS = {
+  psqt_total(KNIGHT_PSQT),
+  psqt_total(BISHOP_PSQT),
+  psqt_total(ROOK_PSQT),
+  psqt_total(QUEEN_PSQT),
+};
+
+struct PsqtMobilityAccumulator {
+    i64 sum_mg = 0;
+    i64 sum_eg = 0;
+    i64 count  = 0;
+
+    void add(const std::array<PParam, 64>& table, Bitboard reach, u8 flip) {
+        count += static_cast<i64>(reach.popcount());
+        for (Square sq : reach) {
+            const PParam p = table[static_cast<usize>(sq.raw ^ flip)];
+            sum_mg += p.mg();
+            sum_eg += p.eg();
+        }
+    }
+
+    PScore score(usize blend_index) const {
+        const PParam    blend = PSQT_MOBILITY_BLEND[blend_index];
+        const PsqtTotal total = PSQT_TOTALS[blend_index];
+        const i64       mg    = blend.mg() * (64 * sum_mg - count * total.mg) / PSQT_BLEND_DENOM;
+        const i64       eg    = blend.eg() * (64 * sum_eg - count * total.eg) / PSQT_BLEND_DENOM;
+        return PScore(static_cast<Score>(mg), static_cast<Score>(eg));
+    }
+};
+
+#else
+
+PScore psqt_total_handle(usize blend_index) {
+    thread_local std::array<PScore, 4> totals;
+    thread_local usize                 generation = static_cast<usize>(-1);
+    if (generation != Autograd::Graph::get().generation()) {
+        generation = Autograd::Graph::get().generation();
+        for (usize i = 0; i < 4; ++i) {
+            const std::array<PParam, 64>& table = i == PSQT_BLEND_KNIGHT ? KNIGHT_PSQT
+                                                : i == PSQT_BLEND_BISHOP ? BISHOP_PSQT
+                                                : i == PSQT_BLEND_ROOK   ? ROOK_PSQT
+                                                                         : QUEEN_PSQT;
+            PScore                        total = PSCORE_ZERO;
+            for (const PParam& p : table) {
+                total += p;
+            }
+            totals[i] = total;
+        }
+    }
+    return totals[blend_index];
+}
+
+struct PsqtMobilityAccumulator {
+    PScore sum   = PSCORE_ZERO;
+    i64    count = 0;
+
+    void add(const std::array<PParam, 64>& table, Bitboard reach, u8 flip) {
+        count += static_cast<i64>(reach.popcount());
+        for (Square sq : reach) {
+            sum += table[static_cast<usize>(sq.raw ^ flip)];
+        }
+    }
+
+    PScore score(usize blend_index) const {
+        if (count == 0) {
+            return PSCORE_ZERO;
+        }
+        const PScore blend = PSQT_MOBILITY_BLEND[blend_index];
+        const PScore centered =
+          sum * 64.0 - psqt_total_handle(blend_index) * static_cast<f64>(count);
+        return (blend * centered) / static_cast<f64>(PSQT_BLEND_DENOM);
+    }
+};
+
+#endif
+
+}  // namespace
+
 template<Color color>
 PScore evaluate_pieces(const Position& pos, EvalData& data) {
     constexpr Color opp       = ~color;
@@ -364,11 +469,24 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     Bitboard bb = (blocked_pawns | own_early_pawns) | data.attacked_by(opp, PieceType::Pawn);
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
+
+    const u8 psqt_flip =
+      static_cast<u8>((color == Color::White ? 56 : 0) | (pos.king_side(color) ? 7 : 0));
+    PsqtMobilityAccumulator psqt_mob;
+
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        const Bitboard attacks =
+          pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+        eval += KNIGHT_MOBILITY[(attacks & ~bb).popcount()];
+        psqt_mob.add(KNIGHT_PSQT, attacks & ~bb, psqt_flip);
     }
+    eval += psqt_mob.score(PSQT_BLEND_KNIGHT);
+    psqt_mob = {};
     for (PieceId id : pos.get_piece_mask(color, PieceType::Bishop)) {
-        eval += BISHOP_MOBILITY[pos.mobility_of(color, id, ~bb)];
+        const Bitboard attacks =
+          pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+        eval += BISHOP_MOBILITY[(attacks & ~bb).popcount()];
+        psqt_mob.add(BISHOP_PSQT, attacks & ~bb, psqt_flip);
         Square sq = pos.piece_list_sq(color)[id];
         eval += BISHOP_PAWNS[std::min(
                   static_cast<usize>(8),
@@ -381,10 +499,15 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard xray = diagonal_squares_table[sq.raw];
         eval += BISHOP_XRAY_PAWNS * (xray & pos.bitboard_for(opp, PieceType::Pawn)).ipopcount();
     }
+    eval += psqt_mob.score(PSQT_BLEND_BISHOP);
+    psqt_mob = {};
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += ROOK_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        const Bitboard attacks =
+          pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+        eval += ROOK_MOBILITY[(attacks & ~bb).popcount()];
+        eval += ROOK_MOBILITY[(attacks & ~bb2).popcount()];
+        psqt_mob.add(ROOK_PSQT, attacks & ~bb, psqt_flip);
         // Rook lineups
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
         eval += ROOK_LINEUP
@@ -393,11 +516,17 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
                     | pos.bitboard_for(color, PieceType::Queen)))
                   .ipopcount();
     }
+    eval += psqt_mob.score(PSQT_BLEND_ROOK);
+    psqt_mob = {};
     bb2 |= data.attacked_by(opp, PieceType::Rook);
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb)];
-        eval += QUEEN_MOBILITY[pos.mobility_of(color, id, ~bb2)];
+        const Bitboard attacks =
+          pos.attack_table(color).get_piece_mask_bitboard(id.to_piece_mask());
+        eval += QUEEN_MOBILITY[(attacks & ~bb).popcount()];
+        eval += QUEEN_MOBILITY[(attacks & ~bb2).popcount()];
+        psqt_mob.add(QUEEN_PSQT, attacks & ~bb, psqt_flip);
     }
+    eval += psqt_mob.score(PSQT_BLEND_QUEEN);
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;
     }

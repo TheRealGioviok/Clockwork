@@ -594,6 +594,7 @@ void Graph::cleanup() {
     m_pairs.reset_to(m_global_pair_count + 1);
     m_tape.clear();
     m_sum_buffer.clear();
+    ++m_generation;
 }
 
 void Graph::zero_grad() {
