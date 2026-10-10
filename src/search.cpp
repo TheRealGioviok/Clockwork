@@ -39,13 +39,13 @@ static Value tb_loss_in(i32 ply) {
 }
 
 static i32 stat_bonus(Depth bonus_depth) {
-    return std::min(tuned::stat_bonus_max, tuned::stat_bonus_quad * bonus_depth * bonus_depth
+    return std::min(tuned::stat_bonus_max, tuned::stat_bonus_quad * bonus_depth * bonus_depth / 16
                                              + tuned::stat_bonus_lin * bonus_depth
                                              - tuned::stat_bonus_sub);
 }
 
 static i32 stat_malus(Depth malus_depth) {
-    return std::min(tuned::stat_malus_max, tuned::stat_malus_quad * malus_depth * malus_depth
+    return std::min(tuned::stat_malus_max, tuned::stat_malus_quad * malus_depth * malus_depth / 16
                                              + tuned::stat_malus_lin * malus_depth
                                              - tuned::stat_malus_sub);
 }
@@ -158,7 +158,7 @@ u64 Searcher::tb_hit_count() {
     for (auto& worker : m_workers) {
         tb_hits += worker->tb_hits();
     }
-    return tb_hits;
+    return tb_hits; 
 }
 
 void Searcher::init_root_moves(const Position& root_position, RepetitionInfo& repetition_info) {
@@ -435,7 +435,8 @@ Move Worker::iterative_deepening(const Position& root_position) {
         if (IS_MAIN && search_depth >= 6) {
             f64 complexity = 0;
             if (!is_decisive_score(score)) {
-                complexity = 0.6 * abs(base_search_score - score) * std::log(search_depth);
+                complexity = tuned::tm_complexity_mult / 1000.0 * abs(base_search_score - score)
+                           * std::log(search_depth);
             }
             m_search_limits.soft_time_limit = TM::compute_soft_limit<true>(
               m_search_start, m_searcher.settings, root_position.active_color(), nodes_tm_fraction,
@@ -648,9 +649,10 @@ Value Worker::search(
         && !excluded && tt_adjusted_eval >= beta + tuned::nmp_beta_margin && !is_loss_score(beta)
         && !m_in_nmp_verification) {
 
-        i32 R = tuned::nmp_base_r + depth * tuned::nmp_depth_r
-              + std::min(3 * 64, (tt_adjusted_eval - beta) * 64 / tuned::nmp_beta_diff)
-              + improving * tuned::nmp_improving_r;
+        i32 R =
+          tuned::nmp_base_r + depth * tuned::nmp_depth_r
+          + std::min(tuned::nmp_eval_r_cap, (tt_adjusted_eval - beta) * 64 / tuned::nmp_beta_diff)
+          + improving * tuned::nmp_improving_r;
         R /= 64;
 
         Position pos_after = pos.null_move();
@@ -779,7 +781,8 @@ Value Worker::search(
 
             // Forward Futility Pruning (FFP)
             Value futility = ss->static_eval + tuned::ffp_margin_base
-                           + tuned::ffp_margin_mult * depth + move_history / tuned::ffp_hist_div;
+                           + tuned::ffp_margin_mult * depth
+                           + move_history * 64 / tuned::ffp_hist_div;
             if (quiet && !is_in_check && depth <= tuned::ffp_depth && futility <= alpha) {
                 moves.skip_quiets();
                 continue;
@@ -792,15 +795,16 @@ Value Worker::search(
             }
 
             Value see_threshold =
-              quiet ? tuned::see_pvs_quiet * depth : tuned::see_pvs_noisy_quad * depth * depth;
+              quiet ? tuned::see_pvs_quiet * depth : tuned::see_pvs_noisy_quad * depth * depth / 64;
             // SEE PVS Pruning
             if (!SEE::see(pos, m, see_threshold - move_history * tuned::see_pvs_hist_mult / 1024)) {
                 continue;
             }
 
-            Value bad_noisy_futility_margin = ss->static_eval + 75 * depth;
+            Value bad_noisy_futility_margin = ss->static_eval + tuned::bnfp_margin_mult * depth;
             // Bad Noisy Futility Pruning
-            if (!is_in_check && depth <= 8 && moves.stage() == MovePicker::Stage::EmitBadNoisy
+            if (!is_in_check && depth <= tuned::bnfp_depth
+                && moves.stage() == MovePicker::Stage::EmitBadNoisy
                 && bad_noisy_futility_margin <= alpha) {
                 if (!is_decisive_score(beta) && best_value < bad_noisy_futility_margin) {
                     best_value = bad_noisy_futility_margin;
@@ -876,7 +880,7 @@ Value Worker::search(
                       * SEE::value(PieceType::Knight);
                 }
 
-                if (non_pawn_material <= 2 * SEE::value(PieceType::Rook)) {
+                if (non_pawn_material <= tuned::capt_ext_material) {
                     extension = 1;
                 }
             }
@@ -943,7 +947,7 @@ Value Worker::search(
             }
 
             if (quiet) {
-                reduction += (tuned::lmr_quiet_hist_base - move_history / tuned::lmr_hist_div);
+                reduction += (tuned::lmr_quiet_hist_base - move_history * 64 / tuned::lmr_hist_div);
                 reduction +=
                   (ss->static_eval + tuned::lmr_fut_red_base + tuned::lmr_fut_red_mult * depth
                      <= alpha
@@ -961,9 +965,11 @@ Value Worker::search(
             value = -search<IS_MAIN, false>(pos_after, ss + 1, -alpha - 1, -alpha, reduced_depth,
                                             ply + 1, true);
             if (value > alpha) {
-                const bool do_deeper = reduced_depth < new_depth && value > best_value + 94;
+                const bool do_deeper =
+                  reduced_depth < new_depth && value > best_value + tuned::lmr_deeper_margin;
                 const bool do_shallower =
-                  !do_deeper && new_depth > 1 && value < best_value + new_depth;
+                  !do_deeper && new_depth > 1
+                  && value < best_value + new_depth * tuned::lmr_shallower_mult / 1024;
                 new_depth += do_deeper;
                 new_depth -= do_shallower;
 
@@ -1060,7 +1066,7 @@ Value Worker::search(
     }
 
     if (best_value >= beta) {
-        i32       bonus_depth = depth + (best_value >= beta + 100);
+        i32       bonus_depth = depth + (best_value >= beta + tuned::hist_bonus_depth_margin);
         const i32 bonus       = stat_bonus(bonus_depth);
         const i32 malus       = stat_malus(bonus_depth);
         if (quiet_move(best_move)) {
@@ -1290,7 +1296,7 @@ Value Worker::adj_shuffle(const Position& pos, Value value) {
 
     // Scale down the value when the fifty-move counter is high.
     i32 clock = pos.get_50mr_counter();
-    value     = value * (200 - clock) / 200;
+    value     = value * (tuned::adj_shuffle_div - clock) / tuned::adj_shuffle_div;
 
     return value;
 }
