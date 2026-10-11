@@ -602,6 +602,10 @@ void print_params() {
     std::cout << "inline const PParam BISHOP_XRAY_PAWNS   = " << BISHOP_XRAY_PAWNS << ";"
               << std::endl;
     std::cout << "inline const PParam BISHOP_PAIR_VAL   = " << BISHOP_PAIR_VAL << ";" << std::endl;
+    std::cout << "inline const PParam REDUNDANT_ROOK_PENALTY  = " << REDUNDANT_ROOK_PENALTY << ";"
+              << std::endl;
+    std::cout << "inline const PParam REDUNDANT_QUEEN_PENALTY = " << REDUNDANT_QUEEN_PENALTY << ";"
+              << std::endl;
     std::cout << "inline const PParam ROOK_OPEN_VAL     = " << ROOK_OPEN_VAL << ";" << std::endl;
     std::cout << "inline const PParam ROOK_SEMIOPEN_VAL = " << ROOK_SEMIOPEN_VAL << ";"
               << std::endl;

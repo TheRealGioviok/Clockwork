@@ -401,6 +401,11 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;
     }
+    // Redundancy of major pieces (Kaufman)
+    if (data.piece_count(color, PieceType::Rook) >= 1) {
+        eval -= REDUNDANT_ROOK_PENALTY * (data.piece_count(color, PieceType::Rook) - 1)
+              + REDUNDANT_QUEEN_PENALTY * data.piece_count(color, PieceType::Queen);
+    }
 
     return eval;
 }
