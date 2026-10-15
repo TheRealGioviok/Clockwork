@@ -41,6 +41,8 @@ using f64 = double;
 
 // Import vector types (u8x64, u64x8, u16x64, ...)
 using namespace lps::prelude;
+// TODO: possibly pr this for ease of use into lps
+using i32x16 = lps::prelude::vector<i32, 16>;
 
 namespace time {
 using Clock        = std::chrono::steady_clock;
