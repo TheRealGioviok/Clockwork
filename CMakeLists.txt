@@ -128,6 +128,8 @@ set(srcs
     src/perft.hpp
     src/position.cpp
     src/position.hpp
+    src/psqt.cpp
+    src/psqt.hpp
     src/psqt_state.hpp
     src/repetition_info.cpp
     src/repetition_info.hpp
