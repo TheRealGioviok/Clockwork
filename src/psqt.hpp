@@ -33,15 +33,22 @@ const std::array<PParam, 64>& psqt_table(usize blend_index);
 
 using PsqtPlane = std::array<i8, 128>;
 
+/*
+    Byte position of square sq in the count vector
+    x00000 which 32-byte half (AVX2 register) of the count vector
+    0x0000 which 128-bit lane within that half
+    00x000 first 8 bytes of the lane (zip_low) or last 8 (zip_high)
+    000xx0 square pair within those 8 bytes
+    00000x which square of the pair
+*/
 constexpr usize psqt_plane_index(usize sq, bool endgame) {
-    // which 32-byte half of the count vector
-    const usize half = sq / 32;
-    // 128-bit lane within that half
-    const usize lane = (sq % 32) / 16;
-    // zip_low (squares 0-7 of the lane) or zip_high
-    const usize low   = (sq % 16) < 8;
-    const usize pair  = (sq % 8) / 2;
-    const usize block = (low ? 0 : 2) + half;
+
+    const usize half = (sq >> 5) & 1;
+    const usize lane = (sq >> 4) & 1;
+    const usize high = (sq >> 3) & 1;
+    const usize pair = (sq >> 1) & 3;
+    // zip_low of both halves comes first (blocks 0,1), then zip_high (blocks 2,3)
+    const usize block = 2 * high + half;
     return 32 * block + 16 * lane + 4 * pair + (endgame ? 2 : 0) + (sq & 1);
 }
 
@@ -65,14 +72,14 @@ extern const PsqtPlaneSet PSQT_PLANES;
 inline const u8x64 PSQT_BYTE_SELECT = [] {
     std::array<u8, 64> a{};
     for (usize sq = 0; sq < 64; ++sq) {
-        a[sq] = static_cast<u8>(sq / 8);  // which mask byte holds this square
+        a[sq] = static_cast<u8>(sq >> 3);  // which mask byte holds this square
     }
     return u8x64{a};
 }();
 inline const u8x64 PSQT_BIT_SELECT = [] {
     std::array<u8, 64> a{};
     for (usize sq = 0; sq < 64; ++sq) {
-        a[sq] = static_cast<u8>(1 << (sq % 8));  // which bit of that byte is this square
+        a[sq] = static_cast<u8>(1 << (sq & 7));  // which bit of that byte is this square
     }
     return u8x64{a};
 }();
