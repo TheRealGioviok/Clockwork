@@ -116,8 +116,7 @@ struct PsqtMobilityAccumulator {
         const u8x16 mask  = std::bit_cast<u8x16>(std::array<u64, 2>{reach.value(), reach.value()});
         const u8x64 bytes = PSQT_BYTE_SELECT.swizzle(mask);
         // Keep bit i % 8 and compare, sub since it returns -1 or 0
-        m_counts -=
-          std::bit_cast<u8x64>((bytes & PSQT_BIT_SELECT).eq_vm(PSQT_BIT_SELECT).to_vector());
+        m_counts -= std::bit_cast<u8x64>((bytes & PSQT_BIT_SELECT).eq(PSQT_BIT_SELECT).to_vector());
         m_dirty = true;
     }
 
