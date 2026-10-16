@@ -31,7 +31,7 @@ struct Centered {
     i64 eg = 0;
 };
 
-// Per-square contribution BLEND_t * (64 * PSQT_t[sq] - ΣPSQT_t) stored as fp
+// Per-square contribution BLEND_t * (64 * PSQT_t[sq] - sum(PSQT_t)) stored as fp
 std::array<Centered, 64> centered_plane(usize blend_index) {
     const std::array<PParam, 64>& table = psqt_table(blend_index);
     const PParam                  blend = PSQT_MOBILITY_BLEND[blend_index];
