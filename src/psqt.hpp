@@ -11,23 +11,19 @@
 namespace Clockwork {
 
 
-// PSQ^T (transposed psq tables) implementation
-// The idea is to have a the psq score be assigned not as a simple pointwise op, but also as a "diffusion" over squares in mobility
-
-// for every square t in a piece's mobility set, the piece receives
-//      BLEND_pt * (PSQT_pt[t] - mean(PSQT_pt)).
-// over the reachable squares of all pieces of one type this becomrs
-//      BLEND * (64 * sum(PSQT[t]) - count * sum(PSQT)) / PSQT_BLEND_DENOM.
-
-
+// PSQ^T (transposed psq tables) implementation with tables dedicated
 constexpr usize PSQT_BLEND_KNIGHT = 0;
 constexpr usize PSQT_BLEND_BISHOP = 1;
 constexpr usize PSQT_BLEND_ROOK   = 2;
 constexpr usize PSQT_BLEND_QUEEN  = 3;
 
-constexpr i64 PSQT_BLEND_DENOM = 64 * 1024;
+// Index into a 32-entry file-mirrored table: rank * 4 + min(file, 7 - file)
+constexpr usize psqt_mirror_index(usize sq) {
+    const usize file = sq & 7;
+    return (sq >> 3) * 4 + (file < 4 ? file : 7 - file);
+}
 
-const std::array<PParam, 64>& psqt_table(usize blend_index);
+const PParam& mobility_psqt(usize blend_index, usize flipped_sq);
 
 #ifndef EVAL_TUNING
 
@@ -62,7 +58,7 @@ constexpr usize psqt_flip_index(u8 flip) {
 struct PsqtPlaneSet {
     // [blend_index][psqt_flip_index(flip)]
     alignas(32) std::array<std::array<PsqtPlane, 4>, 4> planes;
-    // fp shift
+    // planes hold table >> shift (shift chosen so the largest entry fits in an i8)
     i32 shift;
 };
 
@@ -143,9 +139,9 @@ struct PsqtMobilityAccumulator {
         const i32x16 packed = std::bit_cast<i32x16>(m_acc);
         const i32    mg     = packed.shl<16>().shr<16>().reduce_add();
         const i32    eg     = packed.shr<16>().reduce_add();
-        // The remaining part of the / PSQT_BLEND_DENOM not already folded into the planes
-        const i32 shift = 16 - PSQT_PLANES.shift;
-        return PScore(static_cast<Score>(mg >> shift), static_cast<Score>(eg >> shift));
+        // Undo the plane quantisation
+        return PScore(static_cast<Score>(mg << PSQT_PLANES.shift),
+                      static_cast<Score>(eg << PSQT_PLANES.shift));
     }
 
 private:
@@ -158,9 +154,6 @@ private:
 #else
 
 // Tuner version is trivial loop sum
-// TODO: this can definitely be done with standard mm and become quite faster
-PScore psqt_total_handle(usize blend_index);
-
 struct PsqtMobilityAccumulator {
     explicit PsqtMobilityAccumulator(u8 flip) :
         m_flip(flip) {
@@ -174,20 +167,12 @@ struct PsqtMobilityAccumulator {
         if (m_pending_count == 0) {
             return;
         }
-        const std::array<PParam, 64>& table = psqt_table(blend_index);
-        PScore                        sum   = PSCORE_ZERO;
-        i64                           count = 0;
         for (usize i = 0; i < m_pending_count; ++i) {
-            count += static_cast<i64>(m_pending[i].popcount());
             for (Square sq : m_pending[i]) {
-                sum += table[static_cast<usize>(sq.raw ^ m_flip)];
+                m_eval += mobility_psqt(blend_index, static_cast<usize>(sq.raw ^ m_flip));
             }
         }
-        m_pending_count    = 0;
-        const PScore blend = PSQT_MOBILITY_BLEND[blend_index];
-        const PScore centered =
-          sum * 64.0 - psqt_total_handle(blend_index) * static_cast<f64>(count);
-        m_eval += (blend * centered) / static_cast<f64>(PSQT_BLEND_DENOM);
+        m_pending_count = 0;
     }
 
     PScore score() const {

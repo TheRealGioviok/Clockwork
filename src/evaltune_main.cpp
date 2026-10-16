@@ -691,7 +691,24 @@ void print_params() {
     printPsqtArray("KING_PSQT", KING_PSQT);
     std::cout << std::endl;
 
-    print_table("PSQT_MOBILITY_BLEND", PSQT_MOBILITY_BLEND);
+    std::cout << "inline const std::array<std::array<PParam, 32>, 4> MOBILITY_PSQT = {{"
+              << std::endl;
+    for (const auto& table : MOBILITY_PSQT) {
+        std::cout << "{{" << std::endl;
+        for (std::size_t i = 0; i < table.size(); ++i) {
+            if ((i & 3) == 0) {
+                std::cout << "    ";
+            }
+            std::stringstream ss;
+            ss << table[i] << ",";
+            std::cout << std::left << std::setw(16) << ss.str();
+            if ((i & 3) == 3) {
+                std::cout << "//" << std::endl;
+            }
+        }
+        std::cout << "}}," << std::endl;
+    }
+    std::cout << "}};" << std::endl;
     std::cout << std::endl;
 
 

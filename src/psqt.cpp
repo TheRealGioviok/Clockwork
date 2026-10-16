@@ -8,18 +8,9 @@ namespace Clockwork {
 // PSQ^T (transposed psq tables) implementation
 // The idea is to have a the psq score be assigned not as a simple pointwise op, but also as a "diffusion" over squares in mobility
 
-// Blend weight selector
-const std::array<PParam, 64>& psqt_table(usize blend_index) {
-    switch (blend_index) {
-    case PSQT_BLEND_KNIGHT:
-        return KNIGHT_PSQT;
-    case PSQT_BLEND_BISHOP:
-        return BISHOP_PSQT;
-    case PSQT_BLEND_ROOK:
-        return ROOK_PSQT;
-    default:
-        return QUEEN_PSQT;
-    }
+// Table entry for a square
+const PParam& mobility_psqt(usize blend_index, usize flipped_sq) {
+    return MOBILITY_PSQT[blend_index][psqt_mirror_index(flipped_sq)];
 }
 
 #ifndef EVAL_TUNING
@@ -31,21 +22,13 @@ struct Centered {
     i64 eg = 0;
 };
 
-// Per-square contribution BLEND_t * (64 * PSQT_t[sq] - sum(PSQT_t)) stored as fp
+// Per-square contribution MOBILITY_PSQT_t[mirror(sq)]
 std::array<Centered, 64> centered_plane(usize blend_index) {
-    const std::array<PParam, 64>& table = psqt_table(blend_index);
-    const PParam                  blend = PSQT_MOBILITY_BLEND[blend_index];
-
-    Centered total;
-    for (const PParam& p : table) {
-        total.mg += p.mg();
-        total.eg += p.eg();
-    }
-
     std::array<Centered, 64> plane;
     for (usize sq = 0; sq < 64; ++sq) {
-        plane[sq].mg = blend.mg() * (64 * i64{table[sq].mg()} - total.mg);
-        plane[sq].eg = blend.eg() * (64 * i64{table[sq].eg()} - total.eg);
+        const PParam& p = mobility_psqt(blend_index, sq);
+        plane[sq].mg    = p.mg();
+        plane[sq].eg    = p.eg();
     }
     return plane;
 }
@@ -82,24 +65,6 @@ const PsqtPlaneSet PSQT_PLANES = [] {
     }
     return set;
 }();
-
-#else
-// TODO: this can be done with mm in tuner but requires a decent tuner overhaul
-PScore psqt_total_handle(usize blend_index) {
-    thread_local std::array<PScore, 4> totals;
-    thread_local usize                 generation = static_cast<usize>(-1);
-    if (generation != Autograd::Graph::get().generation()) {
-        generation = Autograd::Graph::get().generation();
-        for (usize i = 0; i < 4; ++i) {
-            PScore total = PSCORE_ZERO;
-            for (const PParam& p : psqt_table(i)) {
-                total += p;
-            }
-            totals[i] = total;
-        }
-    }
-    return totals[blend_index];
-}
 
 #endif
 
