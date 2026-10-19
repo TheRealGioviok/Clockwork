@@ -1,5 +1,6 @@
 #include "history.hpp"
 #include "search.hpp"
+#include "tuned.hpp"
 
 namespace Clockwork {
 
@@ -69,7 +70,7 @@ void History::update_quiet_stats(
     auto  from_attacked = pos.is_square_attacked_by(move.from(), ~pos.active_color());
     usize stm_idx       = static_cast<usize>(pos.active_color());
     update_hist_entry(m_main_hist[stm_idx][move.from_to()][from_attacked * 2 + to_attacked], bonus);
-    update_cont_hist(pos, move, ply, ss, bonus / 2);
+    update_cont_hist(pos, move, ply, ss, bonus * tuned::conthist_bonus_mult / 1024);
 }
 
 i32 History::get_noisy_stats(const Position& pos, Move move) const {
@@ -113,7 +114,9 @@ void History::update_correction_history(
     usize major_index = static_cast<usize>(major_key % CORRECTION_HISTORY_ENTRY_NB);
     usize minor_index = static_cast<usize>(minor_key % CORRECTION_HISTORY_ENTRY_NB);
 
-    i32 new_weight  = std::min(16, 1 + depth);
+    i32 new_weight =
+      std::min(tuned::corrhist_weight_max,
+               (tuned::corrhist_weight_base + depth * tuned::corrhist_weight_depth) / 64);
     i32 scaled_diff = diff * CORRECTION_HISTORY_GRAIN;
 
     auto update_entry = [=](i32& entry) {
