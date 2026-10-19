@@ -158,7 +158,7 @@ u64 Searcher::tb_hit_count() {
     for (auto& worker : m_workers) {
         tb_hits += worker->tb_hits();
     }
-    return tb_hits; 
+    return tb_hits;
 }
 
 void Searcher::init_root_moves(const Position& root_position, RepetitionInfo& repetition_info) {
@@ -775,7 +775,11 @@ Value Worker::search(
 
         if (!ROOT_NODE && !is_loss_score(best_value)) {
             // Late Move Pruning (LMP)
-            if (moves_played >= (tuned::lmp_depth_mult + depth * depth) / (2 - improving)) {
+            const i32 lmp_limit =
+              (tuned::lmp_base + tuned::lmp_lin * depth + tuned::lmp_quad * depth * depth) / 64;
+            const i32 lmp_mult =
+              improving ? tuned::lmp_improving_mult : tuned::lmp_not_improving_mult;
+            if (moves_played >= lmp_limit * lmp_mult / 1024) {
                 break;
             }
 

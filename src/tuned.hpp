@@ -74,7 +74,12 @@ namespace Clockwork::tuned {
     TUNE(asp_window_delta, 25, 12, 50, 1, 0.002)                     \
     NO_TUNE(razor_depth, 7, 1, 20, 0.5, 0.002)                       \
     TUNE(razor_margin, 657, 328, 1314, 33, 0.002)                    \
-    NO_TUNE(lmp_depth_mult, 3, 1, 20, 0.5, 0.002)                    \
+                                                                     \
+    NO_TUNE(lmp_not_improving_mult, 512, 256, 1024, 26, 0.002)       \
+    TUNE(lmp_improving_mult, 1024, 512, 2048, 51, 0.002)             \
+    TUNE(lmp_base, 192, 64, 512, 12, 0.002)                          \
+    TUNE(lmp_lin, 0, -192, 192, 10, 0.002)                           \
+    TUNE(lmp_quad, 64, 32, 128, 3, 0.002)                            \
     TUNE(adj_shuffle_div, 200, 100, 400, 10, 0.002)                  \
     TUNE(capt_ext_material, 1140, 570, 2280, 57, 0.002)              \
                                                                      \
