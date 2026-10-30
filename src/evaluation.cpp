@@ -626,6 +626,18 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
     eval += REACH_THREAT * (reach_targets & data.attacked_by(opp)).ipopcount();
     eval += REACH_THREAT_LOOSE * (reach_targets & ~data.attacked_by(opp)).ipopcount();
 
+    // Reach on isolated pawns is more dangerous because the opponent doesn't have flank pawn to cover it
+    {
+        const Bitboard opp_pawn_files = Bitboard::fill_verticals(opp_pawn);
+        const Bitboard opp_isolated =
+          opp_pawn
+          & ~(opp_pawn_files.shift(Direction::East) | opp_pawn_files.shift(Direction::West));
+        const Bitboard isolated_loose = opp_isolated & ~data.attacked_by(opp)
+                                      & data.reach_all[static_cast<usize>(color)]
+                                      & ~data.reach_all[static_cast<usize>(opp)];
+        eval += REACH_ISOLATED_LOOSE * isolated_loose.ipopcount();
+    }
+
     eval += RESTRICTED_SQUARES
           * (data.attacked_by(color) & ~strongly_protected & data.attacked_by(opp)).ipopcount();
 
