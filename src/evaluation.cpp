@@ -24,14 +24,12 @@ struct EvalData {
     Bitboard mobility_area[2];
     Bitboard rook_area[2];
     Bitboard queen_area[2];
-    // Restricted mobility per piece.
-    Bitboard mobility[2][16];
 
     i32 m_piece_count[2][6];
     i32 wcount = 0;
     i32 bcount = 0;
 
-    Bitboard reach[2][16];
+    u64      reach_raw[2][16];
     Bitboard reach_all[2] = {};
     Bitboard reach_2[2]   = {};
 
@@ -43,13 +41,6 @@ struct EvalData {
         return pt == PieceType::Queen ? queen_area[c]
              : pt == PieceType::Rook  ? rook_area[c]
                                       : mobility_area[c];
-    }
-
-    // Record one piece's restricted mobility and flag it as a trap candidate if small.
-    void add_mobility(Color color, PieceId id, Bitboard m) {
-        const usize c       = static_cast<usize>(color);
-        mobility[c][id.raw] = m;
-        trap_candidates[c].set(id, m.popcount() <= 3);
     }
 
     void init(const Position& pos) {
@@ -100,9 +91,13 @@ struct EvalData {
         return any2_attacks_by[static_cast<usize>(color)];
     }
 
+    Bitboard reach(Color color, PieceId id) const {
+        return Bitboard{reach_raw[static_cast<usize>(color)][id.raw]};
+    }
+
     inline void add_reach(Color color, PieceId id, Bitboard r) {
-        const usize c    = static_cast<usize>(color);
-        reach[c][id.raw] = r;
+        const usize c        = static_cast<usize>(color);
+        reach_raw[c][id.raw] = r.value();
         reach_2[c] |= reach_all[c] & r;
         reach_all[c] |= r;
     }
@@ -405,9 +400,21 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     data.mobility_area[static_cast<usize>(color)] = ~bb;
     Bitboard bb2                                  = bb;
 
-    const Bitboard empty      = pos.board().get_empty_bitboard();
-    const Bitboard all_pieces = ~empty;
-    const Bitboard own        = pos.board().get_color_bitboard(color);
+    const Bitboard empty       = pos.board().get_empty_bitboard();
+    const Bitboard all_pieces  = ~empty;
+    const Bitboard own         = pos.board().get_color_bitboard(color);
+    const Bitboard opp_attacks = data.attacked_by(opp);
+    // Trap candidates
+    const Bitboard own_nonpawn    = own & ~own_pawns;
+    const auto     trap_candidate = [&](PieceId id, Bitboard m, Bitboard moves) {
+        if (m.popcount() > 3 || (moves & ~own).empty()) {
+            return false;
+        }
+        if (m.any() && (moves & own_nonpawn).any()) {
+            return false;
+        }
+        return (opp_attacks & Bitboard::from_square(pos.piece_list_sq(color)[id.raw])).empty();
+    };
 
     // Squares contested 1 to 1 by both sides (no pawns) and that we can attack with reach.
     const Bitboard contested = data.attacked_by(color) & ~data.attacked_by_2(color)
@@ -421,7 +428,8 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         data.add_reach(color, id, reach);
 
         eval += KNIGHT_MOBILITY[mobility.popcount()];
-        data.add_mobility(color, id, mobility);
+        data.trap_candidates[static_cast<usize>(color)].set(id,
+                                                            trap_candidate(id, mobility, moves));
         eval += reach_score(KNIGHT_REACH, reach & ~bb & ~moves);
         eval += REACH_CONTEST[0] * (reach & ~moves & contested).ipopcount();
     }
@@ -433,7 +441,8 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         data.add_reach(color, id, reach);
 
         eval += BISHOP_MOBILITY[mobility.popcount()];
-        data.add_mobility(color, id, mobility);
+        data.trap_candidates[static_cast<usize>(color)].set(id,
+                                                            trap_candidate(id, mobility, moves));
         eval += reach_score(BISHOP_REACH, reach & ~bb & ~moves);
         eval += REACH_CONTEST[1] * (reach & ~moves & contested).ipopcount();
 
@@ -459,7 +468,8 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         eval += ROOK_MOBILITY[mobility_a.popcount()];
         eval += ROOK_MOBILITY[mobility_b.popcount()];
-        data.add_mobility(color, id, mobility_b);
+        data.trap_candidates[static_cast<usize>(color)].set(id,
+                                                            trap_candidate(id, mobility_b, moves));
         eval += reach_score(ROOK_REACH, reach & ~bb2 & ~moves);
         eval += REACH_CONTEST[2] * (reach & ~moves & contested).ipopcount();
 
@@ -482,7 +492,8 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         eval += QUEEN_MOBILITY[mobility_a.popcount()];
         eval += QUEEN_MOBILITY[mobility_b.popcount()];
-        data.add_mobility(color, id, mobility_b);
+        data.trap_candidates[static_cast<usize>(color)].set(id,
+                                                            trap_candidate(id, mobility_b, moves));
         eval += reach_score(QUEEN_REACH, reach & ~bb2 & ~moves);
         eval += REACH_CONTEST[3] * (reach & ~moves & contested).ipopcount();
     }
@@ -890,23 +901,18 @@ PScore evaluate_trapped(const Position& pos, const EvalData& data) {
         const PieceType pt    = pos.piece_list(color)[id];
         const Square    sq    = pos.piece_list_sq(color)[id];
         const Bitboard  sq_bb = Bitboard::from_square(sq);
-
-        if ((opp_attacks & sq_bb).any()) {
-            continue;  // attacked pieces are handled by the threat terms
-        }
         const Bitboard moves   = pos.moves_of(color, id);
         const Bitboard escapes = moves & ~own;
-        if (escapes.empty()) {
-            continue;  // boxed in by own men: transient
-        }
 
         // Captures that always count as escapes: pieces worth at least as much as this one.
         const Bitboard big_caps = pt == PieceType::Queen ? opp_queens
                                 : pt == PieceType::Rook  ? opp_rooks | opp_queens
                                                          : opp_nonpawn;
-                                                         
-        const bool entombed = data.mobility[static_cast<usize>(color)][id.raw].empty();
-        const Bitboard unsafe = ~data.area_for(color, pt) | hanging;
+
+        // Restricted mobility (what evaluate_pieces scored) is the move set inside the piece's area.
+        const Bitboard mobility = moves & data.area_for(color, pt);
+        const bool     entombed = mobility.empty();
+        const Bitboard unsafe   = ~data.area_for(color, pt) | hanging;
         // Wall squares
         Bitboard boundary = escapes;
         Bitboard walls_bb = king_ring_table[sq.raw];
@@ -920,23 +926,30 @@ PScore evaluate_trapped(const Position& pos, const EvalData& data) {
             if ((reached & big_caps).any()) {
                 continue;
             }
-            bool closed = false;
-            for (i32 step = 0; step < 2; ++step) {
-                const Bitboard next =
-                  safe_of(piece_setwise(pt, reached & empty, occ)) & ~sq_bb & ~reached;
+            // Kogge-Stone pass is only needed if the zone turns out closed.
+            Bitboard spread;
+            Bitboard next;
+            if ((reached & empty) == (mobility & empty)) {
+                next = safe_of(data.reach(color, id)) & ~sq_bb & ~reached;
                 if (next.empty()) {
-                    closed = true;
-                    break;
+                    spread = piece_setwise(pt, reached & empty, occ);
                 }
+            } else {
+                spread = piece_setwise(pt, reached & empty, occ);
+                next   = safe_of(spread) & ~sq_bb & ~reached;
+            }
+            if (next.any()) {
                 reached |= next;
                 if (reached.popcount() > 3 || (reached & big_caps).any()) {
-                    break;
+                    continue;
+                }
+                // Second step: closed only if it adds nothing.
+                spread = piece_setwise(pt, reached & empty, occ);
+                if ((safe_of(spread) & ~sq_bb & ~reached).any()) {
+                    continue;
                 }
             }
-            if (!closed) {
-                continue;
-            }
-            boundary = (moves | piece_setwise(pt, reached & empty, occ)) & ~reached & ~sq_bb;
+            boundary = (moves | spread) & ~reached & ~sq_bb;
             if ((boundary & own & ~own_pawns).any()) {
                 continue;
             }
