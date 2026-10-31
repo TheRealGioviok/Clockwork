@@ -20,7 +20,12 @@ struct EvalData {
     Bitboard any2_attacks_by[2];
     Bitboard attacks_by_pt[2][7];
 
+    // Mobility area
     Bitboard mobility_area[2];
+    Bitboard rook_area[2];
+    Bitboard queen_area[2];
+    // Restricted mobility per piece.
+    Bitboard mobility[2][16];
 
     i32 m_piece_count[2][6];
     i32 wcount = 0;
@@ -29,6 +34,23 @@ struct EvalData {
     Bitboard reach[2][16];
     Bitboard reach_all[2] = {};
     Bitboard reach_2[2]   = {};
+
+    // Trapped piece candidates: restricted mobility of at most 3 squares.
+    PieceMask trap_candidates[2];
+
+    Bitboard area_for(Color color, PieceType pt) const {
+        const usize c = static_cast<usize>(color);
+        return pt == PieceType::Queen ? queen_area[c]
+             : pt == PieceType::Rook  ? rook_area[c]
+                                      : mobility_area[c];
+    }
+
+    // Record one piece's restricted mobility and flag it as a trap candidate if small.
+    void add_mobility(Color color, PieceId id, Bitboard m) {
+        const usize c       = static_cast<usize>(color);
+        mobility[c][id.raw] = m;
+        trap_candidates[c].set(id, m.popcount() <= 3);
+    }
 
     void init(const Position& pos) {
         any_attacks_by[0]  = pos.attack_table(Color::White).get_attacked_bitboard();
@@ -76,6 +98,13 @@ struct EvalData {
 
     inline Bitboard attacked_by_2(const Color color) const {
         return any2_attacks_by[static_cast<usize>(color)];
+    }
+
+    inline void add_reach(Color color, PieceId id, Bitboard r) {
+        const usize c    = static_cast<usize>(color);
+        reach[c][id.raw] = r;
+        reach_2[c] |= reach_all[c] & r;
+        reach_all[c] |= r;
     }
 };
 
@@ -386,15 +415,13 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
                              & ~data.attacked_by_2(opp);
 
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
-        Bitboard moves                                = pos.moves_of(color, id);
-        Bitboard mobility                             = moves & ~bb;
-        Bitboard reach                                = knights_setwise(mobility & empty) & ~own;
-        data.reach[static_cast<usize>(color)][id.raw] = reach;
-        data.reach_2[static_cast<usize>(color)] |=
-          data.reach_all[static_cast<usize>(color)] & reach;
-        data.reach_all[static_cast<usize>(color)] |= reach;
+        Bitboard moves    = pos.moves_of(color, id);
+        Bitboard mobility = moves & ~bb;
+        Bitboard reach    = knights_setwise(mobility & empty) & ~own;
+        data.add_reach(color, id, reach);
 
         eval += KNIGHT_MOBILITY[mobility.popcount()];
+        data.add_mobility(color, id, mobility);
         eval += reach_score(KNIGHT_REACH, reach & ~bb & ~moves);
         eval += REACH_CONTEST[0] * (reach & ~moves & contested).ipopcount();
     }
@@ -403,12 +430,10 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard moves    = pos.moves_of(color, id);
         Bitboard mobility = moves & ~bb;
         Bitboard reach    = bishops_setwise(mobility & empty, all_pieces) & ~own;
-        data.reach[static_cast<usize>(color)][id.raw] = reach;
-        data.reach_2[static_cast<usize>(color)] |=
-          data.reach_all[static_cast<usize>(color)] & reach;
-        data.reach_all[static_cast<usize>(color)] |= reach;
+        data.add_reach(color, id, reach);
 
         eval += BISHOP_MOBILITY[mobility.popcount()];
+        data.add_mobility(color, id, mobility);
         eval += reach_score(BISHOP_REACH, reach & ~bb & ~moves);
         eval += REACH_CONTEST[1] * (reach & ~moves & contested).ipopcount();
 
@@ -424,18 +449,17 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     }
 
     bb2 |= data.attacked_by(opp, PieceType::Knight) | data.attacked_by(opp, PieceType::Bishop);
+    data.rook_area[static_cast<usize>(color)] = ~bb2;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Rook)) {
         Bitboard moves      = pos.moves_of(color, id);
         Bitboard mobility_a = moves & ~bb;
         Bitboard mobility_b = moves & ~bb2;
         Bitboard reach      = rooks_setwise(mobility_b & empty, all_pieces) & ~own;
-        data.reach[static_cast<usize>(color)][id.raw] = reach;
-        data.reach_2[static_cast<usize>(color)] |=
-          data.reach_all[static_cast<usize>(color)] & reach;
-        data.reach_all[static_cast<usize>(color)] |= reach;
+        data.add_reach(color, id, reach);
 
         eval += ROOK_MOBILITY[mobility_a.popcount()];
         eval += ROOK_MOBILITY[mobility_b.popcount()];
+        data.add_mobility(color, id, mobility_b);
         eval += reach_score(ROOK_REACH, reach & ~bb2 & ~moves);
         eval += REACH_CONTEST[2] * (reach & ~moves & contested).ipopcount();
 
@@ -448,18 +472,17 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
     }
 
     bb2 |= data.attacked_by(opp, PieceType::Rook);
+    data.queen_area[static_cast<usize>(color)] = ~bb2;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Queen)) {
         Bitboard moves      = pos.moves_of(color, id);
         Bitboard mobility_a = moves & ~bb;
         Bitboard mobility_b = moves & ~bb2;
         Bitboard reach      = queens_setwise(mobility_b & empty, all_pieces) & ~own;
-        data.reach[static_cast<usize>(color)][id.raw] = reach;
-        data.reach_2[static_cast<usize>(color)] |=
-          data.reach_all[static_cast<usize>(color)] & reach;
-        data.reach_all[static_cast<usize>(color)] |= reach;
+        data.add_reach(color, id, reach);
 
         eval += QUEEN_MOBILITY[mobility_a.popcount()];
         eval += QUEEN_MOBILITY[mobility_b.popcount()];
+        data.add_mobility(color, id, mobility_b);
         eval += reach_score(QUEEN_REACH, reach & ~bb2 & ~moves);
         eval += REACH_CONTEST[3] * (reach & ~moves & contested).ipopcount();
     }
@@ -791,6 +814,177 @@ PScore apply_eg_scale(const Position& pos,
     return eval.scale_eg<128>(static_cast<i32>(128 - pcmul * pcmul));  // 64 - 128
 }
 
+
+// Setwise attacks of a piece type from a set of squares.
+static inline Bitboard piece_setwise(PieceType pt, Bitboard from, Bitboard occ) {
+    switch (pt) {
+    case PieceType::Knight:
+        return knights_setwise(from);
+    case PieceType::Bishop:
+        return bishops_setwise(from, occ);
+    case PieceType::Rook:
+        return rooks_setwise(from, occ);
+    default:
+        return queens_setwise(from, occ);
+    }
+}
+
+// NOTE: this is a CLUSTERFUCK of terms tried to find stuff from puzzles
+// Handpicked values do solve all them, but ideally we should be able to solve with tuned values as well.
+// TODO: not for merge before simplifications and handpick test on values is done
+
+// Trapped pieces: a non-pawn piece that cannot get out of a small pocket of safe squares.
+// Candidates are the pieces with at most 3 restricted-mobility squares.
+
+// Two types:
+//  - entombed: no restricted-mobility square at all (TRAPPED_PIECE);
+//  - confined: the zone of safe squares it can flood to is closed and holds at most 3 squares,
+//    and only enemy control and own pawns form the wall (TRAPPED_CONFINED, less malus if the
+//    zone still attacks an enemy piece or a movable own pawn is part of the wall; TODO: some pawn moves
+//    don't increase the zone still, detect them maybe)
+
+// Don't consider:
+//  - pieces already attacked (threats term)
+//  - not merely boxed in by own men (noisy, they usually can move)
+
+// Other considerations:
+// - Relief: another own piece (not this one, not the king) attacks, or can reach in one move,
+//   one of the mobarea attackers; the cage can then be contested, so it is not scored.
+// - Walls of own blocked pawns and pawn-only cages are given extra score.
+
+template<Color color>
+PScore evaluate_trapped(const Position& pos, const EvalData& data) {
+    constexpr Color opp  = ~color;
+    PScore          eval = PSCORE_ZERO;
+
+    const PieceMask candidates = data.trap_candidates[static_cast<usize>(color)];
+    if (candidates.empty()) {
+        return eval;
+    }
+
+    const Bitboard own        = pos.board().get_color_bitboard(color);
+    const Bitboard occ        = pos.board().get_occupied_bitboard();
+    const Bitboard empty      = ~occ;
+    const Bitboard own_pawns  = pos.bitboard_for(color, PieceType::Pawn);
+    const Bitboard opp_pawns  = pos.bitboard_for(opp, PieceType::Pawn);
+    const Bitboard opp_rooks  = pos.bitboard_for(opp, PieceType::Rook);
+    const Bitboard opp_queens = pos.bitboard_for(opp, PieceType::Queen);
+    const Bitboard opp_nonpawn =
+      pos.board().get_color_bitboard(opp) & ~opp_pawns & ~Bitboard::from_square(pos.king_sq(opp));
+    const Bitboard blocked_pawns = own_pawns & occ.shift_relative(color, Direction::South);
+    const Bitboard opp_attacks   = data.attacked_by(opp);
+    const Bitboard hanging       = opp_attacks & ~data.attacked_by(color);
+
+    // Attack tables: which pieces hit a square. Own knights to queens (no pawns, no king) serve the
+    // relief test; the enemy table names the pieces that keep a pocket shut.
+    const Wordboard& own_attacks   = pos.attack_table(color);
+    const Wordboard& opp_attacks_t = pos.attack_table(opp);
+    const PieceMask  own_pieces =
+      pos.piece_list(color)
+        .mask_eq<PieceType::Knight, PieceType::Bishop, PieceType::Rook, PieceType::Queen>();
+    const PieceMask opp_pawn_ids = pos.piece_list(opp).mask_eq(PieceType::Pawn);
+    const Bitboard  base_relief =
+      data.attacked_by(color, PieceType::Pawn) | data.reach_all[static_cast<usize>(color)];
+
+    for (PieceId id : candidates) {
+        const PieceType pt    = pos.piece_list(color)[id];
+        const Square    sq    = pos.piece_list_sq(color)[id];
+        const Bitboard  sq_bb = Bitboard::from_square(sq);
+
+        if ((opp_attacks & sq_bb).any()) {
+            continue;  // attacked pieces are handled by the threat terms
+        }
+        const Bitboard moves   = pos.moves_of(color, id);
+        const Bitboard escapes = moves & ~own;
+        if (escapes.empty()) {
+            continue;  // boxed in by own men: transient
+        }
+
+        // Captures that always count as escapes: pieces worth at least as much as this one.
+        const Bitboard big_caps = pt == PieceType::Queen ? opp_queens
+                                : pt == PieceType::Rook  ? opp_rooks | opp_queens
+                                                         : opp_nonpawn;
+                                                         
+        const bool entombed = data.mobility[static_cast<usize>(color)][id.raw].empty();
+        const Bitboard unsafe = ~data.area_for(color, pt) | hanging;
+        // Wall squares
+        Bitboard boundary = escapes;
+        Bitboard walls_bb = king_ring_table[sq.raw];
+        Bitboard reached  = Bitboard{};
+        if (!entombed) {
+            // 2 step floodfill. End early if big enough, no new steps or we find a target
+            const auto safe_of = [&](Bitboard b) {
+                return (b & ~own) & (~unsafe | big_caps);
+            };
+            reached = safe_of(moves);
+            if ((reached & big_caps).any()) {
+                continue;
+            }
+            bool closed = false;
+            for (i32 step = 0; step < 2; ++step) {
+                const Bitboard next =
+                  safe_of(piece_setwise(pt, reached & empty, occ)) & ~sq_bb & ~reached;
+                if (next.empty()) {
+                    closed = true;
+                    break;
+                }
+                reached |= next;
+                if (reached.popcount() > 3 || (reached & big_caps).any()) {
+                    break;
+                }
+            }
+            if (!closed) {
+                continue;
+            }
+            boundary = (moves | piece_setwise(pt, reached & empty, occ)) & ~reached & ~sq_bb;
+            if ((boundary & own & ~own_pawns).any()) {
+                continue;
+            }
+            walls_bb = boundary;
+        }
+        const Bitboard unsafe_boundary = boundary & ~own & unsafe;
+
+        // The enemy pieces keeping the pocket shut (supporting wall squares).
+        PieceMask attackers{};
+        for (Square s : unsafe_boundary) {
+            attackers |= opp_attacks_t.read(s);
+        }
+        attackers &= ~PieceMask::king();
+
+        // Relief: another own piece attacks or reach onto one of those supports
+        // The cage can then be contested, so it is not scored.
+        const Bitboard relief =
+          base_relief | own_attacks.get_piece_mask_bitboard(own_pieces & ~id.to_piece_mask());
+        bool relieved = false;
+        for (PieceId aid : attackers) {
+            relieved |= (relief & Bitboard::from_square(pos.piece_list_sq(opp)[aid])).any();
+        }
+        if (relieved) {
+            continue;
+        }
+
+        const usize idx   = static_cast<usize>(pt) - static_cast<usize>(PieceType::Knight);
+        const i32   walls = std::min<i32>(2, (walls_bb & blocked_pawns).ipopcount());
+        // Wizard formula from data, TODO: TRY TO SIMPLIFY THIS
+        eval += entombed ? TRAPPED_PIECE[idx] : TRAPPED_CONFINED[idx];
+        eval += TRAPPED_WALL * walls;
+        if (!entombed) {
+            // If the piece is not entombed AND still does something (the trap zone is not useless), less malus
+            if (((piece_setwise(pt, reached, occ) | moves) & opp_nonpawn).any()) {
+                eval += TRAPPED_ZONE_UTIL;
+            }
+            if ((boundary & own_pawns & ~blocked_pawns).any()) {
+                eval += TRAPPED_SOFT_WALL;
+            }
+        }
+        // Only pawns keep it in: no piece has to stay behind to hold the cage.
+        if ((attackers & ~opp_pawn_ids).empty()) {
+            eval += TRAPPED_PAWN_CAGE;
+        }
+    }
+    return eval;
+}
+
 Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     const Color us = pos.active_color();
 
@@ -819,6 +1013,8 @@ Score evaluate_white_pov(const Position& pos, const PsqtState& psqt_state) {
     // pieces & space
     eval +=
       evaluate_pieces<Color::White>(pos, eval_data) - evaluate_pieces<Color::Black>(pos, eval_data);
+    eval += evaluate_trapped<Color::White>(pos, eval_data)
+          - evaluate_trapped<Color::Black>(pos, eval_data);
     eval += evaluate_outposts<Color::White>(pos, eval_data)
           - evaluate_outposts<Color::Black>(pos, eval_data);
     eval +=

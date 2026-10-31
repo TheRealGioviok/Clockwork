@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <barrier>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -648,6 +649,15 @@ void print_params() {
     print_table("ROOK_REACH", ROOK_REACH);
     print_table("QUEEN_REACH", QUEEN_REACH);
     print_table("REACH_CONTEST", REACH_CONTEST);
+    print_table("TRAPPED_PIECE", TRAPPED_PIECE);
+    std::cout << "inline const PParam TRAPPED_WALL = " << TRAPPED_WALL << ";" << std::endl;
+    std::cout << "inline const PParam TRAPPED_PAWN_CAGE = " << TRAPPED_PAWN_CAGE << ";"
+              << std::endl;
+    print_table("TRAPPED_CONFINED", TRAPPED_CONFINED);
+    std::cout << "inline const PParam TRAPPED_ZONE_UTIL = " << TRAPPED_ZONE_UTIL << ";"
+              << std::endl;
+    std::cout << "inline const PParam TRAPPED_SOFT_WALL = " << TRAPPED_SOFT_WALL << ";"
+              << std::endl;
     std::cout << std::endl;
 
     std::cout << "inline const PParam PAWN_THREAT_KNIGHT = " << PAWN_THREAT_KNIGHT << ";"
