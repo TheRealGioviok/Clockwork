@@ -3,7 +3,7 @@
 #include "util/types.hpp"
 #include <string_view>
 
-#define CLOCKWORK_IS_TUNING 0
+#define CLOCKWORK_IS_TUNING 1
 
 #ifndef CLOCKWORK_IS_TUNING
     #define CLOCKWORK_IS_TUNING 0
@@ -17,7 +17,7 @@ namespace Clockwork::tuned {
     TUNE(rfp_margin, 135, 67, 270, 7, 0.002)                         \
     NO_TUNE(rfp_depth, 7, 4, 10, .5, 0.002)                          \
                                                                      \
-    /* NMP Values (R terms share one reduction: half step) */        \
+    /* NMP Values */        \
     NO_TUNE(nmp_depth, 3, 1, 10, .5, 0.002)                          \
     NO_TUNE(nmp_base_r, 192, 64, 384, 16, 0.002)                     \
     TUNE(nmp_depth_r, 16, 8, 32, 1, 0.002)                           \
@@ -49,13 +49,11 @@ namespace Clockwork::tuned {
     TUNE(mvv_queen, 7200, 3600, 14400, 180, 0.002)                   \
     TUNE(promo_order_base, 500, 250, 1000, 12, 0.002)                \
                                                                      \
-    /* Stat Bonus (quad in 1/16 units; polynomial: half step) */     \
     TUNE(stat_bonus_max, 1882, 941, 3764, 94, 0.002)                 \
     TUNE(stat_bonus_quad, 64, 32, 128, 2, 0.002)                     \
     TUNE(stat_bonus_lin, 91, 45, 182, 2, 0.002)                      \
     TUNE(stat_bonus_sub, 149, 75, 298, 4, 0.002)                     \
                                                                      \
-    /* Stat Malus (quad in 1/16 units; polynomial: half step) */     \
     TUNE(stat_malus_max, 996, 498, 1992, 50, 0.002)                  \
     TUNE(stat_malus_quad, 48, 24, 96, 1, 0.002)                      \
     TUNE(stat_malus_lin, 122, 61, 244, 3, 0.002)                     \
@@ -65,7 +63,6 @@ namespace Clockwork::tuned {
     TUNE(conthist_bonus_mult, 512, 256, 1024, 26, 0.002)             \
     TUNE(hist_bonus_depth_margin, 100, 50, 200, 5, 0.002)            \
                                                                      \
-    /* Correction history (weight = (base + depth*mult)/64) */       \
     TUNE(corrhist_weight_max, 16, 8, 32, 1, 0.002)                   \
     TUNE(corrhist_weight_base, 64, 32, 128, 3, 0.002)                \
     TUNE(corrhist_weight_depth, 64, 32, 128, 3, 0.002)               \
@@ -111,7 +108,7 @@ namespace Clockwork::tuned {
     TUNE(triext_margin, 120, 60, 240, 6, 0.002)                      \
     TUNE(triext_hist_div, 534, 267, 1068, 27, 0.002)                 \
                                                                      \
-    /* LMR (hist_div x64; fut_red_base/mult share a margin: half) */ \
+    /* LMR */                                                        \
     TUNE(lmr_quiet_base, 614, 307, 1228, 31, 0.002)                  \
     TUNE(lmr_quiet_div, 173, 86, 346, 9, 0.002)                      \
     TUNE(lmr_noisy_base, 241, 120, 482, 12, 0.002)                   \
