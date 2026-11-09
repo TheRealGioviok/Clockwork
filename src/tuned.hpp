@@ -3,7 +3,7 @@
 #include "util/types.hpp"
 #include <string_view>
 
-#define CLOCKWORK_IS_TUNING 1
+#define CLOCKWORK_IS_TUNING 0
 
 #ifndef CLOCKWORK_IS_TUNING
     #define CLOCKWORK_IS_TUNING 0
