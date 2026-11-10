@@ -502,8 +502,8 @@ forceinline PinRays calc_pin_rays(const Byteboard& board, Color color, Square ki
     // Pinners are second-closest pieces that are enemy sliders of the correct type.
     m8x64 maybe_pinner = maybe_pinner1 & maybe_pinner2;
     // Does this ray have a pinner?
-    m8x64 pinned       = maybe_pinned & geometry::ray_fill(maybe_pinner);
-    m8x64 pinner       = maybe_pinner & geometry::ray_fill(pinned);
+    m8x64 pinned = maybe_pinned & geometry::ray_fill(maybe_pinner);
+    m8x64 pinner = maybe_pinner & geometry::ray_fill(pinned);
 
     // Each ray holds at most one pinned piece and one pinner
     // Byte sum over the ray to get both ids packed into one byte

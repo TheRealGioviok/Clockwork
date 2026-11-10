@@ -313,7 +313,7 @@ public:
 
     [[nodiscard]] Position null_move() const;
 
-    [[nodiscard]] PinMaskInfo calc_pin_mask() const;
+    [[nodiscard]] PinMaskInfo                     calc_pin_mask() const;
     [[nodiscard]] std::pair<PieceMask, PieceMask> calc_pins(Color color) const;
     [[nodiscard]] PinInfo                         calc_pin_info() const;
 
