@@ -52,14 +52,14 @@ Move MovePicker::next() {
 
             // ProbCut: Check SEE against fixed threshold
             if (m_threshold) {
-                if (SEE::see(m_pos, curr, *m_threshold)) {
+                if (SEE::see(m_pos, curr, *m_threshold, m_pins)) {
                     return curr;
                 }
                 continue;  // In ProbCut, we discard bad noisy moves immediately
             }
 
             // Normal: Check SEE for pruning
-            if (SEE::see(m_pos, curr, -score / tuned::movepicker_see_capthist_divisor)) {
+            if (SEE::see(m_pos, curr, -score / tuned::movepicker_see_capthist_divisor, m_pins)) {
                 return curr;
             } else {
                 m_bad_noisy.push_back(curr);

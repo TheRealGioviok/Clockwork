@@ -97,6 +97,18 @@ struct CreateSuperpieceMaskInfo {
 };
 static_assert(sizeof(CreateSuperpieceMaskInfo) == 16);
 
+struct PinInfo {
+    std::array<PieceMask, 2> pinned{};
+    std::array<PieceMask, 2> pinners{};
+};
+
+struct PinMaskInfo {
+    Wordboard pin_mask;
+    Bitboard  pinned;
+    PieceMask pinned_ids;
+    PieceMask pinner_ids;
+};
+
 struct Position {
 public:
     constexpr Position() = default;
@@ -301,7 +313,9 @@ public:
 
     [[nodiscard]] Position null_move() const;
 
-    [[nodiscard]] std::tuple<Wordboard, Bitboard> calc_pin_mask() const;
+    [[nodiscard]] PinMaskInfo calc_pin_mask() const;
+    [[nodiscard]] std::pair<PieceMask, PieceMask> calc_pins(Color color) const;
+    [[nodiscard]] PinInfo                         calc_pin_info() const;
 
     [[nodiscard]] u16 get_50mr_counter() const;
 

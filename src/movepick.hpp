@@ -22,6 +22,7 @@ public:
         m_killer(ss->killer),
         m_ply(ply),
         m_stack(ss) {
+        init_pins();
     }
 
     // for ProbCut
@@ -37,6 +38,7 @@ public:
         m_ply(0),
         m_stack(nullptr),
         m_threshold(threshold) {
+        init_pins();
     }
 
     enum class Stage {
@@ -63,7 +65,21 @@ public:
         return m_movegen.is_legal(m);
     }
 
+    [[nodiscard]] const PinInfo& pins() const {
+        return m_pins;
+    }
+
 private:
+    void init_pins() {
+        Color us = m_pos.active_color(), them = invert(us);
+        auto [their_pinned, our_pinners] = m_pos.calc_pins(them);
+
+        m_pins.pinned[static_cast<usize>(us)]    = m_movegen.pinned_ids();
+        m_pins.pinners[static_cast<usize>(them)] = m_movegen.pinner_ids();
+        m_pins.pinned[static_cast<usize>(them)]  = their_pinned;
+        m_pins.pinners[static_cast<usize>(us)]   = our_pinners;
+    }
+
     void                 generate_moves();
     std::pair<Move, i32> pick_next(MoveList& moves);
 
@@ -83,6 +99,7 @@ private:
     const Position&      m_pos;
     const History&       m_history;
     MoveGen              m_movegen;
+    PinInfo              m_pins;
     MoveList             m_noisy;
     MoveList             m_quiet;
     MoveList             m_bad_noisy;

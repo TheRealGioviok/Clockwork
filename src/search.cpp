@@ -794,7 +794,8 @@ Value Worker::search(
             Value see_threshold =
               quiet ? tuned::see_pvs_quiet * depth : tuned::see_pvs_noisy_quad * depth * depth;
             // SEE PVS Pruning
-            if (!SEE::see(pos, m, see_threshold - move_history * tuned::see_pvs_hist_mult / 1024)) {
+            if (!SEE::see(pos, m, see_threshold - move_history * tuned::see_pvs_hist_mult / 1024,
+                          moves.pins())) {
                 continue;
             }
 
@@ -1211,7 +1212,8 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
         }
 
         // QS SEE Pruning
-        if (!is_loss_score(best_value) && !SEE::see(pos, m, tuned::quiesce_see_threshold)) {
+        if (!is_loss_score(best_value)
+            && !SEE::see(pos, m, tuned::quiesce_see_threshold, moves.pins())) {
             continue;
         }
 

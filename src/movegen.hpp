@@ -17,7 +17,18 @@ public:
     explicit MoveGen(const Position& position) :
         m_active_color(position.active_color()),
         m_position(position) {
-        std::tie(m_pin_mask, m_pinned) = m_position.calc_pin_mask();
+        PinMaskInfo pins = m_position.calc_pin_mask();
+        m_pin_mask       = pins.pin_mask;
+        m_pinned         = pins.pinned;
+        m_pinned_ids     = pins.pinned_ids;
+        m_pinner_ids     = pins.pinner_ids;
+    }
+
+    [[nodiscard]] PieceMask pinned_ids() const {
+        return m_pinned_ids;
+    }
+    [[nodiscard]] PieceMask pinner_ids() const {
+        return m_pinner_ids;
     }
 
     [[nodiscard]] bool is_legal(Move m) const;
@@ -69,5 +80,7 @@ private:
     const Position& m_position;
     Wordboard       m_pin_mask;
     Bitboard        m_pinned;
+    PieceMask       m_pinned_ids;
+    PieceMask       m_pinner_ids;
 };
 }  // namespace Clockwork

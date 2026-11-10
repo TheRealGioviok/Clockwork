@@ -467,12 +467,16 @@ Position Position::null_move() const {
     return new_pos;
 }
 
-std::tuple<Wordboard, Bitboard> Position::calc_pin_mask() const {
-    Square king_square = king_sq(m_active_color);
+namespace {
 
+struct PinRays {
+    m8x64 pin_raymask;
+    u8x64 packed_ids;
+};
+
+forceinline PinRays calc_pin_rays(const Byteboard& board, Color color, Square king_square) {
     auto [ray_coords, ray_valid] = geometry::superpiece_rays(king_square);
-    u8x64 ray_places             = ray_coords.swizzle(m_board.to_vector());
-    u8x64 inverse_perm           = geometry::superpiece_inverse_rays_avx2(king_square);
+    u8x64 ray_places             = ray_coords.swizzle(board.to_vector());
 
     // Ignore horse moves
     ray_valid &= m8x64{0xFEFEFEFEFEFEFEFE};
@@ -480,7 +484,7 @@ std::tuple<Wordboard, Bitboard> Position::calc_pin_mask() const {
     m8x64 occupied = ray_valid.andnot(ray_places.zeros());
 
     u8x64 color_mask  = u8x64::splat(Place::COLOR_MASK);
-    u8x64 enemy_color = u8x64::splat(m_active_color == Color::White ? Place::COLOR_MASK : 0);
+    u8x64 enemy_color = u8x64::splat(color == Color::White ? Place::COLOR_MASK : 0);
     m8x64 enemy       = occupied & (ray_places & color_mask).eq(enemy_color);
 
     m8x64 closest      = occupied & geometry::superpiece_attacks(ray_places, ray_valid);
@@ -496,22 +500,43 @@ std::tuple<Wordboard, Bitboard> Position::calc_pin_mask() const {
     m8x64 maybe_pinner2 = not_closest & pin_raymask;
 
     // Pinners are second-closest pieces that are enemy sliders of the correct type.
-    m8x64 pinner = maybe_pinner1 & maybe_pinner2;
-
+    m8x64 maybe_pinner = maybe_pinner1 & maybe_pinner2;
     // Does this ray have a pinner?
-    const m8x64 has_pinner = geometry::ray_fill(pinner);
-    const m8x64 pinned     = maybe_pinned & has_pinner;
+    m8x64 pinned       = maybe_pinned & geometry::ray_fill(maybe_pinner);
+    m8x64 pinner       = maybe_pinner & geometry::ray_fill(pinned);
 
-    u8x64 nonmasked_pinned_ids =
-      geometry::lane_broadcast(pinned.mask(ray_places & u8x64::splat(0xF)));
-    u8x64 pinned_ids = pin_raymask.mask(nonmasked_pinned_ids);
-    // Transform into board layout
-    pinned_ids = inverse_perm.swizzle(pinned_ids);
+    // Each ray holds at most one pinned piece and one pinner
+    // Byte sum over the ray to get both ids packed into one byte
+    u8x64 ids        = ray_places & u8x64::splat(Place::ID_MASK);
+    u8x64 packed_ids = geometry::lane_broadcast(pinned.mask(ids) | pinner.mask(ids.shl<4>()));
 
-    u16 nonpinned_piece_mask = static_cast<u16>(
-      ~((u64x8::splat(1) << (std::bit_cast<u64x8>(nonmasked_pinned_ids) & u64x8::splat(0xF)))
-          .reduce_or())
-      | 1);
+    return {pin_raymask, packed_ids};
+}
+
+// Collects the ids of one nibble of the packed ids into a 16-bit piece mask
+forceinline PieceMask ray_ids_to_mask(u64x8 ids) {
+    u64 bits = (u64x8::splat(1) << (ids & u64x8::splat(0xF))).reduce_or();
+    return PieceMask{static_cast<u16>(bits & ~1)};
+}
+
+forceinline std::pair<PieceMask, PieceMask> unpack_pin_ids(u8x64 packed_ids) {
+    u64x8 packed64 = std::bit_cast<u64x8>(packed_ids);
+    return {ray_ids_to_mask(packed64), ray_ids_to_mask(packed64.shr<4>())};
+}
+
+}  // namespace
+
+PinMaskInfo Position::calc_pin_mask() const {
+    Square king_square = king_sq(m_active_color);
+
+    PinRays rays                  = calc_pin_rays(m_board, m_active_color, king_square);
+    auto [pinned_ids, pinner_ids] = unpack_pin_ids(rays.packed_ids);
+    u16 nonpinned_piece_mask      = static_cast<u16>(~pinned_ids.value());
+
+    // Ids of pinned pieces on their pin ray squares
+    u8x64 inverse_perm   = geometry::superpiece_inverse_rays_avx2(king_square);
+    u8x64 pinned_ray_ids = rays.pin_raymask.mask(rays.packed_ids & u8x64::splat(Place::ID_MASK));
+    pinned_ray_ids       = inverse_perm.swizzle(pinned_ray_ids);
 
     // AVX2 doesn't have a variable word shift, so were're doing it this way.
     // Index zero is invalid here (the king is never pinned), so 0 converts to 0.
@@ -519,8 +544,8 @@ std::tuple<Wordboard, Bitboard> Position::calc_pin_mask() const {
                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
     static const u8x16 BITS_HI{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  //
                                 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80}};
-    u8x64              at_lo = pinned_ids.swizzle(BITS_LO);
-    u8x64              at_hi = pinned_ids.swizzle(BITS_HI);
+    u8x64              at_lo = pinned_ray_ids.swizzle(BITS_LO);
+    u8x64              at_hi = pinned_ray_ids.swizzle(BITS_HI);
 
     u16x64 nppm = u16x64::splat(nonpinned_piece_mask);
 
@@ -530,7 +555,21 @@ std::tuple<Wordboard, Bitboard> Position::calc_pin_mask() const {
 
     u64 pinned_bb = at.neq(nppm).to_bits();
 
-    return {Wordboard{at}, Bitboard{pinned_bb}};
+    return {Wordboard{at}, Bitboard{pinned_bb}, pinned_ids, pinner_ids};
+}
+
+std::pair<PieceMask, PieceMask> Position::calc_pins(Color color) const {
+    return unpack_pin_ids(calc_pin_rays(m_board, color, king_sq(color)).packed_ids);
+}
+
+PinInfo Position::calc_pin_info() const {
+    PinInfo info;
+    for (Color c : {Color::White, Color::Black}) {
+        auto [pinned, pinners]                      = calc_pins(c);
+        info.pinned[static_cast<usize>(c)]          = pinned;
+        info.pinners[static_cast<usize>(invert(c))] = pinners;
+    }
+    return info;
 }
 
 const std::array<Wordboard, 2> Position::calc_attacks_slow() {
