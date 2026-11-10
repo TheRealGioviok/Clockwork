@@ -61,16 +61,23 @@ namespace internal {
 
 constexpr u64 KNIGHT_LANES = 0x0101010101010101;
 
-// 32-bit mask into 32 bytes of 0b11111111 / 0b00000000
-forceinline u8x32 expand_bits32(u32 bits) {
-    static const u8x32 BYTE_IDX{{0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,  //
+// 32-bit mask into a lane mask where lane i is set if bit i%32 is set
+// TODO: can we simplify out the doubling?
+forceinline m8x64 expand_bits32(u32 bits) {
+    static const u8x64 BYTE_IDX{{0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,  //
+                                 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,  //
+                                 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,  //
                                  2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3}};
-    static const u8x32 BIT{{0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,  //
+    static const u8x64 BIT{{0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,  //
+                            0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,  //
+                            0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,  //
+                            0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,  //
+                            0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,  //
                             0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,  //
                             0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,  //
                             0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80}};
-    u8x32              bytes = BYTE_IDX.swizzle(std::bit_cast<u8x32>(vector<u32, 8>::splat(bits)));
-    return std::bit_cast<u8x32>(bytes.test(BIT).to_vector());
+    u8x64              bytes = BYTE_IDX.swizzle(std::bit_cast<u8x16>(u32x4::splat(bits)));
+    return bytes.test(BIT);
 }
 
 // Fills every ray AND antiray that contains a set bit (no knight lanes)
@@ -143,11 +150,12 @@ inline bool see(const Position& pos, Move move, Value threshold, const PinInfo& 
     std::array<u64, 2>  pinner_lanes{};    // lanes holding pinners of color c (on rays from sq)
     std::array<bool, 2> off_ray_pinner{};  // color c has a pinner that can never leave
     if ((pins.pinned[0] | pins.pinned[1]).value() != 0) {
-        u8x32 table =
-          (internal::expand_bits32(internal::color_id_bits(pins.pinned)) & u8x32::splat(1))
-          | (internal::expand_bits32(internal::color_id_bits(pins.pinners)) & u8x32::splat(2));
+        // Lookup the table 
+        u8x64 table =
+          internal::expand_bits32(internal::color_id_bits(pins.pinned)).mask(u8x64::splat(1))
+          | internal::expand_bits32(internal::color_id_bits(pins.pinners)).mask(u8x64::splat(2));
         u8x64 keys  = ray_places & u8x64::splat(Place::COLOR_MASK | Place::ID_MASK);
-        u8x64 flags = ray_valid.mask(keys.swizzle(u8x64::splat(table)));
+        u8x64 flags = ray_valid.mask(keys.swizzle(table));
 
         u64 pinned_lanes = flags.test(u8x64::splat(1)).to_bits();
         u64 pinner_all   = flags.test(u8x64::splat(2)).to_bits();

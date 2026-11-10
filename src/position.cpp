@@ -516,7 +516,7 @@ forceinline PinRays calc_pin_rays(const Byteboard& board, Color color, Square ki
 // Collects the ids of one nibble of the packed ids into a 16-bit piece mask
 forceinline PieceMask ray_ids_to_mask(u64x8 ids) {
     u64 bits = (u64x8::splat(1) << (ids & u64x8::splat(0xF))).reduce_or();
-    return PieceMask{static_cast<u16>(bits & ~1)};
+    return PieceMask{static_cast<u16>(bits & ~u64{1})};
 }
 
 forceinline std::pair<PieceMask, PieceMask> unpack_pin_ids(u8x64 packed_ids) {
