@@ -4,8 +4,8 @@
 namespace Clockwork::Search {
 
 std::ostream& operator<<(std::ostream& os, const PV& pv) {
-    for (Move m : pv.m_pv) {
-        os << m << ' ';
+    for (const auto& entry : pv.m_pv) {
+        os << entry.move << ' ';
     }
     return os;
 }

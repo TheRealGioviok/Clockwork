@@ -331,11 +331,17 @@ Move Worker::iterative_deepening(const Position& root_position) {
 
             const auto& root_move = m_td.root_moves[m_pv_idx];
 
+            // Deepen bottom-up along the last PV before searching the root itself.
+            const auto  nodes_before = search_nodes();
+            const Value window_score = bottom_up<IS_MAIN>(root_position, &ss[SS_PADDING],
+                                                          root_move.pv, root_move.window_score, 0);
+            m_node_counts[root_move.pv.first_move().from_to()] += search_nodes() - nodes_before;
+
             Value alpha = -VALUE_INF, beta = VALUE_INF;
             Value delta = tuned::asp_window_delta;
             if (search_depth >= 5) {
-                alpha = root_move.window_score - delta;
-                beta  = root_move.window_score + delta;
+                alpha = window_score - delta;
+                beta  = window_score + delta;
             }
 
             Value score = -VALUE_INF;
@@ -459,6 +465,36 @@ Move Worker::iterative_deepening(const Position& root_position) {
     }
 
     return m_td.pv_move().pv.first_move();
+}
+
+// Bottom up ID: search the positions following pos on the last PV, each one ply deeper than last iter starting from the end of the PV and working back up towards pos.
+template<bool IS_MAIN>
+Value Worker::bottom_up(
+  const Position& pos, Stack* ss, const PV& last_pv, Value window_score, i32 ply) {
+    const auto [m, last_depth] = last_pv[static_cast<usize>(ply)];
+    if (m == Move::none()) {
+        return window_score;
+    }
+
+    // Surrogate node stack entry
+    ss->static_eval = pos.is_in_check()
+                      ? -VALUE_INF
+                      : adj_shuffle(pos, evaluate(pos)) + m_td.history.get_correction(pos, ply, ss);
+
+    const Position pos_after = do_move(pos, ss, m);
+    window_score = bottom_up<IS_MAIN>(pos_after, ss + 1, last_pv, -window_score, ply + 1);
+
+    const Depth depth = last_depth + 1;
+    Value       alpha = -VALUE_INF, beta = VALUE_INF;
+    if (depth >= 5) {
+        alpha = std::max(alpha, window_score - tuned::asp_window_delta);
+        beta  = std::min(beta, window_score + tuned::asp_window_delta);
+    }
+    const Value score =
+      search<IS_MAIN, true>(pos_after, ss + 1, alpha, beta, depth, ply + 1, false);
+    undo_move(ss);
+
+    return -score;
 }
 
 template<bool IS_MAIN, bool PV_NODE>
@@ -710,12 +746,7 @@ Value Worker::search(
 
             for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
 
-                ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
-                ss->move            = m;
-                ss->moved_piece     = pos.piece_at(m.from());
-                ss->cont_corr_entry = &m_td.history.get_cont_corr_entry(pos, m);
-                Position pos_after  = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
-                repetition_info.push(pos_after.get_hash_key(), pos.is_reversible(m));
+                Position pos_after = do_move(pos, ss, m);
 
                 Value probcut_value = -quiesce<IS_MAIN, false>(pos_after, ss + 1, -probcut_beta,
                                                                -probcut_beta + 1, ply + 1);
@@ -726,12 +757,7 @@ Value Worker::search(
                                               probcut_depth, ply + 1, !cutnode);
                 }
 
-                repetition_info.pop();
-                m_td.pop_psqt_state();
-                ss->cont_hist_entry = nullptr;
-                ss->move            = Move::none();
-                ss->moved_piece     = PieceType::None;
-                ss->cont_corr_entry = nullptr;
+                undo_move(ss);
 
                 if (probcut_value >= probcut_beta) {
                     m_searcher.tt.store(pos, ply, raw_eval, m, probcut_value, probcut_depth, false,
@@ -882,17 +908,8 @@ Value Worker::search(
             }
         }
 
-        // Do move
-        ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
-        ss->move            = m;
-        ss->moved_piece     = pos.piece_at(m.from());
-        ss->cont_corr_entry = &m_td.history.get_cont_corr_entry(pos, m);
-
-        Position pos_after = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
+        Position pos_after = do_move(pos, ss, m);
         moves_played++;
-
-        // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
-        repetition_info.push(pos_after.get_hash_key(), pos.is_reversible(m));
 
         // Get search value
         Depth new_depth = depth - 1 + extension;
@@ -991,13 +1008,7 @@ Value Worker::search(
             m_node_counts[m.from_to()] += nodes_after - nodes_before;
         }
 
-        // TODO: encapsulate this and any other future adjustment to do "on going back" into a proper function
-        repetition_info.pop();
-        m_td.pop_psqt_state();
-        ss->cont_hist_entry = nullptr;
-        ss->move            = Move::none();
-        ss->moved_piece     = PieceType::None;
-        ss->cont_corr_entry = nullptr;
+        undo_move(ss);
 
         if (m_stopped) {
             return 0;
@@ -1026,7 +1037,7 @@ Value Worker::search(
                     root_move.lowerbound    = true;
                 }
 
-                root_move.pv.set(m, (ss + 1)->pv);
+                root_move.pv.set(m, new_depth, (ss + 1)->pv);
             } else {
                 root_move.score = -VALUE_INF;
             }
@@ -1037,7 +1048,7 @@ Value Worker::search(
 
             if (value > alpha) {
                 if (PV_NODE) {
-                    ss->pv.set(m, (ss + 1)->pv);
+                    ss->pv.set(m, new_depth, (ss + 1)->pv);
                 }
                 alpha     = value;
                 best_move = m;
@@ -1215,30 +1226,16 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
             continue;
         }
 
-        // Do move
-        ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
-        ss->move            = m;
-        ss->moved_piece     = pos.piece_at(m.from());
-        ss->cont_corr_entry = &m_td.history.get_cont_corr_entry(pos, m);
-        Position pos_after  = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
+        Position pos_after = do_move(pos, ss, m);
         moves_searched++;
 
         // If we've found a legal move, then we can begin skipping quiet moves.
         moves.skip_quiets();
 
-        // Put hash into repetition table. TODO: encapsulate this and any other future adjustment to do "on move" into a proper function
-        repetition_info.push(pos_after.get_hash_key(), pos.is_reversible(m));
-
         // Get search value
         Value value = -quiesce<IS_MAIN, PV_NODE>(pos_after, ss + 1, -beta, -alpha, ply + 1);
 
-        // TODO: encapsulate this and any other future adjustment to do "on going back" into a proper function
-        repetition_info.pop();
-        m_td.pop_psqt_state();
-        ss->cont_hist_entry = nullptr;
-        ss->move            = Move::none();
-        ss->moved_piece     = PieceType::None;
-        ss->cont_corr_entry = nullptr;
+        undo_move(ss);
 
         if (m_stopped) {
             return 0;

@@ -205,6 +205,8 @@ private:
 
     template<bool IS_MAIN>
     Move iterative_deepening(const Position& root_position);
+    template<bool IS_MAIN>
+    Value bottom_up(const Position& pos, Stack* ss, const PV& last_pv, Value window_score, i32 ply);
     template<bool IS_MAIN, bool PV_NODE>
     Value search(
       const Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, i32 ply, bool cutnode);
@@ -216,6 +218,26 @@ private:
 
     void print_info_lines();
     void print_info_line(usize pv_idx);
+
+    Position do_move(const Position& pos, Stack* ss, Move m) {
+        ss->cont_hist_entry = &m_td.history.get_cont_hist_entry(pos, m);
+        ss->move            = m;
+        ss->moved_piece     = pos.piece_at(m.from());
+        ss->cont_corr_entry = &m_td.history.get_cont_corr_entry(pos, m);
+
+        Position pos_after = pos.move(m, m_td.push_psqt_state(), &m_searcher.tt);
+        repetition_info.push(pos_after.get_hash_key(), pos.is_reversible(m));
+        return pos_after;
+    }
+
+    void undo_move(Stack* ss) {
+        repetition_info.pop();
+        m_td.pop_psqt_state();
+        ss->cont_hist_entry = nullptr;
+        ss->move            = Move::none();
+        ss->moved_piece     = PieceType::None;
+        ss->cont_corr_entry = nullptr;
+    }
 
     RootMove& get_root_move(Move move) {
         for (auto& root_move : m_td.root_moves) {

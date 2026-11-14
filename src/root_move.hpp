@@ -15,29 +15,37 @@ enum class WDL {
 
 struct PV {
 public:
+    struct Entry {
+        Move move  = Move::none();
+        i16  depth = 0;
+    };
+
     void clear() {
         m_pv.clear();
     }
 
-    void set(Move move) {
+    void set(Move move, Depth depth = 0) {
         m_pv.clear();
-        m_pv.push_back(move);
+        m_pv.push_back({move, static_cast<i16>(depth)});
     }
 
-    void set(Move move, const PV& child_pv_line) {
-        m_pv.clear();
-        m_pv.push_back(move);
+    void set(Move move, Depth depth, const PV& child_pv_line) {
+        set(move, depth);
         m_pv.append(child_pv_line.m_pv);
     }
 
+    Entry operator[](usize ply) const {
+        return ply < m_pv.size() ? m_pv[ply] : Entry{};
+    }
+
     Move first_move() const {
-        return m_pv.empty() ? Move::none() : m_pv[0];
+        return (*this)[0].move;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const PV& pv);
 
 private:
-    StaticVector<Move, MAX_PLY + 1> m_pv;
+    StaticVector<Entry, MAX_PLY + 1> m_pv;
 };
 
 struct RootMove {
