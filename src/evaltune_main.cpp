@@ -611,6 +611,8 @@ void print_params() {
               << std::endl;
     std::cout << "inline const PParam OUTPOST_BISHOP_VAL    = " << OUTPOST_BISHOP_VAL << ";"
               << std::endl;
+    std::cout << "inline const PParam MINOR_PUSH_COVER      = " << MINOR_PUSH_COVER << ";"
+              << std::endl;
 
     std::cout << std::endl;
 

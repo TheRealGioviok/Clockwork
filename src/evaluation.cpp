@@ -497,6 +497,14 @@ PScore evaluate_outposts(const Position& pos, const EvalData& data) {
           * (pos.bitboard_for(color, PieceType::Knight) & viable_outposts).ipopcount();
     eval += OUTPOST_BISHOP_VAL
           * (pos.bitboard_for(color, PieceType::Bishop) & viable_outposts).ipopcount();
+    // todo: blocked squares?
+    Bitboard pawns      = pos.bitboard_for(color, PieceType::Pawn);
+    Bitboard pawn_stops = pawns.shift_relative(color, Direction::North) & ~pawns;
+    eval += MINOR_PUSH_COVER
+          * (pawn_stops
+             & (data.attacked_by(color, PieceType::Knight)
+                | data.attacked_by(color, PieceType::Bishop)))
+              .ipopcount();
     return eval;
 }
 
