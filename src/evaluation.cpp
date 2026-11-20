@@ -29,6 +29,7 @@ struct EvalData {
     Bitboard reach[2][16];
     Bitboard reach_all[2] = {};
     Bitboard reach_2[2]   = {};
+    Bitboard reach_3[2]   = {};
 
     void init(const Position& pos) {
         any_attacks_by[0]  = pos.attack_table(Color::White).get_attacked_bitboard();
@@ -390,6 +391,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard mobility                             = moves & ~bb;
         Bitboard reach                                = knights_setwise(mobility & empty) & ~own;
         data.reach[static_cast<usize>(color)][id.raw] = reach;
+        data.reach_3[static_cast<usize>(color)] |= data.reach_2[static_cast<usize>(color)] & reach;
         data.reach_2[static_cast<usize>(color)] |=
           data.reach_all[static_cast<usize>(color)] & reach;
         data.reach_all[static_cast<usize>(color)] |= reach;
@@ -404,6 +406,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard mobility = moves & ~bb;
         Bitboard reach    = bishops_setwise(mobility & empty, all_pieces) & ~own;
         data.reach[static_cast<usize>(color)][id.raw] = reach;
+        data.reach_3[static_cast<usize>(color)] |= data.reach_2[static_cast<usize>(color)] & reach;
         data.reach_2[static_cast<usize>(color)] |=
           data.reach_all[static_cast<usize>(color)] & reach;
         data.reach_all[static_cast<usize>(color)] |= reach;
@@ -430,6 +433,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard mobility_b = moves & ~bb2;
         Bitboard reach      = rooks_setwise(mobility_b & empty, all_pieces) & ~own;
         data.reach[static_cast<usize>(color)][id.raw] = reach;
+        data.reach_3[static_cast<usize>(color)] |= data.reach_2[static_cast<usize>(color)] & reach;
         data.reach_2[static_cast<usize>(color)] |=
           data.reach_all[static_cast<usize>(color)] & reach;
         data.reach_all[static_cast<usize>(color)] |= reach;
@@ -454,6 +458,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         Bitboard mobility_b = moves & ~bb2;
         Bitboard reach      = queens_setwise(mobility_b & empty, all_pieces) & ~own;
         data.reach[static_cast<usize>(color)][id.raw] = reach;
+        data.reach_3[static_cast<usize>(color)] |= data.reach_2[static_cast<usize>(color)] & reach;
         data.reach_2[static_cast<usize>(color)] |=
           data.reach_all[static_cast<usize>(color)] & reach;
         data.reach_all[static_cast<usize>(color)] |= reach;
@@ -625,6 +630,11 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
       data.reach_all[static_cast<usize>(color)] & opp_non_pawn & ~data.attacked_by(color);
     eval += REACH_THREAT * (reach_targets & data.attacked_by(opp)).ipopcount();
     eval += REACH_THREAT_LOOSE * (reach_targets & ~data.attacked_by(opp)).ipopcount();
+    // 3-man pileup
+    eval += REACH_PILEUP
+          * (data.reach_3[static_cast<usize>(color)] & data.attacked_by(color)
+             & data.attacked_by(opp) & ~data.attacked_by_2(opp))
+              .ipopcount();
 
     eval += RESTRICTED_SQUARES
           * (data.attacked_by(color) & ~strongly_protected & data.attacked_by(opp)).ipopcount();
