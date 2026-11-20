@@ -819,9 +819,13 @@ Value Worker::search(
             int   singular_depth = depth / 2;
 
             ss->excluded_move    = m;
+            ss->singular_refutation = Move::none();
             Value singular_value = search<IS_MAIN, false>(pos, ss, singular_beta - 1, singular_beta,
                                                           singular_depth, ply, cutnode);
             ss->excluded_move    = Move::none();
+
+            // Search the move that refuted singularity right after the TT move
+            moves.set_singular_refutation(ss->singular_refutation);
 
             if (singular_value < singular_beta) {
                 extension = 1;
@@ -1045,6 +1049,7 @@ Value Worker::search(
 
                 if (value >= beta) {
                     ss->fail_high_count++;
+                    ss->cutoff_move = m;
                     break;
                 }
             }

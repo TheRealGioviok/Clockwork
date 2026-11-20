@@ -41,6 +41,7 @@ public:
 
     enum class Stage {
         EmitTTMove,
+        EmitSingularRefutation,
         GenerateMoves,
         ScoreNoisy,
         EmitGoodNoisy,
@@ -52,6 +53,10 @@ public:
     };
 
     void skip_quiets();
+
+    void set_singular_refutation(Move refuter) {
+        m_refuter = refuter;
+    }
 
     Move next();
 
@@ -91,6 +96,7 @@ private:
     std::array<i32, 256> m_scores;
 
     Move                 m_tt_move;
+    Move                 m_refuter = Move::none();
     Move                 m_killer;
     i32                  m_ply;
     Search::Stack*       m_stack;

@@ -45,6 +45,7 @@ struct Stack {
     Value          static_eval = 0;
     Move           killer      = Move::none();
     Move           excluded_move;
+    Move           singular_refutation;
     ContHistEntry* cont_hist_entry = nullptr;
     Move           move            = Move::none();
     PieceType      moved_piece     = PieceType::None;

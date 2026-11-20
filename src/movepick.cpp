@@ -22,10 +22,17 @@ void MovePicker::skip_quiets() {
 Move MovePicker::next() {
     switch (m_stage) {
     case Stage::EmitTTMove:
-        m_stage = Stage::GenerateMoves;
+        m_stage = Stage::EmitSingularRefutation;
         if (m_tt_move != Move::none() && m_movegen.is_legal(m_tt_move)
             && (!m_threshold || m_tt_move.is_capture())) {
             return m_tt_move;
+        }
+
+        [[fallthrough]];
+    case Stage::EmitSingularRefutation:
+        m_stage = Stage::GenerateMoves;
+        if (m_refuter != Move::none()) {
+            return m_refuter;
         }
 
         [[fallthrough]];
@@ -46,7 +53,7 @@ Move MovePicker::next() {
         while (m_current_index < m_noisy.size()) {
             auto [curr, score] = pick_next(m_noisy);
 
-            if (curr == m_tt_move) {
+            if (curr == m_tt_move || curr == m_refuter) {
                 continue;
             }
 
@@ -78,7 +85,8 @@ Move MovePicker::next() {
 
     case Stage::EmitKiller:
         m_stage = Stage::ScoreQuiet;
-        if (m_tt_move != m_killer && m_killer != Move::none() && m_movegen.is_legal(m_killer)) {
+        if (m_tt_move != m_killer && m_refuter != m_killer && m_killer != Move::none()
+            && m_movegen.is_legal(m_killer)) {
             return m_killer;
         }
 
@@ -94,7 +102,7 @@ Move MovePicker::next() {
     case Stage::EmitQuiet:
         while (m_current_index < m_quiet.size()) {
             auto [curr, score] = pick_next(m_quiet);
-            if (curr != m_tt_move && curr != m_killer) {
+            if (curr != m_tt_move && curr != m_refuter && curr != m_killer) {
                 return curr;
             }
         }
@@ -108,7 +116,7 @@ emit_bad_noisy:
     case Stage::EmitBadNoisy:
         while (m_current_index < m_bad_noisy.size()) {
             Move curr = m_bad_noisy[m_current_index++];
-            if (curr != m_tt_move && curr != m_killer) {
+            if (curr != m_tt_move && curr != m_refuter && curr != m_killer) {
                 return curr;
             }
         }
