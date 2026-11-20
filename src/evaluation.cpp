@@ -385,6 +385,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
                              & ~data.attacked_by(color, PieceType::Pawn) & data.attacked_by(opp)
                              & ~data.attacked_by_2(opp);
 
+    Bitboard new_reach;
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         Bitboard moves                                = pos.moves_of(color, id);
         Bitboard mobility                             = moves & ~bb;
@@ -396,6 +397,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         eval += KNIGHT_MOBILITY[mobility.popcount()];
         eval += reach_score(KNIGHT_REACH, reach & ~bb & ~moves);
+        new_reach |= reach & ~bb & ~moves;
         eval += REACH_CONTEST[0] * (reach & ~moves & contested).ipopcount();
     }
 
@@ -410,6 +412,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
 
         eval += BISHOP_MOBILITY[mobility.popcount()];
         eval += reach_score(BISHOP_REACH, reach & ~bb & ~moves);
+        new_reach |= reach & ~bb & ~moves;
         eval += REACH_CONTEST[1] * (reach & ~moves & contested).ipopcount();
 
         Square sq = pos.piece_list_sq(color)[id.raw];
@@ -437,6 +440,7 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         eval += ROOK_MOBILITY[mobility_a.popcount()];
         eval += ROOK_MOBILITY[mobility_b.popcount()];
         eval += reach_score(ROOK_REACH, reach & ~bb2 & ~moves);
+        new_reach |= reach & ~bb2 & ~moves;
         eval += REACH_CONTEST[2] * (reach & ~moves & contested).ipopcount();
 
         Bitboard rook_file = Bitboard::file_mask(pos.piece_list_sq(color)[id].file());
@@ -461,12 +465,20 @@ PScore evaluate_pieces(const Position& pos, EvalData& data) {
         eval += QUEEN_MOBILITY[mobility_a.popcount()];
         eval += QUEEN_MOBILITY[mobility_b.popcount()];
         eval += reach_score(QUEEN_REACH, reach & ~bb2 & ~moves);
+        new_reach |= reach & ~bb2 & ~moves;
         eval += REACH_CONTEST[3] * (reach & ~moves & contested).ipopcount();
     }
 
     if (pos.piece_count(color, PieceType::Bishop) >= 2) {
         eval += BISHOP_PAIR_VAL;
     }
+    constexpr Bitboard opp_half = color == Color::White
+                                    ? Bitboard::rank_mask(4) | Bitboard::rank_mask(5)
+                                        | Bitboard::rank_mask(6) | Bitboard::rank_mask(7)
+                                    : Bitboard::rank_mask(0) | Bitboard::rank_mask(1)
+                                        | Bitboard::rank_mask(2) | Bitboard::rank_mask(3);
+    eval += REACH_PAWN_SUPPORT
+          * (new_reach & data.attacked_by(color, PieceType::Pawn) & opp_half).ipopcount();
 
     return eval;
 }
