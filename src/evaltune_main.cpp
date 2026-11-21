@@ -657,6 +657,7 @@ void print_params() {
     print_2d_array("ROOK_THREAT", ROOK_THREAT);
     std::cout << "inline const PParam KING_THREAT  = " << KING_THREAT << ";" << std::endl;
     std::cout << "inline const PParam HANGING_PAWN  = " << HANGING_PAWN << ";" << std::endl;
+    std::cout << "inline const PParam LOOSE_PIECES = " << LOOSE_PIECES << ";" << std::endl;
     std::cout << "inline const PParam HANGING_NON_PAWN  = " << HANGING_NON_PAWN << ";" << std::endl
               << std::endl;
     print_table("KNIGHT_ON_QUEEN", KNIGHT_ON_QUEEN);

@@ -550,6 +550,11 @@ PScore evaluate_threats(const Position& pos, const EvalData& data) {
     eval += RESTRICTED_SQUARES
           * (data.attacked_by(color) & ~strongly_protected & data.attacked_by(opp)).ipopcount();
 
+    eval += LOOSE_PIECES
+          * (pos.board().get_color_bitboard(color) & ~pos.bitboard_for(color, PieceType::Pawn)
+             & ~pos.bitboard_for(color, PieceType::King) & ~data.attacked_by(color))
+              .ipopcount();
+
     Bitboard pawn_attacks = data.attacked_by(color, PieceType::Pawn);
     eval +=
       PAWN_THREAT_KNIGHT * (pos.bitboard_for(opp, PieceType::Knight) & pawn_attacks).ipopcount();
