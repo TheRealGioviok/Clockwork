@@ -1049,7 +1049,7 @@ Value Worker::search(
 
                 if (value >= beta) {
                     ss->fail_high_count++;
-                    ss->cutoff_move = m;
+                    ss->singular_refutation = m;
                     break;
                 }
             }
