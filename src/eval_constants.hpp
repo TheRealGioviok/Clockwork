@@ -82,11 +82,11 @@ inline const PParam PAWN_THREAT_QUEEN  = S(160, 25);
 
 inline const std::array<std::array<PParam, 5>, 2> MINOR_THREAT = {{
   {{ S(9, 57), S(98, 101), S(102, 130), S(182, 92), S(170, 25), }},
-  {{ S(6, 60), S(89, 91), S(101, 123), S(207, 629), S(163, -70), }},
+  {{ S(6, 60), S(89, 91), S(101, 123), S(207, 629), S(163, 0), }},
 }};
 inline const std::array<std::array<PParam, 5>, 2> ROOK_THREAT = {{
-  {{ S(9, 68), S(46, 117), S(66, 109), S(17, 19), S(162, -74), }},
-  {{ S(-1, 57), S(65, 81), S(103, 68), S(16, 10), S(205, 1213), }},
+  {{ S(9, 68), S(46, 117), S(66, 109), S(17, 19), S(162, 0), }},
+  {{ S(0, 57), S(65, 81), S(103, 68), S(16, 10), S(205, 1213), }},
 }};
 inline const PParam KING_THREAT  = S(20, 126);
 inline const PParam HANGING_PAWN  = S(32, 91);
@@ -167,19 +167,19 @@ inline const std::array<PParam, 64> KING_PSQT = {
     S(-8, -283),    S(19, -168),    S(-70, -22),    S(-80, 18),     S(0, 0),        S(0, 0),        S(0, 0),        S(0, 0),        //
 };
 
-inline const PParam KS_NO_QUEEN = S(-72, -75);
+inline const PParam KS_NO_QUEEN = S(-99, -129);
 
 inline const std::array<PParam, 5> PT_INNER_RING_ATTACKS = {
-    S(7, -1), S(11, 1), S(10, 1), S(5, -1), S(3, -5),
+    S(7, 0), S(11, 1), S(10, 1), S(5, 0), S(3, 0),
 };
 inline const std::array<PParam, 5> PT_OUTER_RING_ATTACKS = {
-    S(3, -2), S(6, -1), S(3, -1), S(3, -0), S(3, 0),
+    S(3, 0), S(6, 0), S(3, 0), S(3, 0), S(3, 0),
 };
 
-inline const PParam KS_FLANK_ATTACK = S(4, -3);
-inline const PParam KS_FLANK_DEFENSE = S(-2, -1);
-inline const PParam KS_FLANK_DOUBLE_ATTACK   = S(3, -1);
-inline const PParam KS_FLANK_DOUBLE_DEFENSE  = S(-2, 1);
+inline const PParam KS_FLANK_ATTACK = S(4, 0);
+inline const PParam KS_FLANK_DEFENSE = S(-2, 0);
+inline const PParam KS_FLANK_DOUBLE_ATTACK   = S(3, 0);
+inline const PParam KS_FLANK_DOUBLE_DEFENSE  = S(-2, 0);
 
 inline const std::array<std::array<PParam, 7>, 4> KING_SHELTER = {{
   {{ S(13, -2), S(-7, 11), S(-3, -1), S(6, -4), S(13, -12), S(3, -17), S(4, -38), }},
@@ -191,9 +191,9 @@ inline const std::array<PParam, 7> BLOCKED_SHELTER_STORM = {
     S(0, 0), S(0, 0), S(-6, 24), S(-19, 7), S(-20, 12), S(-17, 17), S(-3, 15),
 };
 inline const std::array<std::array<PParam, 7>, 4> SHELTER_STORM = {{
-  {{ S(-7, 11), S(-49, -309), S(-14, -54), S(-8, -4), S(-13, 2), S(-16, 7), S(-16, 7), }},
-  {{ S(-3, 3), S(-29, -279), S(-8, -58), S(-9, -12), S(-11, -4), S(-19, 4), S(-10, 3), }},
-  {{ S(-10, 7), S(-4, -247), S(5, -33), S(-5, -7), S(-12, 3), S(-18, 8), S(-15, 9), }},
+  {{ S(-7, 11), S(-49, -49), S(-14, -27), S(-8, -4), S(-13, 2), S(-16, 7), S(-16, 7), }},
+  {{ S(-3, 3), S(-29, -29), S(-8, -17), S(-9, -12), S(-11, -4), S(-19, 4), S(-10, 3), }},
+  {{ S(-10, 7), S(-4, -4), S(5, -2), S(-5, -7), S(-12, 3), S(-18, 8), S(-15, 9), }},
   {{ S(-9, 1), S(4, -74), S(5, -25), S(-6, 3), S(-16, 6), S(-21, 3), S(-18, 5), }},
 }};
 inline TunableSigmoid<32> KING_SAFETY_ACTIVATION(
