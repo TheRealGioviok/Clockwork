@@ -186,12 +186,17 @@ i32 MovePicker::score_move(Move move) const {
         return m_history.get_quiet_stats(m_pos, move, m_ply, m_stack);
     } else {
         if (!move.is_promotion()) {
-            constexpr int MVV[6] = {0, 800, 2400, 2400, 4800, 7200};
+            const std::array<i32, 6> MVV = {0,
+                                            tuned::mvv_pawn,
+                                            tuned::mvv_knight,
+                                            tuned::mvv_bishop,
+                                            tuned::mvv_rook,
+                                            tuned::mvv_queen};
             PieceType captured = move.is_en_passant() ? PieceType::Pawn : m_pos.piece_at(move.to());
 
             return MVV[static_cast<usize>(captured)] + m_history.get_noisy_stats(m_pos, move);
         } else {
-            return 500 + m_history.get_noisy_stats(m_pos, move);
+            return tuned::promo_order_base + m_history.get_noisy_stats(m_pos, move);
         }
     }
 }
