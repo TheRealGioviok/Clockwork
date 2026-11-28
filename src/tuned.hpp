@@ -14,7 +14,7 @@ namespace Clockwork::tuned {
 #define CLOCKWORK_TUNABLES(TUNE, NO_TUNE)                        \
                                                                  \
     /* RFP Values */                                             \
-    TUNE(rfp_margin, 134, 67, 270, 7, 0.002)                     \
+    TUNE(rfp_margin, 94, 67, 270, 7, 0.002)                     \
     NO_TUNE(rfp_depth, 7, 4, 10, .5, 0.002)                      \
                                                                  \
     /* NMP Values */                                             \
