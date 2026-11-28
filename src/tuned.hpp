@@ -35,11 +35,11 @@ namespace Clockwork::tuned {
     /* SEE Values */                                             \
     TUNE(quiesce_see_threshold, 16, -100, 150, 8, 0.002)         \
     TUNE(movepicker_see_capthist_divisor, 53, 25, 102, 3, 0.002) \
-    TUNE(see_pawn_val, 99, 48, 192, 5, 0.002)                    \
-    TUNE(see_knight_val, 294, 155, 620, 15, 0.002)               \
-    TUNE(see_bishop_val, 259, 139, 556, 14, 0.002)               \
-    TUNE(see_rook_val, 566, 285, 1140, 28, 0.002)                \
-    TUNE(see_queen_val, 993, 470, 1878, 47, 0.002)               \
+    TUNE(see_pawn_val, 68, 48, 192, 5, 0.002)                    \
+    TUNE(see_knight_val, 304, 155, 620, 15, 0.002)               \
+    TUNE(see_bishop_val, 325, 139, 556, 14, 0.002)               \
+    TUNE(see_rook_val, 452, 285, 1140, 28, 0.002)                \
+    TUNE(see_queen_val, 902, 470, 1878, 47, 0.002)               \
                                                                  \
     /* Move ordering */                                          \
     TUNE(mvv_pawn, 812, 400, 1600, 20, 0.002)                    \
